@@ -1,8 +1,9 @@
 # Playlist Updater (frontend)
 
 A small, backend-free web app that connects to **SoundCloud** through the
-[official API](https://developers.soundcloud.com/docs/api/guide) and lists your
-playlists. OAuth 2.1 (authorization code + PKCE) runs entirely in the browser —
+[official API](https://developers.soundcloud.com/docs/api/guide), lists your
+playlists and lets you open one to browse the sounds inside it. OAuth 2.1
+(authorization code + PKCE) runs entirely in the browser —
 there is no server to deploy.
 
 ## How it works
@@ -12,6 +13,7 @@ browser ──▶ secure.soundcloud.com/authorize   (login + consent, PKCE S256)
 browser ◀── redirect ?code&state
 browser ──▶ secure.soundcloud.com/oauth/token (code ⇄ access/refresh tokens)
 browser ──▶ api.soundcloud.com/me/playlists   (list playlists, paginated)
+browser ──▶ api.soundcloud.com/playlists/:id  (open one, list its tracks)
 ```
 
 SoundCloud supports [CORS for browser JavaScript](https://developers.soundcloud.com/docs/api/guide#crossdomain),
@@ -50,7 +52,8 @@ python3 -m http.server 8080
 Then open <http://127.0.0.1:8080/>, paste your Client ID (and secret if you
 registered one) and click **Connect with SoundCloud**. After authorizing you
 are redirected back and your playlists are listed with search / type filter /
-sorting.
+sorting. Click a card (or its **View tracks** button) to open the playlist and
+browse the sounds it contains.
 
 > **Playlist Updater** stores your credentials and OAuth tokens in
 > `localStorage` of your own browser. They never leave your machine. This is a
@@ -68,7 +71,7 @@ js/
   config.js   – localStorage persistence (credentials, tokens, profile)
   oauth.js    – OAuth 2.1 + PKCE: authorize URL, token exchange, refresh
   api.js      – SoundCloud API client (401 auto-refresh, pagination)
-  app.js      – app controller / rendering
+  app.js      – app controller / rendering (playlist list + detail views)
 ```
 
 ## SoundCloud API reference (used here)
@@ -78,12 +81,14 @@ js/
 | Register app | <https://developers.soundcloud.com/docs/api/register-app> |
 | OAuth guide | <https://developers.soundcloud.com/docs/api/guide#authentication> |
 | `GET /me/playlists` | <https://developers.soundcloud.com/docs/api/explorer/open-api> |
+| `GET /playlists/{id}?show_tracks=true` | <https://developers.soundcloud.com/docs/api/explorer/open-api> |
 | OpenAPI spec | <https://github.com/soundcloud/api/blob/master/openapi/api.yaml> |
 
 ## Next steps (roadmap)
 
-- View / edit a playlist's tracks (`GET /playlists/:id?show_tracks=true`,
-  `PUT /playlists/:id`)
+- ✅ Browse a playlist's sounds (`GET /playlists/{id}?show_tracks=true`,
+  with `#/playlist/<id>` deep links)
+- Edit a playlist / its sounds (`PUT /playlists/:id`)
 - Create and delete playlists (`POST /playlists`, `DELETE /playlists/:id`)
 - Reorder tracks — the "updater" part, currently the app is a read-only
   playlist explorer.

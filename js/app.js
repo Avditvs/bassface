@@ -7,7 +7,7 @@
 import { AppConfig, TokenStore, UserStore } from "./config.js";
 import { buildAuthUrl, exchangeCode, refreshAccessToken, validateState } from "./oauth.js";
 import { SoundCloudApi } from "./api.js";
-import { escapeHtml, formatCount, formatDate, playlistBucket } from "./util.js";
+import { escapeHtml, formatCount, formatDate, formatDuration, playlistBucket } from "./util.js";
 
 const TYPE_LABELS = { playlist: "Playlist", album: "Album", single: "Single" };
 
@@ -52,6 +52,10 @@ const state = {
   tokens: TokenStore.load(),
   api: null,
   playlists: [],
+  tracks: [],
+  tracksLoaded: false,
+  tracksError: "",
+  currentPlaylist: null,
   user: UserStore.load(),
 };
 
@@ -62,6 +66,7 @@ const state = {
 const screens = {
   connect: document.getElementById("connect-screen"),
   playlists: document.getElementById("playlists-screen"),
+  playlist: document.getElementById("playlist-screen"),
 };
 
 function showScreen(name) {
@@ -227,7 +232,6 @@ async function loadPlaylists() {
 
 async function enterApp() {
   dbg(`[enterApp] ${tokenSummary()}`);
-  showScreen("playlists");
   state.api = new SoundCloudApi({
     getConfig: () => state.config,
     getTokens: () => state.tokens,
@@ -238,6 +242,8 @@ async function enterApp() {
     await ensureValidToken();
     await loadUser();
     await loadPlaylists();
+    // Route to the playlist detail when opened via a `#/playlist/<id>` deep link.
+    route();
     dbg(`[enterApp] success — ${state.playlists.length} playlists loaded`);
   } catch (err) {
     dbg(`[enterApp] failed: ${err.message} — ${tokenSummary()}`);
@@ -246,6 +252,94 @@ async function enterApp() {
     showScreen("connect");
     showStatus(`Could not restore your session: ${err.message}. Connect again.`, "error");
   }
+}
+
+// ---------------------------------------------------------------------------
+// Playlist detail (navigates via `#/playlist/<id>` for back/forward support)
+// ---------------------------------------------------------------------------
+
+/** The playlist id encoded in the URL hash, or null when no playlist is open. */
+function playlistIdFromHash() {
+  const match = window.location.hash.match(/^#\/playlist\/(.+)$/);
+  return match ? decodeURIComponent(match[1]) : null;
+}
+
+/** Decide which content to show from the current URL hash. */
+function route() {
+  if (!state.api) return; // not signed in: leave the screen alone
+  const id = playlistIdFromHash();
+  if (id) {
+    if (String(state.currentPlaylist?.id) === id) {
+      // Same playlist already open (browser back/forward): redraw from state.
+      renderPlaylist();
+    } else {
+      void openPlaylist(id);
+    }
+    return;
+  }
+  resetPlaylistView();
+  showScreen("playlists");
+}
+
+function resetPlaylistView() {
+  state.currentPlaylist = null;
+  state.tracks = [];
+  state.tracksLoaded = false;
+  state.tracksError = "";
+}
+
+/** Open a playlist (by numeric id) and fetch + render its tracks. */
+async function openPlaylist(id) {
+  const playlist = state.playlists.find((p) => String(p.id) === String(id));
+  if (!playlist) {
+    showStatus("That playlist is no longer in your list.", "error");
+    history.replaceState(null, "", window.location.pathname);
+    showScreen("playlists");
+    return;
+  }
+
+  state.currentPlaylist = playlist;
+  state.tracks = [];
+  state.tracksLoaded = false;
+  state.tracksError = "";
+  // Keep the URL in sync without re-triggering route() (replaceState is silent).
+  if (playlistIdFromHash() !== String(id)) {
+    history.replaceState(null, "", `#/playlist/${id}`);
+  }
+
+  showScreen("playlist");
+  renderPlaylistHeader();
+  renderTrackList();
+  clearStatus();
+
+  showStatus("Loading tracks…");
+  try {
+    state.tracks = await state.api.playlistTracks(id);
+    state.tracksLoaded = true;
+    clearStatus();
+  } catch (err) {
+    state.tracksLoaded = true;
+    state.tracksError = err.message;
+    showStatus(`Could not load the track list: ${err.message}`, "error");
+  }
+  renderTrackList();
+}
+
+function goBackToPlaylists() {
+  window.location.hash = "#/playlists";
+}
+
+/** Cards are clickable, except the external SoundCloud links. */
+function onPlaylistListClick(event) {
+  if (event.target.closest("a")) return;
+  const card = event.target.closest("li[data-playlist-id]");
+  if (card) window.location.hash = `#/playlist/${card.dataset.playlistId}`;
+}
+
+function renderPlaylist() {
+  if (!state.currentPlaylist) return;
+  renderPlaylistHeader();
+  renderTrackList();
 }
 
 // ---------------------------------------------------------------------------
@@ -326,7 +420,7 @@ function cardFor(playlist) {
     ? `<p class="muted card-desc">${escapeHtml(playlist.description.length > 120 ? playlist.description.slice(0, 120) + "…" : playlist.description)}</p>`
     : "";
 
-  return `<li>
+  return `<li data-playlist-id="${playlist.id}" title="View the tracks in this playlist">
     ${artwork}
     <div class="card-body">
       <h3 class="card-title" title="${escapeHtml(playlist.title)}">${escapeHtml(playlist.title)}</h3>
@@ -334,8 +428,95 @@ function cardFor(playlist) {
       ${description}
       <div class="meta">${metaLines}</div>
       <div class="card-actions">
-        <a href="${escapeHtml(playlist.permalink_url)}" target="_blank" rel="noreferrer">Open on SoundCloud →</a>
+        <button class="button card-open" type="button" data-open-playlist>View tracks</button>
+        <a href="${escapeHtml(playlist.permalink_url)}" target="_blank" rel="noreferrer" title="Open on SoundCloud">SoundCloud ↗</a>
       </div>
+    </div>
+  </li>`;
+}
+
+function renderPlaylistHeader() {
+  const playlist = state.currentPlaylist;
+  const type = playlistBucket(playlist);
+  const typeLabel = TYPE_LABELS[type] ?? type;
+
+  const artwork = playlist.artwork_url
+    ? `<div class="artwork"><img src="${escapeHtml(playlist.artwork_url)}" alt="" loading="lazy" /></div>`
+    : `<div class="artwork-placeholder">${escapeHtml((playlist.title ?? "?").trim().charAt(0).toUpperCase() || "♪")}</div>`;
+
+  const badges = [`<span class="badge type-${escapeHtml(type)}">${escapeHtml(typeLabel)}</span>`];
+  if (playlist.sharing === "private") {
+    badges.push(`<span class="badge type-private">Private</span>`);
+  }
+
+  const updatedAt = playlist.last_modified ?? playlist.created_at;
+  const metaLines = [
+    `<span>${formatCount(playlist.track_count ?? 0)} tracks</span>`,
+    `<span>${formatCount(playlist.likes_count)} likes</span>`,
+    updatedAt ? `<span>Updated ${formatDate(updatedAt)}</span>` : "",
+  ].filter(Boolean).join("");
+
+  const description = playlist.description
+    ? `<p class="muted playlist-desc">${escapeHtml(playlist.description)}</p>`
+    : "";
+
+  document.getElementById("playlist-header").innerHTML = `
+    <div class="playlist-header-art">${artwork}</div>
+    <div class="playlist-header-body">
+      <h2 class="playlist-title">${escapeHtml(playlist.title)}</h2>
+      <div class="badges">${badges.join("")}</div>
+      ${description}
+      <div class="meta">${metaLines}</div>
+      <p class="playlist-link"><a href="${escapeHtml(playlist.permalink_url)}" target="_blank" rel="noreferrer">Open on SoundCloud →</a></p>
+    </div>`;
+}
+
+function renderTrackList() {
+  const list = document.getElementById("track-list");
+  const summary = document.getElementById("track-summary");
+  const tracks = state.tracks;
+
+  if (!state.tracksLoaded) {
+    list.innerHTML = `<li class="empty-state">Loading tracks…</li>`;
+    return;
+  }
+  if (state.tracksError) {
+    list.innerHTML = `<li class="empty-state">Could not load the track list — see the message above.</li>`;
+    return;
+  }
+
+  summary.textContent = tracks.length
+    ? `${formatCount(tracks.length)} sound${tracks.length === 1 ? "" : "s"} in this playlist`
+    : "";
+
+  if (tracks.length === 0) {
+    list.innerHTML = `<li class="empty-state">This playlist has no sounds (yet).</li>`;
+    return;
+  }
+  list.innerHTML = tracks.map(trackRowFor).join("");
+}
+
+function trackRowFor(track, index) {
+  const letter = (track.title ?? "?").trim().charAt(0).toUpperCase() || "♪";
+  const artwork = track.artwork_url
+    ? `<div class="track-art"><img src="${escapeHtml(track.artwork_url)}" alt="" loading="lazy" /></div>`
+    : `<div class="track-art track-art-placeholder">${escapeHtml(letter)}</div>`;
+
+  const byLine = [track.user?.username, track.genre].filter(Boolean).join(" · ");
+  const title = escapeHtml(track.title ?? "Untitled");
+  const permalink = escapeHtml(track.permalink_url);
+
+  return `<li class="track-row">
+    <span class="track-index">${index + 1}</span>
+    ${artwork}
+    <div class="track-body">
+      <a class="track-title" href="${permalink}" target="_blank" rel="noreferrer">${title}</a>
+      ${byLine ? `<p class="muted track-sub">${escapeHtml(byLine)}</p>` : ""}
+    </div>
+    <div class="track-meta">
+      <span>${formatDuration(track.duration)}</span>
+      <span>${formatCount(track.playback_count)} plays</span>
+      <span>${formatCount(track.likes_count ?? track.favoritings_count)} likes</span>
     </div>
   </li>`;
 }
@@ -352,6 +533,7 @@ function signOut() {
   state.user = null;
   state.playlists = [];
   document.getElementById("user-area").hidden = true;
+  history.replaceState(null, "", window.location.pathname);
   clearStatus();
   showScreen("connect");
 }
@@ -366,6 +548,9 @@ function initListeners() {
   document.getElementById("search").addEventListener("input", renderPlaylists);
   document.getElementById("type-filter").addEventListener("change", renderPlaylists);
   document.getElementById("sort").addEventListener("change", renderPlaylists);
+  document.getElementById("back-to-playlists").addEventListener("click", goBackToPlaylists);
+  document.getElementById("playlist-list").addEventListener("click", onPlaylistListClick);
+  window.addEventListener("hashchange", route);
 }
 
 function init() {

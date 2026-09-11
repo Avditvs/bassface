@@ -61,4 +61,20 @@ export class SoundCloudApi {
     }
     return playlists;
   }
+
+  /**
+   * The sounds inside one playlist (`show_tracks=true` embeds track objects
+   * on each page, paginated via `next_href`).
+   * @see https://developers.soundcloud.com/docs/api/guide#listen
+   */
+  async playlistTracks(id) {
+    const tracks = [];
+    let href = `${API_BASE_URL}/playlists/${encodeURIComponent(id)}?show_tracks=true&linked_partitioning=true&limit=50`;
+    while (href) {
+      const page = await this.request(href);
+      tracks.push(...(page.tracks ?? page.collection ?? []));
+      href = page.next_href;
+    }
+    return tracks;
+  }
 }

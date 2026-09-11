@@ -37,6 +37,14 @@ export function formatCount(count) {
   return new Intl.NumberFormat().format(count ?? 0);
 }
 
+/** Format a millisecond duration as `m:ss` (e.g. 245000 → "4:05"). */
+export function formatDuration(ms) {
+  const totalSeconds = Math.max(0, Math.round((ms ?? 0) / 1000));
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = String(totalSeconds % 60).padStart(2, "0");
+  return `${minutes}:${seconds}`;
+}
+
 /** Classify a playlist `kind`/`playlist_type` in one of the displayed buckets. */
 export function playlistBucket(playlist) {
   return playlist.playlist_type ?? playlist.kind ?? "playlist";
