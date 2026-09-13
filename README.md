@@ -53,7 +53,11 @@ Then open <http://127.0.0.1:8080/>, paste your Client ID (and secret if you
 registered one) and click **Connect with SoundCloud**. After authorizing you
 are redirected back and your playlists are listed with search / type filter /
 sorting. Click a card (or its **View tracks** button) to open the playlist and
-browse the sounds it contains.
+browse the sounds it contains — each row has two buttons: **▶** plays the
+track from the start and **⏫** jumps straight to its loudest part (computed
+in-browser with an RMS scan). When SoundCloud exposes a full-length
+progressive mp3 (directly or via HLS, which the app reassembles), the whole
+track plays; otherwise it falls back to SoundCloud's ~30 s snippet.
 
 > **Playlist Updater** stores your credentials and OAuth tokens in
 > `localStorage` of your own browser. They never leave your machine. This is a
@@ -88,6 +92,7 @@ js/
 
 - ✅ Browse a playlist's sounds (`GET /playlists/{id}?show_tracks=true`,
   with `#/playlist/<id>` deep links)
+- ✅ In-browser audio previews (`/tracks/:id/streams`, played in `<audio>`)
 - Edit a playlist / its sounds (`PUT /playlists/:id`)
 - Create and delete playlists (`POST /playlists`, `DELETE /playlists/:id`)
 - Reorder tracks — the "updater" part, currently the app is a read-only

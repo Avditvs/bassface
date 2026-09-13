@@ -56,6 +56,8 @@ const state = {
   tracksLoaded: false,
   tracksError: "",
   currentPlaylist: null,
+  preview: { trackId: null, playing: false, loading: false, objectUrl: null, mode: "start", blob: null, peakOffset: null },
+  playlistsLoading: false,
   user: UserStore.load(),
 };
 
@@ -75,11 +77,13 @@ function showScreen(name) {
   }
 }
 
-function showStatus(message, kind = "") {
+function showStatus(message, kind = "loading") {
   const bar = document.getElementById("status-bar");
   bar.hidden = false;
   bar.className = kind ? `status-bar ${kind}` : "status-bar";
-  bar.textContent = message;
+  bar.innerHTML = kind === "loading"
+    ? `<span class="spinner" aria-hidden="true"></span>${escapeHtml(message)}`
+    : escapeHtml(message);
 }
 
 function clearStatus() {
@@ -122,7 +126,7 @@ async function onConnectSubmit(event) {
     return;
   }
   if (!state.config.clientSecret) {
-    showStatus("Heads up: SoundCloud treats apps as confidential clients — if the next step fails with \"invalid_client\", add your Client Secret and retry.");
+    showStatus("Heads up: SoundCloud treats apps as confidential clients — if the next step fails with \"invalid_client\", add your Client Secret and retry.", "info");
   }
   const redirectUri = state.config.resolveRedirectUri();
   if (!redirectUri) {
@@ -222,9 +226,15 @@ async function loadUser() {
 }
 
 async function loadPlaylists() {
+  state.playlistsLoading = true;
+  showScreen("playlists");
+  renderPlaylists();
   showStatus("Loading your playlists…");
-  const playlists = await state.api.myPlaylists();
-  state.playlists = playlists;
+  try {
+    state.playlists = await state.api.myPlaylists();
+  } finally {
+    state.playlistsLoading = false;
+  }
   clearStatus();
   renderPlaylistControls();
   renderPlaylists();
@@ -282,6 +292,7 @@ function route() {
 }
 
 function resetPlaylistView() {
+  stopPreview();
   state.currentPlaylist = null;
   state.tracks = [];
   state.tracksLoaded = false;
@@ -302,6 +313,7 @@ async function openPlaylist(id) {
   state.tracks = [];
   state.tracksLoaded = false;
   state.tracksError = "";
+  stopPreview();
   // Keep the URL in sync without re-triggering route() (replaceState is silent).
   if (playlistIdFromHash() !== String(id)) {
     history.replaceState(null, "", `#/playlist/${id}`);
@@ -327,6 +339,252 @@ async function openPlaylist(id) {
 
 function goBackToPlaylists() {
   window.location.hash = "#/playlists";
+}
+
+// ---------------------------------------------------------------------------
+// Track preview (one hidden <audio>, play/pause per row)
+// ---------------------------------------------------------------------------
+
+/** Skip the (expensive) loudness decode on very long tracks. */
+const PEAK_SCAN_MAX_MS = 8 * 60 * 1000;
+
+/**
+ * Glyphs + classes for the two preview buttons of a track row. The button
+ * matching the active preview's mode shows ▶/⏸; the other one is inert.
+ */
+function previewButtonFor(track, mode) {
+  const p = state.preview;
+  const isMine = p.trackId === track.id;
+  const isActive = isMine && !p.loading && p.mode === mode;
+  const glyph = isActive && p.playing ? "⏸" : mode === "peak" ? "⏫" : "▶";
+  const isLoading = isMine && p.loading && p.mode === mode;
+  const classes = ["track-preview", isMine && p.mode === mode ? "is-active" : "", isLoading ? "is-loading" : ""].filter(Boolean).join(" ");
+  const content = isLoading ? `<span class="spinner" aria-hidden="true"></span>` : glyph;
+  const label = mode === "peak" ? "Play from the loudest part" : "Play from the start";
+  return `<button class="${classes}" type="button" data-preview-track="${track.id}" data-preview-mode="${mode}" title="${label}" aria-label="${label} of ${escapeHtml(track.title ?? "track")}">${content}</button>`;
+}
+
+async function togglePreview(trackId, mode = "start") {
+  const p = state.preview;
+  const audio = document.getElementById("preview-audio");
+
+  if (p.trackId === trackId && !p.loading) {
+    if (mode === p.mode) {
+      // Same button: pause / resume.
+      if (p.playing) {
+        audio.pause();
+        p.playing = false;
+      } else {
+        p.playing = true;
+        try {
+          await audio.play();
+        } catch {
+          p.playing = false; // playback blocked (e.g. autoplay policy)
+        }
+      }
+      renderTrackList();
+      return;
+    }
+    // Other button on the active row: jump within the already-loaded audio.
+    p.mode = mode;
+    p.playing = false;
+    p.loading = true;
+    renderTrackList();
+    const offset = mode === "peak" ? (await ensurePeakOffset(trackId)) ?? 0 : 0;
+    p.loading = false;
+    if (offset > 0) audio.currentTime = offset;
+    p.playing = true;
+    try {
+      await audio.play();
+    } catch {
+      p.playing = false; // playback blocked (e.g. autoplay policy)
+    }
+    renderTrackList();
+    return;
+  }
+  if (p.trackId !== null) stopPreview();
+
+  const track = state.tracks.find((t) => t.id === trackId);
+  if (!track) return;
+
+  p.trackId = trackId;
+  p.mode = mode;
+  p.blob = null;
+  p.peakOffset = null;
+  p.loading = true;
+  renderTrackList();
+  showStatus(`Loading preview of “${track.title}”…`);
+
+  try {
+    const source = await state.api.previewSource(track, {
+      onRaw: (streams) => dbg(`[preview] streams raw: ${JSON.stringify(streams).slice(0, 800)}`),
+      onError: (err) => dbg(`[preview] streams failed: ${err.message}`),
+    });
+    if (!source || (!source.blob && !source.url)) throw new Error("this track has no playable preview");
+
+    // Stream URLs live on api.soundcloud.com and require the OAuth header,
+    // which a bare <audio> cannot send — play from a downloaded Blob (full
+    // track, direct mp3 or concatenated HLS) whenever possible.
+    let src;
+    if (source.blob) {
+      src = URL.createObjectURL(source.blob);
+      dbg(`[preview] downloaded ${source.blob.size} bytes (${source.kind}) from ${source.url}`);
+    } else {
+      src = source.url;
+      dbg(`[preview] no blob (${source.kind}) — trying direct src: ${source.url}`);
+    }
+
+    revokePreviewObjectUrl();
+    p.objectUrl = source.blob ? src : null;
+    p.blob = source.blob ?? null;
+    p.peakOffset = null;
+    audio.src = src;
+    p.loading = false;
+    await waitForMetadata(audio);
+    if (p.trackId !== trackId) return; // user switched away while loading
+
+    // "Peak" starts full-length previews at their loudest window; anything
+    // else (and any non-full source) simply starts at the beginning.
+    let offset = 0;
+    if (p.mode === "peak") {
+      if (source.kind === "full") {
+        offset = (await ensurePeakOffset(trackId)) ?? 0;
+      } else {
+        dbg(`[preview] peak unavailable for ${source.kind} source — starting at 0`);
+      }
+    }
+    if (p.trackId !== trackId) return; // user switched away during the scan
+    if (offset > 0) {
+      audio.currentTime = offset;
+      dbg(`[preview] starting at ${offset.toFixed(1)} s`);
+    }
+    clearStatus();
+    try {
+      await audio.play();
+    } catch {
+      /* blocked: the button stays visible, retry on next click */
+    }
+    p.playing = !audio.paused;
+  } catch (err) {
+    p.trackId = null;
+    p.loading = false;
+    dbg(`[preview] failed: ${err.message}`);
+    showStatus(`Preview failed: ${err.message}`, "error");
+  }
+  renderTrackList();
+}
+
+/** Seconds offset of the loudest window for the loaded preview, cached. */
+async function ensurePeakOffset(trackId) {
+  const p = state.preview;
+  if (p.trackId !== trackId) return null; // switched away meanwhile
+  if (p.peakOffset !== null || !p.blob) return p.peakOffset;
+  const track = state.tracks.find((t) => t.id === trackId);
+  p.peakOffset = track ? await loudestOffsetSeconds(p.blob, track) : null;
+  return p.peakOffset;
+}
+
+/** Resolve when the element has metadata; rejects when loading errors out. */
+function waitForMetadata(audio) {
+  if (audio.readyState >= HTMLMediaElement.HAVE_METADATA) return Promise.resolve();
+  return new Promise((resolve, reject) => {
+    audio.addEventListener("loadedmetadata", resolve, { once: true });
+    audio.addEventListener("error", () => reject(new Error("the audio element could not load the stream")), { once: true });
+  });
+}
+
+/**
+ * Seconds offset of the loudest 1-second window in a downloaded mp3 blob
+ * (cheap RMS scan over one channel). Returns null when the track is too
+ * long to decode comfortably or the decode fails.
+ */
+async function loudestOffsetSeconds(blob, track) {
+  if ((track.duration ?? 0) > PEAK_SCAN_MAX_MS) return null;
+  let context;
+  try {
+    context = new AudioContext();
+    const buffer = await context.decodeAudioData(await blob.arrayBuffer());
+    const samples = buffer.getChannelData(0);
+    const windowSize = buffer.sampleRate;
+    const stride = Math.max(1, Math.floor(windowSize / 500));
+    let peakOffset = 0;
+    let peakRms = -1;
+    for (let start = 0; start + windowSize <= samples.length; start += windowSize) {
+      let sumSquares = 0;
+      let count = 0;
+      for (let i = start; i < start + windowSize; i += stride) {
+        sumSquares += samples[i] * samples[i];
+        count += 1;
+      }
+      const rms = sumSquares / Math.max(1, count);
+      if (rms > peakRms) {
+        peakRms = rms;
+        peakOffset = start / buffer.sampleRate;
+      }
+    }
+    return peakOffset;
+  } catch {
+    return null; // start from the beginning instead
+  } finally {
+    context?.close();
+  }
+}
+
+/** Free the blob backing the current preview, if any. */
+function revokePreviewObjectUrl() {
+  if (state.preview.objectUrl) {
+    URL.revokeObjectURL(state.preview.objectUrl);
+    state.preview.objectUrl = null;
+  }
+}
+
+function stopPreview() {
+  const audio = document.getElementById("preview-audio");
+  audio.pause();
+  audio.removeAttribute("src");
+  audio.load(); // reset the element so the emptied src cannot fire error events
+  revokePreviewObjectUrl();
+  state.preview.trackId = null;
+  state.preview.playing = false;
+  state.preview.loading = false;
+  state.preview.mode = "start";
+  state.preview.blob = null;
+  state.preview.peakOffset = null;
+}
+
+function updatePreviewTime() {
+  const p = state.preview;
+  if (p.trackId === null) return;
+  const audio = document.getElementById("preview-audio");
+  const span = document.querySelector(`[data-track-time="${p.trackId}"]`);
+  if (!span) return;
+  const current = Number.isFinite(audio.currentTime) ? audio.currentTime * 1000 : 0;
+  const total = Number.isFinite(audio.duration) ? audio.duration * 1000 : 0;
+  // Keep the baked-in duration until metadata has loaded (total > 0).
+  if (total <= 0) return;
+  span.textContent = `${formatDuration(current)} / ${formatDuration(total)}`;
+  span.classList.toggle("is-live", p.playing);
+}
+
+function onTrackListClick(event) {
+  const button = event.target.closest("[data-preview-track]");
+  if (button) {
+    void togglePreview(Number(button.dataset.previewTrack), button.dataset.previewMode ?? "start");
+  }
+}
+
+function onPreviewEnded() {
+  state.preview.playing = false;
+  renderTrackList();
+}
+
+function onPreviewError() {
+  const src = document.getElementById("preview-audio").src;
+  dbg(`[preview] audio error on ${src.slice(0, 140)}${src.length > 140 ? "…" : ""}`);
+  if (state.preview.trackId === null) return;
+  stopPreview();
+  showStatus("Preview failed to load — this track may only offer HLS streaming, which this browser cannot play directly.", "error");
+  renderTrackList();
 }
 
 /** Cards are clickable, except the external SoundCloud links. */
@@ -388,6 +646,10 @@ function renderPlaylists() {
   document.getElementById("summary").textContent =
     `${visible.length} playlist${visible.length === 1 ? "" : "s"} · ${state.playlists.length} total`;
 
+  if (state.playlistsLoading) {
+    list.innerHTML = `<li class="empty-state"><span class="spinner" aria-hidden="true"></span>Loading your playlists…</li>`;
+    return;
+  }
   if (visible.length === 0) {
     list.innerHTML = `<li class="empty-state">No playlists match your filters.`;
     return;
@@ -477,7 +739,7 @@ function renderTrackList() {
   const tracks = state.tracks;
 
   if (!state.tracksLoaded) {
-    list.innerHTML = `<li class="empty-state">Loading tracks…</li>`;
+    list.innerHTML = `<li class="empty-state"><span class="spinner" aria-hidden="true"></span>Loading tracks…</li>`;
     return;
   }
   if (state.tracksError) {
@@ -494,6 +756,7 @@ function renderTrackList() {
     return;
   }
   list.innerHTML = tracks.map(trackRowFor).join("");
+  updatePreviewTime();
 }
 
 function trackRowFor(track, index) {
@@ -506,6 +769,16 @@ function trackRowFor(track, index) {
   const title = escapeHtml(track.title ?? "Untitled");
   const permalink = escapeHtml(track.permalink_url);
 
+  const previewLoading = state.preview.trackId === track.id && state.preview.loading;
+  const previewClass = [
+    "track-preview",
+    state.preview.trackId === track.id ? "is-active" : "",
+    previewLoading ? "is-loading" : "",
+  ].filter(Boolean).join(" ");
+  const previewContent = previewLoading
+    ? `<span class="spinner" aria-hidden="true"></span>`
+    : previewGlyph(track.id);
+
   return `<li class="track-row">
     <span class="track-index">${index + 1}</span>
     ${artwork}
@@ -514,10 +787,11 @@ function trackRowFor(track, index) {
       ${byLine ? `<p class="muted track-sub">${escapeHtml(byLine)}</p>` : ""}
     </div>
     <div class="track-meta">
-      <span>${formatDuration(track.duration)}</span>
+      <span class="track-time" data-track-time="${track.id}">${formatDuration(track.duration)}</span>
       <span>${formatCount(track.playback_count)} plays</span>
       <span>${formatCount(track.likes_count ?? track.favoritings_count)} likes</span>
     </div>
+    <span class="track-preview-group">${previewButtonFor(track, "start")}${previewButtonFor(track, "peak")}</span>
   </li>`;
 }
 
@@ -533,6 +807,7 @@ function signOut() {
   state.user = null;
   state.playlists = [];
   document.getElementById("user-area").hidden = true;
+  stopPreview();
   history.replaceState(null, "", window.location.pathname);
   clearStatus();
   showScreen("connect");
@@ -550,6 +825,11 @@ function initListeners() {
   document.getElementById("sort").addEventListener("change", renderPlaylists);
   document.getElementById("back-to-playlists").addEventListener("click", goBackToPlaylists);
   document.getElementById("playlist-list").addEventListener("click", onPlaylistListClick);
+  document.getElementById("track-list").addEventListener("click", onTrackListClick);
+  const previewAudio = document.getElementById("preview-audio");
+  previewAudio.addEventListener("ended", onPreviewEnded);
+  previewAudio.addEventListener("error", onPreviewError);
+  previewAudio.addEventListener("timeupdate", updatePreviewTime);
   window.addEventListener("hashchange", route);
 }
 
@@ -557,6 +837,9 @@ function init() {
   initListeners();
   fillConfigForm();
   renderDebugPanel();
+  // Mirrors every API request into the on-page troubleshooting log (visible
+  // on the connect screen) — status codes, URLs and failure bodies.
+  SoundCloudApi.logger = (message) => dbg(message);
 
   // Surface unexpected runtime errors in the on-page log as well.
   window.addEventListener("error", (event) => dbg(`[page error] ${event.message}`));
@@ -581,7 +864,7 @@ function init() {
       showStatus("Your stored session expired and cannot be restored — please connect again.", "error");
     }
   } else if (state.config.isComplete()) {
-    showStatus("Not connected yet — click “Connect with SoundCloud” to sign in.");
+    showStatus("Not connected yet — click “Connect with SoundCloud” to sign in.", "info");
     showScreen("connect");
   } else {
     showScreen("connect");

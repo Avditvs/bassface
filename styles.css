@@ -153,6 +153,27 @@ input:focus, select:focus { border-color: var(--accent); }
 
 .status-bar.success { border-color: var(--accent); color: var(--text); }
 
+/* ---------- spinners ---------- */
+
+.spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  vertical-align: -2px;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.status-bar .spinner { margin-right: 9px; }
+
+.track-preview .spinner { width: 12px; height: 12px; border-width: 2px; vertical-align: middle; }
+
+.empty-state .spinner { margin-right: 8px; }
+
 /* ---------- toolbar ---------- */
 
 .toolbar {
@@ -376,6 +397,41 @@ input:focus, select:focus { border-color: var(--accent); }
   flex-direction: column;
   align-items: flex-end;
   gap: 2px;
+}
+
+.track-time.is-live { color: var(--accent); }
+
+.track-preview-group {
+  display: flex;
+  gap: 6px;
+  flex: none;
+}
+
+.track-preview {
+  flex: none;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--panel-alt);
+  color: var(--text);
+  font-size: 0.82rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.track-preview:hover { border-color: var(--accent); color: var(--accent); }
+
+.track-preview.is-active {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.track-preview.is-loading {
+  border-color: var(--accent);
+  color: var(--accent);
+  cursor: progress;
 }
 
 /* ---------- footer ---------- */
