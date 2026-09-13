@@ -19,8 +19,14 @@ import {
 import { getAudio, previewRuntime, revokePreviewObjectUrl } from "./preview-runtime";
 import type { PreviewMode } from "../services/types";
 
+/** Remove the active-playback colour from a track's time display. */
+function clearLiveTrackTime(trackId: number): void {
+  document.querySelector<HTMLElement>(`[data-track-time="${trackId}"]`)?.classList.remove("is-live");
+}
+
 /** Reset the shared audio element and the preview state. */
 export function stopPreview(): void {
+  const previousTrackId = previewRuntime.trackId;
   try {
     const audio = getAudio();
     audio.pause();
@@ -37,6 +43,13 @@ export function stopPreview(): void {
   setState({
     previewTrackId: null, previewPlaying: false, previewLoading: false, previewMode: "start",
   });
+  // The active canvas is normally redrawn from audio `timeupdate` events.
+  // Switching tracks stops those events, so redraw the old canvas explicitly
+  // after clearing its runtime identity to remove its accent overlay.
+  if (previousTrackId !== null) {
+    clearLiveTrackTime(previousTrackId);
+    redrawTrackWaveform(previousTrackId);
+  }
 }
 
 /** Seconds offset of the loudest window for the loaded preview, cached. */
@@ -72,6 +85,7 @@ export async function togglePreview(
       // Same button: pause / resume.
       if (getState().previewPlaying) {
         audio.pause();
+        clearLiveTrackTime(trackId);
         setState({ previewPlaying: false });
       } else {
         setState({ previewPlaying: true });
@@ -228,6 +242,8 @@ export function seekFromWaveform(canvas: HTMLCanvasElement, event: MouseEvent): 
 
 /** `onEnded` handler of the shared `<audio>` element. */
 export function onPreviewEnded(): void {
+  const trackId = previewRuntime.trackId;
+  if (trackId !== null) clearLiveTrackTime(trackId);
   setState({ previewPlaying: false });
 }
 
