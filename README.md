@@ -59,6 +59,11 @@ in-browser with an RMS scan). When SoundCloud exposes a full-length
 progressive mp3 (directly or via HLS, which the app reassembles), the whole
 track plays; otherwise it falls back to SoundCloud's ~30 s snippet.
 
+The **Reorganize** button on a playlist opens a sidebar listing your other
+playlists: drag a track row onto a card to copy it there, or onto the
+far-right **⇥** strip to move it (copied there and removed from the open
+playlist). A **+ New** button in the sidebar creates an empty playlist.
+
 > **Playlist Updater** stores your credentials and OAuth tokens in
 > `localStorage` of your own browser. They never leave your machine. This is a
 > personal tool — the Client Secret (if provided) is only sent to
@@ -68,14 +73,30 @@ track plays; otherwise it falls back to SoundCloud's ~30 s snippet.
 ## Project layout
 
 ```
-index.html    – single page UI (connect + playlist views)
-styles.css    – styling
+index.html          – single page UI (connect + playlist views)
+css/                – styling split into focused modules (base, layout,
+                      components, forms, playlists, playlist-detail, tracks,
+                      organize, debug)
 js/
-  util.js     – base64url / PKCE / formatting helpers
-  config.js   – localStorage persistence (credentials, tokens, profile)
-  oauth.js    – OAuth 2.1 + PKCE: authorize URL, token exchange, refresh
-  api.js      – SoundCloud API client (401 auto-refresh, pagination)
-  app.js      – app controller / rendering (playlist list + detail views)
+  app.js            – entry point: boot sequence, event wiring
+  state.js          – central mutable app state + shared labels
+  config.js         – localStorage persistence (credentials, tokens, user)
+  oauth.js          – OAuth 2.1 + PKCE: authorize URL, token exchange, refresh
+  api.js            – SoundCloud API client (401 auto-refresh, pagination,
+                      read-modify-write helpers)
+  router.js         – hash routing (#/playlists, #/playlist/<id>)
+  screens.js        – screen switching + shared status bar
+  connect.js        – connect screen (config form, validation, redirect)
+  render.js         – DOM rendering (playlist grid, detail header, track rows)
+  tracks.js         – playlist detail: paging, infinite scroll
+  organize.js       – "Reorganize" sidebar: drag & drop between playlists,
+                      create playlist
+  preview.js        – audio preview UI (▶ snippet, ⏫ loudest part, click-to-jump)
+  audio-engine.js   – audio source resolution: waveform-guided peak seek,
+                      HLS reassembly
+  waveform.js       – waveform fetch/cache/draw for the track rows
+  debug.js          – persistent troubleshooting log shown on the connect screen
+  util.js           – base64url / PKCE / formatting helpers
 ```
 
 ## SoundCloud API reference (used here)
@@ -86,14 +107,29 @@ js/
 | OAuth guide | <https://developers.soundcloud.com/docs/api/guide#authentication> |
 | `GET /me/playlists` | <https://developers.soundcloud.com/docs/api/explorer/open-api> |
 | `GET /playlists/{id}?show_tracks=true` | <https://developers.soundcloud.com/docs/api/explorer/open-api> |
+| `PUT /playlists/:id` (reorganize) | <https://developers.soundcloud.com/docs/api/explorer/open-api> |
+| `POST /playlists` (create) | <https://developers.soundcloud.com/docs/api/explorer/open-api> |
 | OpenAPI spec | <https://github.com/soundcloud/api/blob/master/openapi/api.yaml> |
+
+## Features
+
+- Browse your playlists with search / type filter / sorting and pagination
+  (`GET /me/playlists`), with `#/playlist/<id>` deep links
+- Open a playlist and page through its tracks with infinite scroll
+  (`GET /playlists/{id}?show_tracks=true`)
+- In-browser audio previews (`/tracks/:id/streams`, played in `<audio>`):
+  full track when SoundCloud exposes a progressive mp3 (directly or via HLS,
+  which the app reassembles), ~30 s snippet otherwise; ▶ plays from the start,
+  ⏫ jumps to the loudest part, and the waveform is clickable
+- **Reorganize** mode: drag & drop tracks onto your other playlists to copy
+  them there (drop on a card) or move them (drop on the far-right ⇥ strip,
+  which also removes them from the open playlist) — all via read-modify-write
+  `PUT /playlists/:id`
+- Create a new, empty playlist (`POST /playlists`)
 
 ## Next steps (roadmap)
 
-- ✅ Browse a playlist's sounds (`GET /playlists/{id}?show_tracks=true`,
-  with `#/playlist/<id>` deep links)
-- ✅ In-browser audio previews (`/tracks/:id/streams`, played in `<audio>`)
-- Edit a playlist / its sounds (`PUT /playlists/:id`)
-- Create and delete playlists (`POST /playlists`, `DELETE /playlists/:id`)
-- Reorder tracks — the "updater" part, currently the app is a read-only
-  playlist explorer.
+- Remove tracks from a playlist without moving them
+- Reorder tracks within a playlist
+- Edit playlist metadata (title, description, sharing)
+- Delete playlists (`DELETE /playlists/:id`)
