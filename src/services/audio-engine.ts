@@ -1,14 +1,14 @@
 /**
  * Audio preview engine: locates and builds the audio source for a preview.
  *
- * Two strategies:
- *  - "jump": HLS segments downloaded from the clicked position onward, then
- *    extended window by window while the playhead approaches the end.
- *    Segments stream through a MediaSource/SourceBuffer when the browser
- *    supports MSE for mp3 — appends are gapless and the element never
- *    reloads. Otherwise they are concatenated into a Blob that is
- *    hot-swapped on extension (a brief audible gap per swap).
- *  - "start": handled by the API's previewSource (30 s snippet), not here.
+ * Every preview streams the track window by window: HLS segments are
+ * downloaded from the play position onward (0 for the play button, the
+ * clicked position for waveform jumps) and extended while the playhead
+ * approaches the end — appended to a MediaSource/SourceBuffer when the
+ * browser supports MSE for mp3 (gapless appends, no element reload),
+ * otherwise concatenated into a Blob that is hot-swapped on extension.
+ * previewSource (whole-track Blob or direct src) only serves as the
+ * fallback when no HLS segments exist.
  */
 
 import { dbg } from "./debug";
@@ -21,8 +21,12 @@ import type { HlsSegment, PreviewSource, Track } from "../services/types";
 /** Cap how much audio one waveform jump may download in total (~10 min). */
 const JUMP_MAX_SEGMENTS = 60;
 
-/** Segments fetched per jump window — kept small to limit requests. */
+/** Segments fetched per extension window — kept small to limit requests. */
 const JUMP_WINDOW = 8;
+
+/** Segments fetched before playback may start: two are enough to begin, the
+ *  rest streams in right after via extendJumpWindow. */
+const JUMP_START_SEGMENTS = 2;
 
 /** Start extending the jump window when less audio remains than this. */
 const EXTEND_AHEAD_SEC = 30;
@@ -131,17 +135,21 @@ function appendBlob(sourceBuffer: SourceBuffer, blob: Blob): Promise<void> {
   }));
 }
 
-/** Append blobs in order (a SourceBuffer only accepts one append at a time). */
+/** Append blobs in order (a SourceBuffer only accepts one append at a time).
+ *  Appended audio is never removed from the buffer: played segments stay
+ *  buffered for the whole preview, so seeking back into them is gapless
+ *  (Chrome only evicts from the front under memory pressure, negligible
+ *  for mp3). */
 async function appendBlobs(sourceBuffer: SourceBuffer, blobs: Blob[]): Promise<void> {
   for (const blob of blobs) await appendBlob(sourceBuffer, blob);
 }
 
 /**
- * Build a gapless MSE jump source: the first window's segments are appended
- * to a SourceBuffer, later windows stream in via extendJumpWindow. The audio
- * element is attached to the MediaSource here (sourceopen only fires on a
- * bound element). Returns null to fall back to the Blob hot-swap path
- * (unsupported browser, MSE or append failure).
+ * Build a gapless MSE jump source: the first two segments are appended to a
+ * SourceBuffer so playback can start, later windows stream in via
+ * extendJumpWindow. The audio element is attached to the MediaSource here
+ * (sourceopen only fires on a bound element). Returns null to fall back to
+ * the Blob hot-swap path (unsupported browser, MSE or append failure).
  */
 async function loadStreamedJumpSource(
   audio: HTMLAudioElement,
@@ -151,8 +159,8 @@ async function loadStreamedJumpSource(
   last: number,
   targetSec: number,
 ): Promise<PreviewSource | null> {
-  const windowEnd = Math.min(last, at.index + JUMP_WINDOW - 1);
-  const { blobs, firstOk } = await fetchSegmentWindow(at.index, windowEnd, segments);
+  const firstEnd = Math.min(last, at.index + JUMP_START_SEGMENTS - 1);
+  const { blobs, firstOk } = await fetchSegmentWindow(at.index, firstEnd, segments);
   if (firstOk < 0) return null;
   const mediaSource = new MediaSource();
   const url = URL.createObjectURL(mediaSource);
@@ -172,7 +180,7 @@ async function loadStreamedJumpSource(
       seekOffset: Math.max(0, targetSec - originSec),
       originSec,
       jump: {
-        segments, parts: [], nextIndex: windowEnd + 1, lastIndex: last,
+        segments, parts: [], nextIndex: firstEnd + 1, lastIndex: last,
         streamed: true, sourceBuffer, mediaSource,
       },
     };
@@ -184,12 +192,13 @@ async function loadStreamedJumpSource(
 }
 
 /**
- * Full-track source for waveform jumps: HLS segments are downloaded from the
- * clicked position onward (bounded), so the audio really starts at the
- * requested time. Returns { url, kind: "full", seekOffset, originSec } —
+ * Streaming source for previews: HLS segments are downloaded from the
+ * requested position onward (bounded; 0 for the play button, the clicked
+ * position for a waveform jump), so playback starts quickly and more audio
+ * streams in later. Returns { url, kind: "full", seekOffset, originSec } —
  * with `blob` on the Blob path and `jump.streamed` on the MediaSource path.
- * Falls back to previewSource (full mp3 → then the seek works; snippet →
- * playback starts at 0).
+ * Falls back to previewSource (full mp3 → then the seek works; truncated
+ * source → playback starts at 0).
  */
 export async function loadJumpSource(
   track: Track,
@@ -203,7 +212,7 @@ export async function loadJumpSource(
   /** Fallback when the segmented jump is impossible: fetch a whole-track
    *  source and seek inside it when it really covers the full track. */
   const fallback = async (): Promise<PreviewSource | null> => {
-    const source = await getState().api!.previewSource(track, { mode: "full", onRaw, onError });
+    const source = await getState().api!.previewSource(track, { onRaw, onError });
     if (source && source.kind !== "full") dbg(`[preview] jump: only a ${source.kind} source exists — starting at 0`);
     // A complete full-track Blob starts at the track's position 0, so the
     // requested jump position is a plain seek inside it. Without this, the
@@ -234,14 +243,14 @@ export async function loadJumpSource(
   if (mseSupported()) {
     const streamed = await loadStreamedJumpSource(audio, segments, starts, at, last, targetSec);
     if (streamed) {
-      dbg(`[preview] jump: streaming via MediaSource — ${JUMP_WINDOW} segments from ${(streamed.originSec ?? 0).toFixed(1)} s`);
+      dbg(`[preview] jump: streaming via MediaSource — ${JUMP_START_SEGMENTS} segments from ${(streamed.originSec ?? 0).toFixed(1)} s`);
       return streamed;
     }
   }
 
-  // Blob path: fetch the first window in parallel (one request per segment,
+  // Blob path: fetch the first segments in parallel (one request per segment,
   // all at once, so playback can start quickly) and concatenate the blobs.
-  const windowEnd = Math.min(last, at.index + JUMP_WINDOW - 1);
+  const windowEnd = Math.min(last, at.index + JUMP_START_SEGMENTS - 1);
   const { blobs: parts, firstOk } = await fetchSegmentWindow(at.index, windowEnd, segments);
   if (firstOk < 0) return fallback();
   const originSec = starts[at.index + firstOk];
@@ -262,12 +271,13 @@ export async function loadJumpSource(
  * Feed the next jump window to the preview: with MediaSource streaming the
  * fetched segments are simply appended to the SourceBuffer (gapless);
  * otherwise the playing Blob is hot-swapped to the extended concatenation
- * (a brief audible gap per swap). Called from timeupdate.
+ * (a brief audible gap per swap). Called from timeupdate for every preview
+ * that streams windows — play-from-start and waveform jumps alike.
  */
 export async function extendJumpWindow(): Promise<void> {
   const p = previewRuntime;
   const audio = getAudio();
-  if (p.mode !== "jump" || !p.jump || p.extending) return;
+  if (!p.jump || p.extending) return;
   const jump = p.jump;
   if (jump.nextIndex > jump.lastIndex) return;
   if (!jump.streamed && jump.parts.length === 0) return;
@@ -282,7 +292,7 @@ export async function extendJumpWindow(): Promise<void> {
   try {
     const end = Math.min(jump.lastIndex, jump.nextIndex + JUMP_WINDOW - 1);
     const { blobs: fetched, firstOk } = await fetchSegmentWindow(jump.nextIndex, end, jump.segments);
-    if (p.mode !== "jump" || p.jump !== jump) return; // switched away meanwhile
+    if (p.jump !== jump) return; // switched away meanwhile
     if (firstOk < 0) return;
     if (jump.streamed && jump.sourceBuffer) {
       // The mp3 segments append in order and their frames continue the
@@ -310,7 +320,7 @@ export async function extendJumpWindow(): Promise<void> {
     p.objectUrl = URL.createObjectURL(new Blob(jump.parts, { type: "audio/mpeg" }));
     audio.src = p.objectUrl;
     await waitForMetadata(audio);
-    if (p.mode !== "jump" || p.jump !== jump) return; // switched away during the swap
+    if (p.jump !== jump) return; // switched away during the swap
     audio.currentTime = resumeAt;
     if (wasPlaying) {
       try { await audio.play(); } catch { /* retried on next click */ }

@@ -75,7 +75,7 @@ export interface HlsSegment {
 }
 
 /** How a preview source was obtained. */
-export type PreviewKind = "full" | "snippet" | "legacy";
+export type PreviewKind = "full" | "legacy";
 
 /** The two user-facing preview modes. */
 export type PreviewMode = "start" | "jump";

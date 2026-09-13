@@ -192,34 +192,25 @@ export class SoundCloudApi {
   }
 
   /**
-   * Resolve + download a playable preview source for a track. Priority
-   * depends on the requested mode:
-   *   mode "start" (simple play button — quick to load):
-   *     1. SoundCloud's ~30 s snippet (`preview_mp3_128_url`),
-   *     2. full-length mp3 via the HLS playlist (`hls_mp3_128_url`),
-   *     3. full-length mp3 (`http_mp3_128_url`),
-   *     4. legacy `stream_url` / progressive transcoding URL.
-   *   mode "full" (needs the whole track, e.g. a waveform jump) —
-   *   HLS preferred over the direct progressive mp3:
-   *     1. full-length mp3 via the HLS playlist (`hls_mp3_128_url`) — segments
-   *        are fetched with auth and concatenated into one Blob,
-   *     2. full-length mp3 from `/tracks/:id/streams` (`http_mp3_128_url`),
-   *     3. SoundCloud's ~30 s snippet (`preview_mp3_128_url`) — the caller
-   *        then plays from 0 (not the requested position),
-   *     4. legacy `stream_url` / first progressive transcoding URL (no Blob —
-   *        played directly, may fail when it still requires auth).
+   * Resolve + download a playable preview source for a track, always the
+   * full-length audio (the ~30 s `preview_mp3_128_url` snippet is never
+   * used, whatever the preview mode):
+   *   1. full-length mp3 via the HLS playlist (`hls_mp3_128_url`) — segments
+   *      are fetched with auth and concatenated into one Blob,
+   *   2. full-length mp3 from `/tracks/:id/streams` (`http_mp3_128_url`),
+   *   3. legacy `stream_url` / first progressive transcoding URL (no Blob —
+   *      played directly, may fail when it still requires auth).
    *
    * Every `/streams` URL lives on api.soundcloud.com and still requires the
    * `Authorization: OAuth` header, so it cannot be handed to a bare
    * `<audio src>` — hence the Blob downloads.
    *
-   * Returns `{ blob, url, kind }` (`kind`: "full" | "snippet" | "legacy") or
-   * null when no progressive stream is exposed (e.g. HLS-AAC-only tracks).
+   * Returns `{ blob, url, kind }` (`kind`: "full" | "legacy") or null when
+   * no progressive stream is exposed (e.g. HLS-AAC-only tracks).
    */
   async previewSource(
     track: Track,
-    { mode = "start", onRaw = null, onError = null }: {
-      mode?: "start" | "full";
+    { onRaw = null, onError = null }: {
       onRaw?: ((streams: Streams) => void) | null;
       onError?: ((err: unknown) => void) | null;
     } = {},
@@ -227,18 +218,12 @@ export class SoundCloudApi {
     try {
       const streams: Streams = await this.request(`/tracks/${encodeURIComponent(track.id)}/streams`);
       if (onRaw) onRaw(streams);
-      const candidates: [keyof Streams, PreviewKind, boolean][] = mode === "full"
-        ? [
-            ["hls_mp3_128_url", "full", false],
-            ["http_mp3_128_url", "full", true],
-            ["preview_mp3_128_url", "snippet", true],
-          ]
-        : [
-            ["preview_mp3_128_url", "snippet", true],
-            ["hls_mp3_128_url", "full", false],
-            ["http_mp3_128_url", "full", true],
-          ];
-      for (const [key, kind, direct] of candidates) {
+      // Full-length sources only, HLS preferred over the direct mp3.
+      const candidates: [keyof Streams, boolean][] = [
+        ["hls_mp3_128_url", false],
+        ["http_mp3_128_url", true],
+      ];
+      for (const [key, direct] of candidates) {
         const value = streams[key];
         if (typeof value !== "string" || !value.trim()) continue;
         const url = value.trim();
@@ -247,10 +232,10 @@ export class SoundCloudApi {
             const blob = await this.fetchAudioBlob(url);
             // A direct mp3 (or the untruncated HLS playlist, below) is the
             // whole track, so a jump preview can simply seek inside the Blob.
-            return { blob, url, kind, complete: kind === "full" };
+            return { blob, url, kind: "full", complete: true };
           }
           const { blob, complete } = await this.fetchHls(url);
-          return { blob, url, kind, complete: kind === "full" && complete };
+          return { blob, url, kind: "full", complete };
         } catch (err) {
           SoundCloudApi.logger?.(`[api] ${String(key)} download failed: ${err.message}`);
         }

@@ -13,7 +13,7 @@ import { clearStatus, getState, setState, showStatus } from "./store";
 import { formatDuration } from "./util";
 import { redrawTrackWaveform } from "./waveform";
 import {
-  loadJumpSource, extendJumpWindow, waitForMetadata, bufferedEndSec,
+  loadJumpSource, extendJumpWindow, waitForMetadata,
 } from "./audio-engine";
 import { getAudio, previewRuntime, revokePreviewObjectUrl } from "./preview-runtime";
 import type { PreviewMode } from "../services/types";
@@ -67,8 +67,8 @@ export async function togglePreview(
       clearStatus();
       return;
     }
-    // Single button: pause / resume whatever is active on this row (snippet
-    // or full-track jump alike).
+    // Single button: pause / resume whatever is active on this row (the
+    // full-track preview or a jump into it alike).
     if (getState().previewPlaying) {
       audio.pause();
       clearLiveTrackTime(trackId);
@@ -98,13 +98,12 @@ export async function togglePreview(
   try {
     const onRaw = (streams: unknown) => dbg(`[preview] streams raw: ${JSON.stringify(streams).slice(0, 800)}`);
     const onError = (err: unknown) => dbg(`[preview] streams failed: ${(err as Error).message}`);
-    // Jump downloads from the clicked position onward (with a whole-track
-    // fallback that seeks inside the Blob when segments are unavailable);
-    // every other mode (and HLS-less tracks) use previewSource.
-    const api = getState().api!;
-    const source = mode === "jump"
-      ? await loadJumpSource(track, p.pendingSeekSec ?? 0, audio, { onRaw, onError })
-      : await api.previewSource(track, { mode: "start", onRaw, onError });
+    // Every mode streams the track through the jump engine: the play button
+    // ("start") streams from position 0 exactly like a waveform jump ("jump")
+    // streams from the clicked position — segments append to a MediaSource,
+    // extended window by window. The previewSource fallback (whole-track
+    // Blob or direct src) only kicks in when no HLS segments exist.
+    const source = await loadJumpSource(track, p.pendingSeekSec ?? 0, audio, { onRaw, onError });
     if (!source || (!source.blob && !source.url)) throw new Error("this track has no playable preview");
 
     // Streamed jump previews (MediaSource) are already attached to the
@@ -170,7 +169,7 @@ export function updatePreviewTime(): void {
   const span = document.querySelector<HTMLElement>(`[data-track-time="${p.trackId}"]`);
   if (!span) return;
   // The loaded blob may only be a window of the track (jump window, 30 s
-  // window, 30 s snippet), so audio.duration is that window's length — not
+  // window), so audio.duration is that window's length — not
   // the track's. Display the position inside the whole track instead,
   // matching the waveform highlight (originSec + currentTime, track.duration).
   const track = getState().tracks.find((t) => t.id === p.trackId);
@@ -199,20 +198,26 @@ export function seekFromWaveform(canvas: HTMLCanvasElement, event: MouseEvent): 
   if (!rect.width || !Number.isFinite(targetSec)) return;
   const p = previewRuntime;
   const audio = getAudio();
-  // Seek directly only when the click lands inside the audio window that is
-  // actually available: the Blob on the hot-swap path (the blob holds all
-  // downloaded audio), the buffered range on the MediaSource path (its
-  // duration already covers the whole window). Otherwise reload from the
-  // clicked position ("jump" mode, see loadJumpSource).
+  // Seek directly only when the click lands inside audio the element already
+  // holds: on the MediaSource path every buffered range is seekable — played
+  // segments are never evicted, so jumping back is gapless; on the Blob path
+  // the whole window [originSec, originSec + duration] is seekable. Anything
+  // else reloads from the clicked position ("jump" mode, see loadJumpSource).
   const streamed = p.jump?.streamed === true;
   const originSec = p.originSec ?? 0;
-  const windowEnd = streamed
-    ? bufferedEndSec(audio)
-    : (Number.isFinite(audio.duration) ? audio.duration : 0);
-  const coveredEnd = originSec + windowEnd;
-  if (p.trackId === trackId && !getState().previewLoading && (p.blob || streamed) && audio.duration > 0
-      && targetSec >= originSec && targetSec < coveredEnd - 0.05) {
-    audio.currentTime = targetSec - originSec;
+  let covered = false;
+  if (p.trackId === trackId && !getState().previewLoading && (p.blob || streamed) && audio.duration > 0) {
+    const local = targetSec - originSec;
+    if (streamed) {
+      for (let i = 0; i < audio.buffered.length && !covered; i += 1) {
+        covered = local >= audio.buffered.start(i) && local < audio.buffered.end(i) - 0.05;
+      }
+    } else {
+      covered = local >= 0 && local < (Number.isFinite(audio.duration) ? audio.duration : 0) - 0.05;
+    }
+  }
+  if (covered) {
+    audio.currentTime = Math.max(0, targetSec - originSec);
     if (audio.paused) {
       void audio.play().catch(() => { /* retried on next click */ });
       setState({ previewPlaying: true });
