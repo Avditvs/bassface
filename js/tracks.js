@@ -8,6 +8,7 @@ import { state } from "./state.js";
 import { showScreen, showStatus, clearStatus } from "./screens.js";
 import { stopPreview } from "./preview.js";
 import { renderPlaylistHeader, renderTrackList } from "./render.js";
+import { renderOrganizeSidebar, resetOrganizeSidebar } from "./organize.js";
 
 let trackSentinelObserver = null;
 
@@ -41,8 +42,10 @@ export async function openPlaylist(id) {
   }
 
   showScreen("playlist");
+  document.getElementById("remove-zone").hidden = false;
   renderPlaylistHeader();
   renderTrackList();
+  renderOrganizeSidebar();
   clearStatus();
 
   showStatus("Loading tracks…");
@@ -67,6 +70,8 @@ export async function openPlaylist(id) {
 export function resetPlaylistView() {
   stopPreview();
   forgetTrackSentinel();
+  resetOrganizeSidebar();
+  document.getElementById("remove-zone").hidden = true;
   state.currentPlaylist = null;
   state.tracks = [];
   state.tracksLoaded = false;

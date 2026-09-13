@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Playlist Updater — SoundCloud</title>
-  <link rel="stylesheet" href="styles.css?v=14" />
+  <link rel="stylesheet" href="styles.css?v=30" />
 </head>
 <body>
   <header class="app-header">
@@ -76,13 +76,23 @@
 
     <!-- Playlist detail screen -->
     <section id="playlist-screen" hidden>
-      <div class="toolbar">
-        <button id="back-to-playlists" class="button button-quiet" type="button">← All playlists</button>
+      <div class="playlist-columns">
+        <aside id="remove-panel" class="remove-panel" aria-label="Remove from playlist">
+          <h2 class="remove-title">Remove</h2>
+          <div id="remove-zone" class="remove-zone" hidden>🗑 Drop a sound here to remove it from this playlist</div>
+        </aside>
+        <div class="playlist-main">
+          <div class="toolbar">
+            <button id="back-to-playlists" class="button button-quiet" type="button">← All playlists</button>
+            <button id="undo-action" class="button button-undo" type="button" hidden></button>
+          </div>
+          <div id="playlist-header" class="playlist-header"></div>
+          <p id="track-summary" class="muted"></p>
+          <ul id="track-list" class="track-list"></ul>
+          <audio id="preview-audio" hidden></audio>
+        </div>
+        <aside id="organize" class="organize" aria-label="Reorganize playlists"></aside>
       </div>
-      <div id="playlist-header" class="playlist-header"></div>
-      <p id="track-summary" class="muted"></p>
-      <ul id="track-list" class="track-list"></ul>
-      <audio id="preview-audio" hidden></audio>
     </section>
   </main>
 
@@ -90,6 +100,6 @@
     <p class="muted">Unofficial client for the <a href="https://developers.soundcloud.com/docs/api/guide" target="_blank" rel="noreferrer">SoundCloud API</a> — no backend, tokens never leave your browser.</p>
   </footer>
 
-  <script type="module" src="js/app.js?v=11"></script>
+  <script type="module" src="js/app.js?v=18"></script>
 </body>
 </html>

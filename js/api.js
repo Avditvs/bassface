@@ -43,7 +43,7 @@ export class SoundCloudApi {
     this.ctx = ctx;
   }
 
-  async request(path, { retried = false } = {}) {
+  async request(path, { retried = false, method = "GET", body = null } = {}) {
     const url = new URL(path.startsWith("http") ? path : `${API_BASE_URL}${path}`);
     // Fresh cache-buster per attempt: keeps the 401-retry from being served
     // CloudFront's cached error response instead of the re-issued request.
@@ -51,10 +51,13 @@ export class SoundCloudApi {
     let response;
     try {
       response = await fetch(url, {
+        method,
         headers: {
           accept: "application/json; charset=utf-8",
+          ...(body !== null ? { "content-type": "application/json" } : {}),
           authorization: `OAuth ${this.ctx.getTokens().accessToken}`,
         },
+        body: body !== null ? JSON.stringify(body) : undefined,
         signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
       });
     } catch (err) {
@@ -67,7 +70,7 @@ export class SoundCloudApi {
 
     if (response.status === 401 && !retried && this.ctx.getTokens().canRefresh()) {
       await this.refreshOnce();
-      return this.request(path, { retried: true });
+      return this.request(path, { retried: true, method, body });
     }
     if (!response.ok) {
       const body = await response.text();
@@ -103,6 +106,32 @@ export class SoundCloudApi {
       href = page.next_href;
     }
     return playlists;
+  }
+
+  /**
+   * One playlist, with its tracks (needed to edit the track list: the PUT
+   * endpoint replaces the whole list, so callers must read before writing).
+   */
+  async getPlaylist(id) {
+    return this.request(`/playlists/${encodeURIComponent(id)}?show_tracks=true`);
+  }
+
+  /**
+   * Replace a playlist's track list with the given track ids. SoundCloud's
+   * `PUT /playlists/:id` overwrites the whole list, hence the read-modify-write
+   * pattern in the callers. Per the OpenAPI spec the JSON body is wrapped in a
+   * root `playlist` object and each track is identified by its urn
+   * (`soundcloud:tracks:<id>`). Returns the updated playlist.
+   */
+  async updatePlaylistTracks(id, trackIds) {
+    return this.request(`/playlists/${encodeURIComponent(id)}`, {
+      method: "PUT",
+      body: {
+        playlist: {
+          tracks: trackIds.map((trackId) => ({ urn: `soundcloud:tracks:${trackId}` })),
+        },
+      },
+    });
   }
 
   /**

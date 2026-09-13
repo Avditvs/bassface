@@ -245,7 +245,7 @@ function trackRowFor(track, index) {
   const title = escapeHtml(track.title ?? "Untitled");
   const permalink = escapeHtml(track.permalink_url);
 
-  return `<li class="track-row">
+  return `<li class="track-row" draggable="true" data-track-id="${track.id}" title="Drag onto a playlist in the Reorganize sidebar to add or move it">
     <span class="track-index">${index + 1}</span>
     ${artwork}
     <div class="track-body">

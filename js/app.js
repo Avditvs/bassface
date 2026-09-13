@@ -32,6 +32,20 @@ import { route, goBackToPlaylists } from "./router.js";
 import { onPlaylistListClick, onPaginationClick, renderPlaylists } from "./render.js";
 import { onTrackListClick, onPreviewEnded, onPreviewError, updatePreviewTime } from "./preview.js";
 import { renderWaveforms } from "./waveform.js";
+import {
+  renderOrganizeSidebar,
+  onTrackDragStart,
+  onOrganizeDragOver,
+  onOrganizeDragLeave,
+  onOrganizeDrop,
+  onOrganizeFilterInput,
+  onOrganizeClick,
+  onOrganizeChange,
+  onRemoveZoneDragOver,
+  onRemoveZoneDragLeave,
+  onRemoveZoneDrop,
+  revertLastAction,
+} from "./organize.js";
 import { SoundCloudApi } from "./api.js";
 
 /** Wire every static event listener once, at boot. */
@@ -49,6 +63,22 @@ function initListeners() {
   document.getElementById("back-to-playlists").addEventListener("click", goBackToPlaylists);
   document.getElementById("playlist-list").addEventListener("click", onPlaylistListClick);
   document.getElementById("track-list").addEventListener("click", onTrackListClick);
+  // Reorganize sidebar: tracks are dragged from the track list onto the
+  // playlist cards (add) or their far-right strip (add + remove from here).
+  document.getElementById("track-list").addEventListener("dragstart", onTrackDragStart);
+  const organizeList = document.getElementById("organize");
+  organizeList.addEventListener("dragover", onOrganizeDragOver);
+  organizeList.addEventListener("dragleave", onOrganizeDragLeave);
+  organizeList.addEventListener("drop", onOrganizeDrop);
+  organizeList.addEventListener("input", onOrganizeFilterInput);
+  organizeList.addEventListener("click", onOrganizeClick);
+  organizeList.addEventListener("change", onOrganizeChange);
+  // Drop-to-remove zone above the track list.
+  const removeZone = document.getElementById("remove-zone");
+  removeZone.addEventListener("dragover", onRemoveZoneDragOver);
+  removeZone.addEventListener("dragleave", onRemoveZoneDragLeave);
+  removeZone.addEventListener("drop", onRemoveZoneDrop);
+  document.getElementById("undo-action").addEventListener("click", () => void revertLastAction());
   const previewAudio = document.getElementById("preview-audio");
   previewAudio.addEventListener("ended", onPreviewEnded);
   previewAudio.addEventListener("error", onPreviewError);
