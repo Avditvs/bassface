@@ -70,11 +70,36 @@ playlists: drag a track row onto a card to copy it there, or onto the
 far-right **⇥** strip to move it (copied there and removed from the open
 playlist). A **+ New** button in the sidebar creates an empty playlist.
 
+## Security
+
+- **OAuth 2.1 + PKCE (S256)** with a single-use `state` nonce validated on
+  callback; the verifier lives in `sessionStorage` only.
+- **CSP** (`index.html`): `script-src 'self'`, SoundCloud-only
+  `connect-src`/`img-src`, `frame-ancestors 'none'` — contains the blast
+  radius of any future injection bug.
+- **All SoundCloud-data interpolation is escaped for attribute contexts**
+  (`escapeHtml`/`escapeUrl` in `util.ts`); URL-typed attributes additionally
+  reject `javascript:`/`data:` schemes.
+- **The OAuth bearer token is only sent to `*.soundcloud.com` / `*.sndcdn.com`
+  hosts** (`isTokenSafeUrl` in `api.ts`) — API/HLS responses pointing
+  elsewhere are refused.
+- **Log redaction** (`redactSecrets` in `util.ts` applied by `dbg`): token
+  query params, secrets and signed URL fragments are stripped before anything
+  reaches the troubleshooting log.
+- **Redirect URIs must be https** (loopback http allowed, RFC 8252 §8.3);
+  `npm run serve` binds `127.0.0.1` only.
+- Credentials and tokens are stored in `localStorage` of your own browser —
+  they never leave your machine, but anything embedded in a frontend cannot
+  be kept secret: only run this app from a trusted origin, and sign out when
+  done on a shared machine.
+
 > **Playlist Updater** stores your credentials and OAuth tokens in
 > `localStorage` of your own browser. They never leave your machine. This is a
 > personal tool — the Client Secret (if provided) is only sent to
 > SoundCloud's token endpoint, but be aware that anything embedded in a
 > frontend cannot be kept secret.
+>
+> See the **Security** section below for the protections built into the app.
 
 ## Project layout
 

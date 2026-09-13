@@ -6,6 +6,7 @@
  */
 
 import { API_BASE_URL, refreshAccessToken } from "./oauth.js";
+import { redactSecrets } from "./util.js";
 import type {
   ApiContext, HlsSegment, Playlist, PreviewKind, PreviewSource, SCUser,
   Streams, Track,
@@ -34,6 +35,23 @@ function rateLimitError(response: Response): Error {
 /** Hard cap on a single API request: a stalled connection must never leave a
  *  spinner running forever (a pending fetch otherwise never settles). */
 const REQUEST_TIMEOUT_MS = 30_000;
+
+/**
+ * Whether the OAuth `Authorization` header may be sent to this URL. Tokens
+ * are only ever attached for SoundCloud-controlled hosts: anything coming
+ * back from API/HLS responses pointing elsewhere is treated as untrusted so
+ * a compromised/misconfigured stream URL cannot leak the bearer token.
+ */
+function isTokenSafeUrl(url: string | URL): boolean {
+  try {
+    const host = new URL(url).hostname;
+    return host === "soundcloud.com"
+      || host.endsWith(".soundcloud.com")
+      || host.endsWith(".sndcdn.com");
+  } catch {
+    return false;
+  }
+}
 
 export class SoundCloudApi {
   /** Optional sink for request-level diagnostics (wired to the app's log). */
@@ -255,9 +273,15 @@ export class SoundCloudApi {
 
   /**
    * Fetch a URL with the current bearer token (redirects followed),
-   * refreshing the token once when the request comes back 401.
+   * refreshing the token once when the request comes back 401. The header is
+   * only attached when the URL points at a SoundCloud-controlled host — see
+   * {@link isTokenSafeUrl}.
    */
   async fetchAuthed(url: string): Promise<Response> {
+    if (!isTokenSafeUrl(url)) {
+      SoundCloudApi.logger?.(`[api] refusing to send OAuth token to non-SoundCloud host: ${redactSecrets(url)}`);
+      throw new Error("Refusing to send the OAuth token to a non-SoundCloud host");
+    }
     let response = await fetch(url, {
       headers: {
         authorization: `OAuth ${this.ctx.getTokens().accessToken}`,

@@ -64,8 +64,45 @@ export function playlistBucket(playlist: Playlist): string {
   return playlist.playlist_type ?? playlist.kind ?? "playlist";
 }
 
+/**
+ * Escape a value for safe interpolation anywhere in an HTML template,
+ * *including attribute contexts*: `& < > " '` are all escaped, so a value
+ * like `x" onerror="…` cannot break out of a quoted attribute.
+ */
 export function escapeHtml(text: unknown): string {
-  const div = document.createElement("div");
-  div.textContent = String(text ?? "");
-  return div.innerHTML;
+  return String(text ?? "").replace(/[&<>"'`]/g, (char) => (
+    char === "&" ? "&amp;"
+    : char === "<" ? "&lt;"
+    : char === ">" ? "&gt;"
+    : char === '"' ? "&quot;"
+    : char === "'" ? "&#39;"
+    : "&#96;"
+  ));
+}
+
+/** Escape a value for safe use inside a URL-typed attribute (`href`/`src`).
+ *  Additionally blocks `javascript:` / `data:` (except safe media types)
+ *  schemes so API-provided URLs cannot carry script URIs. */
+export function escapeUrl(url: unknown): string {
+  const value = String(url ?? "").trim();
+  const scheme = value.match(/^([a-z][a-z0-9+.-]*):/i)?.[1]?.toLowerCase() ?? "";
+  const blocked = scheme !== "" && scheme !== "http" && scheme !== "https"
+    && !(scheme === "data" && /^data:image\/(png|jpe?g|gif|webp);/i.test(value));
+  return blocked ? "" : escapeHtml(value);
+}
+
+/**
+ * Redact credential-bearing query parameters (oauth_token, access_token,
+ * client_secret, …) from a string before it is logged. SoundCloud stream
+ * URLs embed `?oauth_token=…`, which must never reach the persistent debug
+ * log or the console.
+ */
+export function redactSecrets(text: unknown): string {
+  return String(text ?? "")
+    // any credentialed query parameter → keep the name, drop the value
+    .replace(/([?&](?:oauth_)?(?:access_)?token|client_secret)=([^&\s"']+)/gi, "$1=REDACTED")
+    // bearer tokens pasted verbatim
+    .replace(/\bOAuth [A-Za-z0-9._-]{8,}/g, "OAuth REDACTED")
+    // signed path segments used by sndcdn stream URLs (hmac + expiry)
+    .replace(/\/(?:[A-Za-z0-9_-]*hmac[A-Za-z0-9_-]*|\d{10,})\//g, "/REDACTED/");
 }

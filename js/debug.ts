@@ -4,6 +4,8 @@
  * `dbg`, and the SoundCloudApi mirrors its requests into it as well.
  */
 
+import { redactSecrets } from "./util.js";
+
 const DEBUG_KEY = "playlist_updater.debug";
 const DEBUG_MAX_LINES = 60;
 
@@ -15,9 +17,11 @@ function readDebugLog(): string[] {
   }
 }
 
-/** Append a timestamped line to the log (console + panel + storage). */
+/** Append a timestamped line to the log (console + panel + storage).
+ *  Every line is redacted first: logged URLs can embed OAuth tokens
+ *  (`?oauth_token=…` on stream URLs) or error bodies quoting secrets. */
 export function dbg(message: string): void {
-  const line = `${new Date().toISOString().slice(11, 19)} ${message}`;
+  const line = `${new Date().toISOString().slice(11, 19)} ${redactSecrets(message)}`;
   console.info(line);
   const log = readDebugLog();
   log.push(line);

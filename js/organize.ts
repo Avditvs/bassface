@@ -13,7 +13,7 @@
  */
 
 import { state } from "./state.js";
-import { escapeHtml, formatCount, targetOf, el } from "./util.js";
+import { escapeHtml, escapeUrl, formatCount, targetOf, el } from "./util.js";
 import { showStatus, clearStatus } from "./screens.js";
 import { renderTrackList, renderPlaylistHeader } from "./render.js";
 import type { Playlist, Track } from "./types.js";
@@ -133,7 +133,7 @@ function selectionModeHtml(): string {
 function organizationEntryHtml(playlist: Playlist): string {
   const letter = (playlist.title ?? "?").trim().charAt(0).toUpperCase() || "♪";
   const artwork = playlist.artwork_url
-    ? `<img class="org-art" src="${escapeHtml(playlist.artwork_url)}" alt="" loading="lazy" />`
+    ? `<img class="org-art" src="${escapeUrl(playlist.artwork_url)}" alt="" loading="lazy" />`
     : `<span class="org-art org-art-placeholder">${escapeHtml(letter)}</span>`;
   const privateBadge = playlist.sharing === "private" ? ` <span class="badge type-private">Private</span>` : "";
 

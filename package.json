@@ -8,7 +8,7 @@
     "typecheck": "tsc --noEmit",
     "build": "rm -rf dist && tsc && cp index.html dist/ && cp -R css dist/css",
     "watch": "tsc --watch",
-    "serve": "npm run build && python3 -m http.server 8080 --directory dist"
+    "serve": "npm run build && python3 -m http.server 8080 --bind 127.0.0.1 --directory dist"
   },
   "devDependencies": {
     "typescript": "^5.9.2"

@@ -53,6 +53,14 @@ export async function onConnectSubmit(event: Event): Promise<void> {
     showStatus(`Invalid redirect URI: ${redirectUri}`, "error");
     return;
   }
+  // OAuth redirect URIs must be https, except loopback (RFC 8252 §8.3):
+  // sending the authorization code over plaintext HTTP elsewhere would
+  // expose it to anyone on the path.
+  const isLoopback = /^http:\/\/(localhost|127\.\.?1|\[::1\])(:\d+)?\//i.test(redirectUri);
+  if (redirectUri.startsWith("http://") && !isLoopback) {
+    showStatus(`Redirect URI must use https (loopback http is allowed): ${redirectUri}`, "error");
+    return;
+  }
 
   const button = el<HTMLButtonElement>("connect");
   button.disabled = true;

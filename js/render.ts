@@ -4,7 +4,7 @@
  */
 
 import { TYPE_LABELS, state } from "./state.js";
-import { escapeHtml, formatCount, formatDate, formatDuration, playlistBucket, el, targetOf } from "./util.js";
+import { escapeHtml, escapeUrl, formatCount, formatDate, formatDuration, playlistBucket, el, targetOf } from "./util.js";
 import { previewButtonFor, updatePreviewTime } from "./preview.js";
 import { renderWaveforms } from "./waveform.js";
 import { observeTrackSentinel, forgetTrackSentinel } from "./tracks.js";
@@ -15,7 +15,7 @@ import type { Playlist, SortKey, Track } from "./types.js";
 /** Artwork image or a letter placeholder, as HTML. */
 function artworkHtml(artworkUrl: string | null | undefined, title: string | undefined): string {
   return artworkUrl
-    ? `<div class="artwork"><img src="${escapeHtml(artworkUrl)}" alt="" loading="lazy" /></div>`
+    ? `<div class="artwork"><img src="${escapeUrl(artworkUrl)}" alt="" loading="lazy" /></div>`
     : `<div class="artwork-placeholder">${escapeHtml((title ?? "?").trim().charAt(0).toUpperCase() || "♪")}</div>`;
 }
 
@@ -153,7 +153,7 @@ function cardFor(playlist: Playlist): string {
       ${meta}
       <div class="card-actions">
         <button class="button card-open" type="button" data-open-playlist>View tracks</button>
-        <a href="${escapeHtml(playlist.permalink_url)}" target="_blank" rel="noreferrer" title="Open on SoundCloud">SoundCloud ↗</a>
+        <a href="${escapeUrl(playlist.permalink_url)}" target="_blank" rel="noreferrer" title="Open on SoundCloud">SoundCloud ↗</a>
       </div>
     </div>
   </li>`;
@@ -192,7 +192,7 @@ export function renderPlaylistHeader(): void {
       <div class="badges">${badges.join("")}</div>
       ${description}
       ${meta}
-      <p class="playlist-link"><a href="${escapeHtml(playlist.permalink_url)}" target="_blank" rel="noreferrer">Open on SoundCloud →</a></p>
+      <p class="playlist-link"><a href="${escapeUrl(playlist.permalink_url)}" target="_blank" rel="noreferrer">Open on SoundCloud →</a></p>
     </div>`;
 }
 
@@ -245,7 +245,7 @@ function trackRowFor(track: Track, index: number): string {
 
   const byLine = [track.user?.username, track.genre].filter(Boolean).join(" · ");
   const title = escapeHtml(track.title ?? "Untitled");
-  const permalink = escapeHtml(track.permalink_url);
+  const permalink = escapeUrl(track.permalink_url);
 
   return `<li class="track-row" draggable="true" data-track-id="${track.id}" title="Drag onto a playlist in the Reorganize sidebar to add or move it">
     <span class="track-index">${index + 1}</span>
