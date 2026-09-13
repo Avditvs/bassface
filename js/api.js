@@ -318,6 +318,10 @@ export class SoundCloudApi {
    * Decode SoundCloud's classic waveform PNG into per-column loudness values:
    * each column's count of waveform pixels is proportional to the amplitude
    * there, which is all the coarse peak search needs.
+   *
+   * The image is a transparent-background PNG whose waveform pixels are light
+   * grey (rgb(239,239,239)) — so the threshold must stay above 239 to count
+   * them while still ignoring an opaque white background, should one appear.
    */
   async samplesFromWaveformPng(blob) {
     const bitmap = await createImageBitmap(blob);
@@ -339,7 +343,7 @@ export class SoundCloudApi {
         let count = 0;
         for (let y = 0; y < height; y += 1) {
           const offset = (y * width + x) * 4;
-          if (data[offset + 3] > 0 && data[offset] < 200) count += 1; // waveform pixel
+          if (data[offset + 3] > 0 && data[offset] < 250) count += 1; // waveform pixel
         }
         samples[x] = count;
       }

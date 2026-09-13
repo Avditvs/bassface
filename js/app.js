@@ -833,21 +833,34 @@ function drawWaveform(trackId) {
   const base = styles.getPropertyValue("--muted").trim() || "#a6a6a6";
   const accent = styles.getPropertyValue("--accent").trim() || "#ff5500";
   const played = waveformProgress(trackId);
-  // SoundCloud-style solid mirrored area: one column per CSS pixel. Separated
-  // bars read as a picket fence on loud, uniform material.
-  const splitX = Math.round(played * width);
-  const drawColumns = (from, to, color) => {
-    ctx.fillStyle = color;
-    ctx.beginPath();
-    for (let x = from; x < to; x += 1) {
-      const value = bars[Math.min(bars.length - 1, Math.floor((x / width) * bars.length))];
-      const barHeight = Math.max(2, value * (height - 4));
-      ctx.rect(x, (height - barHeight) / 2, 1, barHeight);
-    }
-    ctx.fill();
-  };
-  drawColumns(0, splitX, accent);
-  drawColumns(splitX, width, base);
+
+  // The bar count follows the canvas width: every bar gets exactly the same
+  // slot (bar + 1px gap), so no bar is wider, narrower or shifted compared
+  // to its neighbours, whatever the zoom or window size.
+  const gap = 1;
+  const unit = Math.max(3, Math.round(width / 90)); // bar+gap period in px
+  const barW = unit - gap;
+  const barCount = Math.max(1, Math.floor((width + gap) / unit));
+  // Cached bars → barCount buckets (max within each bucket), so the shape
+  // is preserved at every resolution.
+  const values = [];
+  for (let i = 0; i < barCount; i += 1) {
+    const from = Math.floor((i * bars.length) / barCount);
+    const to = Math.max(from + 1, Math.floor(((i + 1) * bars.length) / barCount));
+    values.push(bars.slice(from, to).reduce((m, v) => Math.max(m, v), 0));
+  }
+  // Mirrored around the centre, on an even pixel height so both halves
+  // match; a 2px floor keeps silent passages visible.
+  const barH = (v) => Math.max(2, 2 * Math.round((v * (height - 8)) / 2));
+  const barY = (h) => (height - h) / 2;
+
+  // First bar at/after the playhead switches from accent to muted, so the
+  // colour boundary always falls between two bars instead of cutting one.
+  const splitIndex = Math.floor(played * barCount);
+  for (let i = 0; i < barCount; i += 1) {
+    ctx.fillStyle = i < splitIndex ? accent : base;
+    ctx.fillRect(i * unit, barY(barH(values[i])), barW, barH(values[i]));
+  }
 }
 
 /** Kick off loads + redraws for every waveform currently on screen. */
@@ -1431,6 +1444,13 @@ function initListeners() {
   previewAudio.addEventListener("error", onPreviewError);
   previewAudio.addEventListener("timeupdate", updatePreviewTime);
   window.addEventListener("hashchange", route);
+  // Window resizes change the waveform canvases' width: redraw (debounced —
+  // a resize fires dozens of times while dragging).
+  let resizeTimer = 0;
+  window.addEventListener("resize", () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(renderWaveforms, 120);
+  });
 }
 
 function init() {
