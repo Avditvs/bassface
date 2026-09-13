@@ -1,6 +1,7 @@
 /* base.css — design tokens, reset and global element styles. */
 
 :root {
+  color-scheme: dark; /* native widgets and scrollbars match the dark theme */
   --bg: #1c1c1c;
   --panel: #262626;
   --panel-alt: #2e2e2e;

@@ -19,6 +19,9 @@
 .playlist-main {
   overflow-y: auto;
   min-height: 0; /* let the grid item shrink below its content height */
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+  padding-right: 12px; /* empty lane so the scrollbar never sits on top of the rows */
 }
 
 /* The playlist screen fills the viewport, so the footer is in the way:
