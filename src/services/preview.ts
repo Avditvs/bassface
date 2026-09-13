@@ -13,7 +13,7 @@ import { clearStatus, getState, setState, showStatus } from "./store";
 import { formatDuration } from "./util";
 import { redrawTrackWaveform } from "./waveform";
 import {
-  loadJumpSource, extendJumpWindow, waitForMetadata,
+  loadJumpSource, extendJumpWindow, waitForMetadata, bufferedEndSec,
 } from "./audio-engine";
 import { getAudio, previewRuntime, revokePreviewObjectUrl } from "./preview-runtime";
 import type { PreviewMode } from "../services/types";
@@ -103,28 +103,28 @@ export async function togglePreview(
     // every other mode (and HLS-less tracks) use previewSource.
     const api = getState().api!;
     const source = mode === "jump"
-      ? await loadJumpSource(track, p.pendingSeekSec ?? 0, { onRaw, onError })
+      ? await loadJumpSource(track, p.pendingSeekSec ?? 0, audio, { onRaw, onError })
       : await api.previewSource(track, { mode: "start", onRaw, onError });
     if (!source || (!source.blob && !source.url)) throw new Error("this track has no playable preview");
 
-    // Stream URLs live on api.soundcloud.com and require the OAuth header,
-    // which a bare <audio> cannot send — play from a downloaded Blob (full
-    // track, direct mp3 or concatenated HLS) whenever possible.
+    // Streamed jump previews (MediaSource) are already attached to the
+    // element by the audio engine; every other source is assigned here.
+    const streamed = source.jump?.streamed === true;
     let src: string;
     if (source.blob) {
       src = URL.createObjectURL(source.blob);
       dbg(`[preview] downloaded ${source.blob.size} bytes (${source.kind}) from ${source.url}`);
     } else {
       src = source.url;
-      dbg(`[preview] no blob (${source.kind}) — trying direct src: ${source.url}`);
+      dbg(`[preview] no blob (${source.kind}) — using ${streamed ? "streamed MediaSource" : "direct"} src: ${source.url}`);
     }
 
     revokePreviewObjectUrl();
-    p.objectUrl = source.blob ? src : null;
+    p.objectUrl = source.blob || streamed ? src : null;
     p.blob = source.blob ?? null;
     p.originSec = source.originSec ?? null;
     p.jump = source.jump ?? null;
-    audio.src = src;
+    if (!streamed) audio.src = src;
     setState({ previewLoading: false });
     await waitForMetadata(audio);
     if (p.trackId !== trackId) return; // user switched away while loading
@@ -199,12 +199,18 @@ export function seekFromWaveform(canvas: HTMLCanvasElement, event: MouseEvent): 
   if (!rect.width || !Number.isFinite(targetSec)) return;
   const p = previewRuntime;
   const audio = getAudio();
-  // Seek directly only when the click lands inside the already-downloaded
-  // audio window [originSec, originSec + duration]; otherwise reload from
-  // the clicked position ("jump" mode, see loadJumpSource).
+  // Seek directly only when the click lands inside the audio window that is
+  // actually available: the Blob on the hot-swap path (the blob holds all
+  // downloaded audio), the buffered range on the MediaSource path (its
+  // duration already covers the whole window). Otherwise reload from the
+  // clicked position ("jump" mode, see loadJumpSource).
+  const streamed = p.jump?.streamed === true;
   const originSec = p.originSec ?? 0;
-  const coveredEnd = originSec + (Number.isFinite(audio.duration) ? audio.duration : 0);
-  if (p.trackId === trackId && !getState().previewLoading && p.blob && audio.duration > 0
+  const windowEnd = streamed
+    ? bufferedEndSec(audio)
+    : (Number.isFinite(audio.duration) ? audio.duration : 0);
+  const coveredEnd = originSec + windowEnd;
+  if (p.trackId === trackId && !getState().previewLoading && (p.blob || streamed) && audio.duration > 0
       && targetSec >= originSec && targetSec < coveredEnd - 0.05) {
     audio.currentTime = targetSec - originSec;
     if (audio.paused) {

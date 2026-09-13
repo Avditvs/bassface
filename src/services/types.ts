@@ -83,9 +83,15 @@ export type PreviewMode = "start" | "jump";
 /** Streaming bookkeeping for jump previews (more segments stream in later). */
 export interface JumpState {
   segments: HlsSegment[];
+  /** Fetched blob parts — only on the Blob hot-swap path (empty when streamed). */
   parts: Blob[];
   nextIndex: number;
   lastIndex: number;
+  /** True when segments stream into a MediaSource (no blob hot-swap). */
+  streamed?: boolean;
+  /** Live SourceBuffer/MediaSource of the streamed preview (null on the Blob path). */
+  sourceBuffer?: SourceBuffer | null;
+  mediaSource?: MediaSource | null;
 }
 
 /** A resolved, playable preview source. */
