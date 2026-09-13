@@ -93,6 +93,8 @@ export interface PreviewSource {
   blob?: Blob;
   url: string;
   kind: PreviewKind;
+  /** Whether the blob covers the whole track from position 0 (no truncation). */
+  complete?: boolean;
   /** Track time (seconds) at which the blob audio begins. */
   originSec?: number;
   /** Seconds into the blob where a jump preview must seek. */

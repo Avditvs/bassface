@@ -243,8 +243,14 @@ export class SoundCloudApi {
         if (typeof value !== "string" || !value.trim()) continue;
         const url = value.trim();
         try {
-          const blob = direct ? await this.fetchAudioBlob(url) : await this.fetchHlsBlob(url);
-          return { blob, url, kind };
+          if (direct) {
+            const blob = await this.fetchAudioBlob(url);
+            // A direct mp3 (or the untruncated HLS playlist, below) is the
+            // whole track, so a jump preview can simply seek inside the Blob.
+            return { blob, url, kind, complete: kind === "full" };
+          }
+          const { blob, complete } = await this.fetchHls(url);
+          return { blob, url, kind, complete: kind === "full" && complete };
         } catch (err) {
           SoundCloudApi.logger?.(`[api] ${String(key)} download failed: ${err.message}`);
         }
@@ -315,10 +321,10 @@ export class SoundCloudApi {
   /**
    * Download an HLS mp3 playlist and return its audio as one playable Blob.
    * Playlists longer than {@link HLS_MAX_SEGMENTS} are truncated to segments
-   * taken from the middle, keeping the download bounded while starting the
-   * preview mid-track.
+   * taken from the middle, keeping the download bounded — `complete` reports
+   * whether the Blob covers the whole track from position 0.
    */
-  async fetchHlsBlob(m3u8Url: string): Promise<Blob> {
+  async fetchHls(m3u8Url: string): Promise<{ blob: Blob; complete: boolean }> {
     const response = await this.fetchAuthed(m3u8Url);
     if (!response.ok) {
       throw new Error(`SoundCloud HLS error (${response.status})`);
@@ -337,12 +343,13 @@ export class SoundCloudApi {
           Math.floor((segments.length - HLS_MAX_SEGMENTS) / 2),
           Math.floor((segments.length - HLS_MAX_SEGMENTS) / 2) + HLS_MAX_SEGMENTS,
         );
+    const complete = chosen.length === segments.length;
     SoundCloudApi.logger?.(`[api] hls: using ${chosen.length}/${segments.length} segments`);
     const parts: Blob[] = [];
     for (const segment of chosen) {
       parts.push(await this.fetchAudioBlob(new URL(segment, base).toString()));
     }
-    return new Blob(parts, { type: "audio/mpeg" });
+    return { blob: new Blob(parts, { type: "audio/mpeg" }), complete };
   }
 
   /**

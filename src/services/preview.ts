@@ -98,11 +98,12 @@ export async function togglePreview(
   try {
     const onRaw = (streams: unknown) => dbg(`[preview] streams raw: ${JSON.stringify(streams).slice(0, 800)}`);
     const onError = (err: unknown) => dbg(`[preview] streams failed: ${(err as Error).message}`);
-    // Jump downloads from the clicked position onward; every other mode
-    // (and HLS-less tracks) use previewSource.
+    // Jump downloads from the clicked position onward (with a whole-track
+    // fallback that seeks inside the Blob when segments are unavailable);
+    // every other mode (and HLS-less tracks) use previewSource.
     const api = getState().api!;
     const source = mode === "jump"
-      ? (await loadJumpSource(track, p.pendingSeekSec ?? 0, { onRaw, onError })) ?? await api.previewSource(track, { mode: "full", onRaw, onError })
+      ? await loadJumpSource(track, p.pendingSeekSec ?? 0, { onRaw, onError })
       : await api.previewSource(track, { mode: "start", onRaw, onError });
     if (!source || (!source.blob && !source.url)) throw new Error("this track has no playable preview");
 

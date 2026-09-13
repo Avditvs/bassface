@@ -61,20 +61,33 @@ export async function loadJumpSource(
     onError?: ((err: unknown) => void) | null;
   } = {},
 ): Promise<PreviewSource | null> {
+  /** Fallback when the segmented jump is impossible: fetch a whole-track
+   *  source and seek inside it when it really covers the full track. */
+  const fallback = async (): Promise<PreviewSource | null> => {
+    const source = await getState().api!.previewSource(track, { mode: "full", onRaw, onError });
+    if (source && source.kind !== "full") dbg(`[preview] jump: only a ${source.kind} source exists — starting at 0`);
+    // A complete full-track Blob starts at the track's position 0, so the
+    // requested jump position is a plain seek inside it. Without this, the
+    // fallback (no HLS segments available) would start playback at 0.
+    if (source?.kind === "full" && source.complete) {
+      source.originSec = 0;
+      source.seekOffset = Math.max(0, targetSec);
+    } else if (source?.kind === "full") {
+      dbg("[preview] jump: full source is truncated — starting at 0");
+    }
+    return source;
+  };
+
   let segments: HlsSegment[] | null;
   try {
     segments = await getState().api!.hlsSegments(track, { onRaw, onError });
   } catch (err) {
     onError?.(err);
-    segments = null;
+    return fallback();
   }
-  if (!segments) {
-    const source = await getState().api!.previewSource(track, { mode: "full", onRaw, onError });
-    if (source && source.kind !== "full") dbg(`[preview] jump: only a ${source.kind} source exists — starting at 0`);
-    return source;
-  }
+  if (!segments) return fallback();
   const at = segmentIndexAt(segments, targetSec);
-  if (!at) return null;
+  if (!at) return fallback();
   const last = Math.min(segments.length - 1, at.index + JUMP_MAX_SEGMENTS - 1);
   const windowEnd = Math.min(last, at.index + JUMP_WINDOW - 1);
   const starts = segmentStarts(segments);
@@ -88,7 +101,7 @@ export async function loadJumpSource(
     .filter((r): r is PromiseFulfilledResult<Blob> => r.status === "fulfilled")
     .map((r) => r.value);
   const originSec = starts[at.index + results.findIndex((r) => r.status === "fulfilled")];
-  if (!parts.length) return null;
+  if (!parts.length) return fallback();
   dbg(`[preview] jump: ${parts.length} segments from ${originSec.toFixed(1)} s`);
   return {
     blob: new Blob(parts, { type: "audio/mpeg" }),
