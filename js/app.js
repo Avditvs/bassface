@@ -55,9 +55,13 @@ const state = {
   tracks: [],
   tracksLoaded: false,
   tracksError: "",
+  trackPager: null,
+  tracksLoadingMore: false,
   currentPlaylist: null,
   preview: { trackId: null, playing: false, loading: false, objectUrl: null, mode: "start", blob: null, peakOffset: null },
   playlistsLoading: false,
+  page: 1,
+  pageSize: 24,
   user: UserStore.load(),
 };
 
@@ -235,6 +239,7 @@ async function loadPlaylists() {
   } finally {
     state.playlistsLoading = false;
   }
+  state.page = 1;
   clearStatus();
   renderPlaylistControls();
   renderPlaylists();
@@ -293,10 +298,13 @@ function route() {
 
 function resetPlaylistView() {
   stopPreview();
+  forgetTrackSentinel();
   state.currentPlaylist = null;
   state.tracks = [];
   state.tracksLoaded = false;
   state.tracksError = "";
+  state.trackPager = null;
+  state.tracksLoadingMore = false;
 }
 
 /** Open a playlist (by numeric id) and fetch + render its tracks. */
@@ -313,7 +321,10 @@ async function openPlaylist(id) {
   state.tracks = [];
   state.tracksLoaded = false;
   state.tracksError = "";
+  state.trackPager = null;
+  state.tracksLoadingMore = false;
   stopPreview();
+  forgetTrackSentinel();
   // Keep the URL in sync without re-triggering route() (replaceState is silent).
   if (playlistIdFromHash() !== String(id)) {
     history.replaceState(null, "", `#/playlist/${id}`);
@@ -326,7 +337,12 @@ async function openPlaylist(id) {
 
   showStatus("Loading tracks…");
   try {
-    state.tracks = await state.api.playlistTracks(id);
+    const pager = state.api.createPlaylistTracksPager(id);
+    const firstPage = await pager.next();
+    // A faster navigation may have opened another playlist meanwhile.
+    if (String(state.currentPlaylist?.id) !== String(id)) return;
+    state.trackPager = pager;
+    state.tracks = firstPage ?? [];
     state.tracksLoaded = true;
     clearStatus();
   } catch (err) {
@@ -335,6 +351,50 @@ async function openPlaylist(id) {
     showStatus(`Could not load the track list: ${err.message}`, "error");
   }
   renderTrackList();
+}
+
+// ---------------------------------------------------------------------------
+// Infinite scroll for the track list (load more as the sentinel nears view)
+// ---------------------------------------------------------------------------
+
+let trackSentinelObserver = null;
+
+/** Fetch the next track page and append it to the rendered list. */
+async function loadMoreTracks() {
+  const pager = state.trackPager;
+  if (!pager || pager.done || state.tracksLoadingMore || state.tracksError) return;
+  state.tracksLoadingMore = true;
+  try {
+    const batch = await pager.next();
+    if (batch) state.tracks.push(...batch);
+  } catch (err) {
+    dbg(`[tracks] load-more failed: ${err.message}`);
+    showStatus(`Could not load more tracks: ${err.message}`, "error");
+  } finally {
+    state.tracksLoadingMore = false;
+  }
+  renderTrackList();
+}
+
+/** Watch the sentinel row at the end of the list; fetches when it nears view. */
+function observeTrackSentinel() {
+  const sentinel = document.getElementById("track-sentinel");
+  if (!sentinel) return;
+  if (!trackSentinelObserver) {
+    trackSentinelObserver = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) void loadMoreTracks();
+      },
+      { rootMargin: "600px 0px" }, // start fetching before the user arrives
+    );
+  }
+  trackSentinelObserver.disconnect();
+  trackSentinelObserver.observe(sentinel);
+}
+
+/** Drop the sentinel observer (leaving a playlist / clearing the view). */
+function forgetTrackSentinel() {
+  trackSentinelObserver?.disconnect();
 }
 
 function goBackToPlaylists() {
@@ -837,14 +897,63 @@ function renderPlaylists() {
 
   if (state.playlistsLoading) {
     list.innerHTML = `<li class="empty-state"><span class="spinner" aria-hidden="true"></span>Loading your playlists…</li>`;
+    renderPagination(0);
     return;
   }
   if (visible.length === 0) {
     list.innerHTML = `<li class="empty-state">No playlists match your filters.`;
+    renderPagination(0);
     return;
   }
 
-  list.innerHTML = visible.map(cardFor).join("");
+  // Clamp the page in case the filters shrank the result set.
+  const pageCount = Math.max(1, Math.ceil(visible.length / state.pageSize));
+  state.page = Math.min(Math.max(1, state.page), pageCount);
+  const start = (state.page - 1) * state.pageSize;
+  list.innerHTML = visible.slice(start, start + state.pageSize).map(cardFor).join("");
+  renderPagination(pageCount);
+}
+
+function renderPagination(pageCount) {
+  const nav = document.getElementById("playlist-pagination");
+  if (pageCount <= 1) {
+    nav.hidden = true;
+    nav.innerHTML = "";
+    return;
+  }
+
+  // Windowed page numbers: 1 … 4 5 6 … 12 (context around the current page).
+  const numbers = [];
+  for (let p = 1; p <= pageCount; p += 1) {
+    if (p === 1 || p === pageCount || Math.abs(p - state.page) <= 1) {
+      numbers.push(p);
+    } else if (numbers[numbers.length - 1] !== "…") {
+      numbers.push("…");
+    }
+  }
+
+  const pageButton = (p) =>
+    `<button class="page-number${p === state.page ? " is-current" : ""}" type="button" data-goto-page="${p}" aria-current="${p === state.page ? "page" : "false"}">${p}</button>`;
+  const ellipsis = `<span class="page-ellipsis" aria-hidden="true">…</span>`;
+
+  nav.hidden = false;
+  nav.innerHTML = [
+    `<button class="page-number page-prev" type="button" data-goto-page="${state.page - 1}" ${state.page === 1 ? "disabled" : ""} aria-label="Previous page">‹ Prev</button>`,
+    ...numbers.map((n) => (n === "…" ? ellipsis : pageButton(n))),
+    `<button class="page-number page-next" type="button" data-goto-page="${state.page + 1}" ${state.page === pageCount ? "disabled" : ""} aria-label="Next page">Next ›</button>`,
+    `<span class="page-info">Page ${state.page} of ${pageCount}</span>`,
+  ].join("");
+}
+
+function onPaginationClick(event) {
+  const button = event.target.closest("[data-goto-page]");
+  if (!button || button.disabled) return;
+  const target = Number(button.dataset.gotoPage);
+  if (!Number.isInteger(target)) return;
+  state.page = target;
+  renderPlaylists();
+  // Keep the (re-rendered) grid in view after jumping pages.
+  document.getElementById("playlists-screen").scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
 function cardFor(playlist) {
@@ -926,25 +1035,38 @@ function renderTrackList() {
   const list = document.getElementById("track-list");
   const summary = document.getElementById("track-summary");
   const tracks = state.tracks;
+  const hasMore = state.trackPager !== null && !state.trackPager.done && !state.tracksError;
+  const totalCount = state.currentPlaylist?.track_count ?? tracks.length;
 
   if (!state.tracksLoaded) {
+    forgetTrackSentinel();
     list.innerHTML = `<li class="empty-state"><span class="spinner" aria-hidden="true"></span>Loading tracks…</li>`;
     return;
   }
   if (state.tracksError) {
+    forgetTrackSentinel();
     list.innerHTML = `<li class="empty-state">Could not load the track list — see the message above.</li>`;
     return;
   }
 
   summary.textContent = tracks.length
-    ? `${formatCount(tracks.length)} sound${tracks.length === 1 ? "" : "s"} in this playlist`
+    ? `${formatCount(tracks.length)} of ${formatCount(totalCount)} sound${totalCount === 1 ? "" : "s"} in this playlist${hasMore ? " — scroll for more" : ""}`
     : "";
 
   if (tracks.length === 0) {
+    forgetTrackSentinel();
     list.innerHTML = `<li class="empty-state">This playlist has no sounds (yet).</li>`;
     return;
   }
-  list.innerHTML = tracks.map(trackRowFor).join("");
+  list.innerHTML = tracks.map(trackRowFor).join("") +
+    (hasMore
+      ? `<li id="track-sentinel" class="track-sentinel" aria-hidden="true"><span class="spinner"></span>Loading more tracks…</li>`
+      : "");
+  if (hasMore) {
+    observeTrackSentinel();
+  } else {
+    forgetTrackSentinel();
+  }
   updatePreviewTime();
 }
 
@@ -985,6 +1107,8 @@ function signOut() {
   state.tokens = TokenStore.load();
   state.user = null;
   state.playlists = [];
+  forgetTrackSentinel();
+  state.trackPager = null;
   document.getElementById("user-area").hidden = true;
   stopPreview();
   history.replaceState(null, "", window.location.pathname);
@@ -999,9 +1123,14 @@ function signOut() {
 function initListeners() {
   document.getElementById("config-form").addEventListener("submit", onConnectSubmit);
   document.getElementById("sign-out").addEventListener("click", signOut);
-  document.getElementById("search").addEventListener("input", renderPlaylists);
-  document.getElementById("type-filter").addEventListener("change", renderPlaylists);
-  document.getElementById("sort").addEventListener("change", renderPlaylists);
+  const resetPageAndRender = () => {
+    state.page = 1;
+    renderPlaylists();
+  };
+  document.getElementById("search").addEventListener("input", resetPageAndRender);
+  document.getElementById("type-filter").addEventListener("change", resetPageAndRender);
+  document.getElementById("sort").addEventListener("change", resetPageAndRender);
+  document.getElementById("playlist-pagination").addEventListener("click", onPaginationClick);
   document.getElementById("back-to-playlists").addEventListener("click", goBackToPlaylists);
   document.getElementById("playlist-list").addEventListener("click", onPlaylistListClick);
   document.getElementById("track-list").addEventListener("click", onTrackListClick);

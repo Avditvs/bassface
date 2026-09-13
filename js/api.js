@@ -106,21 +106,29 @@ export class SoundCloudApi {
   }
 
   /**
-   * The sounds inside one playlist (`show_tracks=true` embeds track objects
-   * on each page, paginated via `next_href`).
+   * On-demand page loader for the sounds inside one playlist (SoundCloud's
+   * `linked_partitioning` pagination): `next()` fetches one page and returns
+   * its tracks (null once the end is reached, `done` reports that state).
+   * Lets the UI load the first page immediately and the rest while scrolling.
    * @see https://developers.soundcloud.com/docs/api/guide#listen
    */
-  async playlistTracks(id) {
-    const tracks = [];
-    let href = `${API_BASE_URL}/playlists/${encodeURIComponent(id)}?show_tracks=true&linked_partitioning=true&limit=50`;
-    while (href) {
-      const page = await this.request(href);
-      tracks.push(...(page.tracks ?? page.collection ?? []));
-      // Guard against a misbehaving API handing back the same page forever.
-      if (!page.next_href || page.next_href === href) break;
-      href = page.next_href;
-    }
-    return tracks;
+  createPlaylistTracksPager(id, { pageSize = 50 } = {}) {
+    const api = this; // the pager object itself has no request()
+    let href = `${API_BASE_URL}/playlists/${encodeURIComponent(id)}/tracks?linked_partitioning=true&limit=${pageSize}`;
+    return {
+      /** Whether every page has been fetched. */
+      get done() {
+        return href === null;
+      },
+      /** Fetch the next page; resolves to its tracks, or null when done. */
+      async next() {
+        if (href === null) return null;
+        const current = href;
+        const page = await api.request(current);
+        href = page.next_href && page.next_href !== current ? page.next_href : null;
+        return page.collection ?? [];
+      },
+    };
   }
 
   /**

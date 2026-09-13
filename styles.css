@@ -278,6 +278,45 @@ input:focus, select:focus { border-color: var(--accent); }
   font-size: 0.82rem;
 }
 
+/* ---------- pagination ---------- */
+
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin: 24px 0 8px;
+}
+
+.page-number {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--text);
+  font-size: 0.85rem;
+  padding: 7px 12px;
+  cursor: pointer;
+}
+
+.page-number:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+
+.page-number:disabled { opacity: 0.45; cursor: default; }
+
+.page-number.is-current {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: 700;
+  cursor: default;
+}
+
+.page-prev, .page-next { font-weight: 600; }
+
+.page-ellipsis { color: var(--muted); padding: 0 4px; }
+
+.page-info { color: var(--muted); font-size: 0.82rem; margin-left: 10px; }
+
 /* ---------- playlist detail ---------- */
 
 .playlist-header {
@@ -432,6 +471,20 @@ input:focus, select:focus { border-color: var(--accent); }
   border-color: var(--accent);
   color: var(--accent);
   cursor: progress;
+}
+
+/* ---------- infinite-scroll sentinel ---------- */
+
+.track-sentinel {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 18px 0;
+  color: var(--muted);
+  font-size: 0.88rem;
+  border: 1px dashed var(--border);
+  border-radius: 10px;
 }
 
 /* ---------- footer ---------- */
