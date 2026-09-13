@@ -76,7 +76,10 @@ export function renderOrganizeSidebar() {
   aside.innerHTML = `
     <div class="org-head">
       <h2 class="org-title">Reorganize</h2>
-      <button id="organize-choose" class="button button-quiet" type="button">${selectionMode ? "Done" : "Choose…"}</button>
+      <div class="org-head-actions">
+        <button id="organize-create" class="button button-quiet" type="button" title="Create a new, empty playlist">+ New</button>
+        <button id="organize-choose" class="button button-quiet" type="button">${selectionMode ? "Done" : "Choose…"}</button>
+      </div>
     </div>
     ${selectionMode ? selectionModeHtml() : dropModeHtml()}`;
 }
@@ -382,8 +385,12 @@ export function onOrganizeFilterInput() {
     : playlists.map(organizationEntryHtml).join("");
 }
 
-/** Header buttons: toggle choose mode, or apply All/None from it. */
+/** Header buttons: create a playlist, toggle choose mode, or apply All/None from it. */
 export function onOrganizeClick(event) {
+  if (event.target.closest("#organize-create")) {
+    void createPlaylistFromSidebar();
+    return;
+  }
   if (event.target.closest("#organize-choose")) {
     selectionMode = !selectionMode;
     renderOrganizeSidebar();
@@ -395,6 +402,27 @@ export function onOrganizeClick(event) {
     saveSelection();
     renderOrganizeSidebar();
   }
+}
+
+/**
+ * Ask for a title, create an empty playlist on SoundCloud, and list it in the
+ * sidebar so sounds can be dragged onto it right away.
+ */
+async function createPlaylistFromSidebar() {
+  const title = (window.prompt("Title of the new playlist") ?? "").trim();
+  if (!title) return;
+  showStatus(`Creating playlist “${title}”…`);
+  try {
+    const playlist = await state.api.createPlaylist(title);
+    // New playlist first, so it shows up at the top of the sidebar list.
+    state.playlists = [playlist, ...state.playlists.filter((p) => String(p.id) !== String(playlist.id))];
+  } catch (err) {
+    showStatus(`Could not create the playlist: ${err.message}`, "error");
+    return;
+  }
+  renderOrganizeSidebar();
+  showStatus(`Created “${title}”. Drag sounds onto it to fill it.`, "success");
+  setTimeout(clearStatus, 3000);
 }
 
 /** Checkbox toggles in choose mode update the persisted selection. */

@@ -109,6 +109,17 @@ export class SoundCloudApi {
   }
 
   /**
+   * Create a new, empty playlist with the given title. Same root `playlist`
+   * wrapping as the PUT in `updatePlaylistTracks`. Returns the new playlist.
+   */
+  async createPlaylist(title) {
+    return this.request("/playlists", {
+      method: "POST",
+      body: { playlist: { title, tracks: [] } },
+    });
+  }
+
+  /**
    * One playlist, with its tracks (needed to edit the track list: the PUT
    * endpoint replaces the whole list, so callers must read before writing).
    */

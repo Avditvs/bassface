@@ -441,6 +441,12 @@ body:has(#playlist-screen:not([hidden])) #status-bar {
 
 .org-head .org-title { margin: 0; }
 
+.org-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .org-shown { margin: 10px 0 0; }
 
 .org-check-list {
