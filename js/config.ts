@@ -3,6 +3,8 @@
  * and OAuth tokens. Everything lives in localStorage so no backend is needed.
  */
 
+import type { TokenPayload, SCUser } from "./types.js";
+
 const CONFIG_KEY = "playlist_updater.config";
 const TOKENS_KEY = "playlist_updater.tokens";
 const USER_KEY = "playlist_updater.user";
@@ -13,16 +15,16 @@ const CONFIG_DEFAULTS = {
   redirectUri: "",
 };
 
-function readJson(key) {
+function readJson(key: string): any {
   try {
-    return JSON.parse(localStorage.getItem(key));
+    return JSON.parse(localStorage.getItem(key) ?? "null");
   } catch {
     return null;
   }
 }
 
 /** Storage must never be fatal: a blocked/silent localStorage just warns. */
-function writeJson(key, value) {
+function writeJson(key: string, value: unknown): void {
   try {
     localStorage.setItem(key, JSON.stringify(value));
   } catch (err) {
@@ -36,8 +38,12 @@ function writeJson(key, value) {
  * (i.e. the app is opened via http(s), which is OAuth-compatible).
  */
 export class AppConfig {
-  static load() {
-    const stored = readJson(CONFIG_KEY) ?? {};
+  clientId = CONFIG_DEFAULTS.clientId;
+  clientSecret = CONFIG_DEFAULTS.clientSecret;
+  redirectUri = CONFIG_DEFAULTS.redirectUri;
+
+  static load(): AppConfig {
+    const stored = (readJson(CONFIG_KEY) ?? {}) as Partial<AppConfig>;
     const config = new AppConfig();
     config.clientId = stored.clientId ?? CONFIG_DEFAULTS.clientId;
     config.clientSecret = stored.clientSecret ?? CONFIG_DEFAULTS.clientSecret;
@@ -46,7 +52,7 @@ export class AppConfig {
   }
 
   /** The redirect URI to use with SoundCloud (explicit or derived from the page URL). */
-  resolveRedirectUri() {
+  resolveRedirectUri(): string {
     if (this.redirectUri) return this.redirectUri;
     if (window.location.protocol.startsWith("http")) {
       return `${window.location.origin}${window.location.pathname}`;
@@ -54,42 +60,53 @@ export class AppConfig {
     return "";
   }
 
-  isComplete() {
+  isComplete(): boolean {
     return Boolean(this.clientId && this.resolveRedirectUri());
   }
 
-  save() {
+  save(): void {
     writeJson(CONFIG_KEY, { ...this });
   }
 
-  clear() {
+  clear(): void {
     localStorage.removeItem(CONFIG_KEY);
   }
 }
 
+/** Persisted token data (internal shape). */
+interface TokenData {
+  accessToken?: string;
+  refreshToken?: string;
+  expiresAt?: number;
+}
+
 /** OAuth session tokens, with an expiry timestamp we can check. */
 export class TokenStore {
-  static load() {
-    return new TokenStore(readJson(TOKENS_KEY) ?? {});
+  accessToken: string;
+  refreshToken: string;
+  expiresAt: number;
+
+  static load(): TokenStore {
+    return new TokenStore((readJson(TOKENS_KEY) ?? {}) as TokenData);
   }
 
-  constructor(data) {
+  constructor(data: TokenData) {
     this.accessToken = data.accessToken ?? "";
     this.refreshToken = data.refreshToken ?? "";
     this.expiresAt = data.expiresAt ?? 0;
   }
 
-  hasAccessToken() {
+  hasAccessToken(): boolean {
     return Boolean(this.accessToken);
   }
 
   /** True when the access token should still be valid (with a 5 minute buffer). */
-  isFresh() {
+  isFresh(): boolean {
     return this.hasAccessToken() && Date.now() < this.expiresAt - 5 * 60 * 1000;
   }
 
   /** True when a refresh token is stored and may still be usable. */
-  canRefresh() {
+  canRefresh(): boolean {
     return Boolean(this.refreshToken);
   }
 
@@ -97,7 +114,7 @@ export class TokenStore {
    * Apply a token response. Accepts both snake_case (raw SoundCloud response:
    * access_token / refresh_token / expires_in) and camelCase (internal shape).
    */
-  update(response) {
+  update(response: TokenPayload): void {
     const accessToken = response.accessToken ?? response.access_token;
     const refreshToken = response.refreshToken ?? response.refresh_token;
     const expiresIn = response.expiresIn ?? response.expires_in;
@@ -109,26 +126,26 @@ export class TokenStore {
     this.save();
   }
 
-  save() {
+  save(): void {
     writeJson(TOKENS_KEY, { ...this });
   }
 
-  clear() {
+  clear(): void {
     localStorage.removeItem(TOKENS_KEY);
   }
 }
 
 /** Cached `/me` profile so we can greet the user immediately after refresh. */
 export class UserStore {
-  static load() {
+  static load(): SCUser | null {
     return readJson(USER_KEY);
   }
 
-  static save(user) {
+  static save(user: SCUser): void {
     writeJson(USER_KEY, user);
   }
 
-  static clear() {
+  static clear(): void {
     localStorage.removeItem(USER_KEY);
   }
 }

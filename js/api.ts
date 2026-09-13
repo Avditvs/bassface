@@ -6,6 +6,10 @@
  */
 
 import { API_BASE_URL, refreshAccessToken } from "./oauth.js";
+import type {
+  ApiContext, HlsSegment, Playlist, PreviewKind, PreviewSource, SCUser,
+  Streams, Track,
+} from "./types.js";
 
 /** Upper bound on HLS segments concatenated into one preview blob (~10–20 min). */
 const HLS_MAX_SEGMENTS = 120;
@@ -14,12 +18,12 @@ const HLS_MAX_SEGMENTS = 120;
  * Whether a failed response is SoundCloud's rate limit (HTTP 429, or the
  * legacy 403 body they sometimes send when the quota is exhausted).
  */
-function isRateLimit(status, body) {
+function isRateLimit(status: number, body: string): boolean {
   return status === 429 || /rate limit/i.test(body);
 }
 
 /** Build a clear, actionable error for a rate-limited response. */
-function rateLimitError(response) {
+function rateLimitError(response: Response): Error {
   const retryAfter = Number(response.headers.get("retry-after"));
   const wait = Number.isFinite(retryAfter) && retryAfter > 0
     ? ` Try again in about ${retryAfter} second${retryAfter === 1 ? "" : "s"}.`
@@ -31,24 +35,22 @@ function rateLimitError(response) {
  *  spinner running forever (a pending fetch otherwise never settles). */
 const REQUEST_TIMEOUT_MS = 30_000;
 
-/**
- * @param {object} ctx - runtime access to {getConfig, getTokens, updateTokens}.
- *   Passing the app context keeps this module free of UI/state dependencies.
- */
 export class SoundCloudApi {
   /** Optional sink for request-level diagnostics (wired to the app's log). */
-  static logger = null;
+  static logger: ((message: string) => void) | null = null;
 
-  constructor(ctx) {
+  private ctx: ApiContext;
+
+  constructor(ctx: ApiContext) {
     this.ctx = ctx;
   }
 
-  async request(path, { retried = false, method = "GET", body = null } = {}) {
+  async request(path: string, { retried = false, method = "GET", body = null }: { retried?: boolean; method?: string; body?: unknown } = {}): Promise<any> {
     const url = new URL(path.startsWith("http") ? path : `${API_BASE_URL}${path}`);
     // Fresh cache-buster per attempt: keeps the 401-retry from being served
     // CloudFront's cached error response instead of the re-issued request.
-    url.searchParams.set("ts", Date.now());
-    let response;
+    url.searchParams.set("ts", String(Date.now()));
+    let response: Response;
     try {
       response = await fetch(url, {
         method,
@@ -82,13 +84,13 @@ export class SoundCloudApi {
   }
 
   /** Refresh the stored token once, then retry the failed request. */
-  async refreshOnce() {
+  async refreshOnce(): Promise<void> {
     const body = await refreshAccessToken({ refreshToken: this.ctx.getTokens().refreshToken, config: this.ctx.getConfig() });
     this.ctx.updateTokens(body);
   }
 
   /** The authenticated user's profile. */
-  async me() {
+  async me(): Promise<SCUser> {
     return this.request("/me");
   }
 
@@ -96,9 +98,9 @@ export class SoundCloudApi {
    * All playlists of the authenticated user, following SoundCloud's
    * `linked_partitioning` pagination via `next_href`.
    */
-  async myPlaylists() {
-    const playlists = [];
-    let href = `${API_BASE_URL}/me/playlists?show_tracks=false&linked_partitioning=true&limit=50`;
+  async myPlaylists(): Promise<Playlist[]> {
+    const playlists: Playlist[] = [];
+    let href: string | null = `${API_BASE_URL}/me/playlists?show_tracks=false&linked_partitioning=true&limit=50`;
     while (href) {
       const page = await this.request(href);
       playlists.push(...(page.collection ?? []));
@@ -112,7 +114,7 @@ export class SoundCloudApi {
    * Create a new, empty playlist with the given title. Same root `playlist`
    * wrapping as the PUT in `updatePlaylistTracks`. Returns the new playlist.
    */
-  async createPlaylist(title) {
+  async createPlaylist(title: string): Promise<Playlist> {
     return this.request("/playlists", {
       method: "POST",
       body: { playlist: { title, tracks: [] } },
@@ -123,7 +125,7 @@ export class SoundCloudApi {
    * One playlist, with its tracks (needed to edit the track list: the PUT
    * endpoint replaces the whole list, so callers must read before writing).
    */
-  async getPlaylist(id) {
+  async getPlaylist(id: number | string): Promise<Playlist> {
     return this.request(`/playlists/${encodeURIComponent(id)}?show_tracks=true`);
   }
 
@@ -134,7 +136,7 @@ export class SoundCloudApi {
    * root `playlist` object and each track is identified by its urn
    * (`soundcloud:tracks:<id>`). Returns the updated playlist.
    */
-  async updatePlaylistTracks(id, trackIds) {
+  async updatePlaylistTracks(id: number | string, trackIds: number[]): Promise<Playlist> {
     return this.request(`/playlists/${encodeURIComponent(id)}`, {
       method: "PUT",
       body: {
@@ -152,18 +154,18 @@ export class SoundCloudApi {
    * Lets the UI load the first page immediately and the rest while scrolling.
    * @see https://developers.soundcloud.com/docs/api/guide#listen
    */
-  createPlaylistTracksPager(id, { pageSize = 50 } = {}) {
+  createPlaylistTracksPager(id: number | string, { pageSize = 50 }: { pageSize?: number } = {}): TrackPagerLike {
     const api = this; // the pager object itself has no request()
-    let href = `${API_BASE_URL}/playlists/${encodeURIComponent(id)}/tracks?linked_partitioning=true&limit=${pageSize}`;
+    let href: string | null = `${API_BASE_URL}/playlists/${encodeURIComponent(id)}/tracks?linked_partitioning=true&limit=${pageSize}`;
     return {
       /** Whether every page has been fetched. */
-      get done() {
+      get done(): boolean {
         return href === null;
       },
       /** Fetch the next page; resolves to its tracks, or null when done. */
-      async next() {
+      async next(): Promise<Track[] | null> {
         if (href === null) return null;
-        const current = href;
+        const current: string = href;
         const page = await api.request(current);
         href = page.next_href && page.next_href !== current ? page.next_href : null;
         return page.collection ?? [];
@@ -196,11 +198,18 @@ export class SoundCloudApi {
    * Returns `{ blob, url, kind }` (`kind`: "full" | "snippet" | "legacy") or
    * null when no progressive stream is exposed (e.g. HLS-AAC-only tracks).
    */
-  async previewSource(track, { mode = "start", onRaw = null, onError = null } = {}) {
+  async previewSource(
+    track: Track,
+    { mode = "start", onRaw = null, onError = null }: {
+      mode?: "start" | "peak";
+      onRaw?: ((streams: Streams) => void) | null;
+      onError?: ((err: unknown) => void) | null;
+    } = {},
+  ): Promise<PreviewSource | null> {
     try {
-      const streams = await this.request(`/tracks/${encodeURIComponent(track.id)}/streams`);
+      const streams: Streams = await this.request(`/tracks/${encodeURIComponent(track.id)}/streams`);
       if (onRaw) onRaw(streams);
-      const candidates = mode === "peak"
+      const candidates: [keyof Streams, PreviewKind, boolean][] = mode === "peak"
         ? [
             ["hls_mp3_128_url", "full", false],
             ["http_mp3_128_url", "full", true],
@@ -219,7 +228,7 @@ export class SoundCloudApi {
           const blob = direct ? await this.fetchAudioBlob(url) : await this.fetchHlsBlob(url);
           return { blob, url, kind };
         } catch (err) {
-          SoundCloudApi.logger?.(`[api] ${key} download failed: ${err.message}`);
+          SoundCloudApi.logger?.(`[api] ${String(key)} download failed: ${err.message}`);
         }
       }
       return null; // no progressive variant offered (incl. HLS-AAC-only tracks)
@@ -248,7 +257,7 @@ export class SoundCloudApi {
    * Fetch a URL with the current bearer token (redirects followed),
    * refreshing the token once when the request comes back 401.
    */
-  async fetchAuthed(url) {
+  async fetchAuthed(url: string): Promise<Response> {
     let response = await fetch(url, {
       headers: {
         authorization: `OAuth ${this.ctx.getTokens().accessToken}`,
@@ -269,7 +278,7 @@ export class SoundCloudApi {
    * Download an authenticated audio URL into a Blob so it can be played in
    * a bare `<audio>` element via an object URL.
    */
-  async fetchAudioBlob(url) {
+  async fetchAudioBlob(url: string): Promise<Blob> {
     const response = await this.fetchAuthed(url);
     if (!response.ok) {
       const body = await response.text().catch(() => "");
@@ -286,7 +295,7 @@ export class SoundCloudApi {
    * preview mid-track. (The peak preview uses {@link hlsSegments} instead,
    * keeping only the loudest segment.)
    */
-  async fetchHlsBlob(m3u8Url) {
+  async fetchHlsBlob(m3u8Url: string): Promise<Blob> {
     const response = await this.fetchAuthed(m3u8Url);
     if (!response.ok) {
       throw new Error(`SoundCloud HLS error (${response.status})`);
@@ -306,7 +315,7 @@ export class SoundCloudApi {
           Math.floor((segments.length - HLS_MAX_SEGMENTS) / 2) + HLS_MAX_SEGMENTS,
         );
     SoundCloudApi.logger?.(`[api] hls: using ${chosen.length}/${segments.length} segments`);
-    const parts = [];
+    const parts: Blob[] = [];
     for (const segment of chosen) {
       parts.push(await this.fetchAudioBlob(new URL(segment, base).toString()));
     }
@@ -319,8 +328,14 @@ export class SoundCloudApi {
    * when the track exposes no `hls_mp3_128_url` — callers fall back to the
    * progressive sources.
    */
-  async hlsSegments(track, { onRaw = null, onError = null } = {}) {
-    let streams;
+  async hlsSegments(
+    track: Track,
+    { onRaw = null, onError = null }: {
+      onRaw?: ((streams: Streams) => void) | null;
+      onError?: ((err: unknown) => void) | null;
+    } = {},
+  ): Promise<HlsSegment[] | null> {
+    let streams: Streams;
     try {
       streams = await this.request(`/tracks/${encodeURIComponent(track.id)}/streams`);
       if (onRaw) onRaw(streams);
@@ -335,8 +350,8 @@ export class SoundCloudApi {
       throw new Error(`SoundCloud HLS error (${response.status})`);
     }
     const base = new URL(response.url || m3u8);
-    const segments = [];
-    let duration = null;
+    const segments: HlsSegment[] = [];
+    let duration: number | null = null;
     for (const line of (await response.text()).split("\n")) {
       const trimmed = line.trim();
       if (trimmed.startsWith("#EXTINF:")) {
@@ -350,7 +365,7 @@ export class SoundCloudApi {
   }
 
   /** One HLS segment, authenticated, as a Blob. */
-  fetchSegment(url) {
+  fetchSegment(url: string): Promise<Blob> {
     return this.fetchAudioBlob(url);
   }
 
@@ -363,22 +378,22 @@ export class SoundCloudApi {
    * grey (rgb(239,239,239)) — so the threshold must stay above 239 to count
    * them while still ignoring an opaque white background, should one appear.
    */
-  async samplesFromWaveformPng(blob) {
+  async samplesFromWaveformPng(blob: Blob): Promise<number[]> {
     const bitmap = await createImageBitmap(blob);
     try {
       const { width, height } = bitmap;
-      let ctx;
+      let ctx: OffscreenCanvasRenderingContext2D | CanvasRenderingContext2D;
       if (typeof OffscreenCanvas !== "undefined") {
-        ctx = new OffscreenCanvas(width, height).getContext("2d");
+        ctx = new OffscreenCanvas(width, height).getContext("2d")!;
       } else {
         const canvas = document.createElement("canvas");
         canvas.width = width;
         canvas.height = height;
-        ctx = canvas.getContext("2d");
+        ctx = canvas.getContext("2d")!;
       }
       ctx.drawImage(bitmap, 0, 0);
       const { data } = ctx.getImageData(0, 0, width, height);
-      const samples = new Array(width);
+      const samples = new Array<number>(width);
       for (let x = 0; x < width; x += 1) {
         let count = 0;
         for (let y = 0; y < height; y += 1) {
@@ -400,8 +415,8 @@ export class SoundCloudApi {
    * or null when unavailable. Public CDN file: no OAuth header needed (and
    * sending one could break CORS on that host).
    */
-  async waveformSamples(track) {
-    const log = (m) => SoundCloudApi.logger?.(`[api] waveform: ${m}`);
+  async waveformSamples(track: Track): Promise<number[] | null> {
+    const log = (m: string) => SoundCloudApi.logger?.(`[api] waveform: ${m}`);
     if (typeof track.waveform_url !== "string" || !track.waveform_url.trim()) {
       log(`track ${track.id} has no waveform_url — fields: ${Object.keys(track).join(",")}`);
       return null;
@@ -434,4 +449,10 @@ export class SoundCloudApi {
       return null;
     }
   }
+}
+
+/** Local structural type (defined here to keep types.ts free of API details). */
+interface TrackPagerLike {
+  readonly done: boolean;
+  next(): Promise<Track[] | null>;
 }

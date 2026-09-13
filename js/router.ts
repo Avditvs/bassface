@@ -9,7 +9,7 @@ import { openPlaylist, resetPlaylistView, playlistIdFromHash } from "./tracks.js
 import { renderPlaylist } from "./render.js";
 
 /** Decide which content to show from the current URL hash. */
-export function route() {
+export function route(): void {
   if (!state.api) return; // not signed in: leave the screen alone
   const id = playlistIdFromHash();
   if (id) {
@@ -26,6 +26,6 @@ export function route() {
 }
 
 /** Navigate back to the playlist list (keeps the hash in sync). */
-export function goBackToPlaylists() {
+export function goBackToPlaylists(): void {
   window.location.hash = "#/playlists";
 }

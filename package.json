@@ -1,0 +1,16 @@
+{
+  "name": "playlist-updater",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Backend-free SoundCloud playlist manager (OAuth 2.1 + PKCE, entirely client-side)",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "build": "rm -rf dist && tsc && cp index.html dist/ && cp -R css dist/css",
+    "watch": "tsc --watch",
+    "serve": "npm run build && python3 -m http.server 8080 --directory dist"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.2"
+  }
+}

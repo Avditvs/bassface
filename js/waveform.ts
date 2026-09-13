@@ -4,17 +4,19 @@
  */
 
 import { state } from "./state.js";
+import { el } from "./util.js";
+import type { Track } from "./types.js";
 
 /** Cap the drawn bars so very long waveforms stay cheap to paint. */
 const WAVEFORM_MAX_BARS = 220;
 
 /** Raw waveform samples → normalised (0-1) max-per-bucket bars. */
-function normalizeWaveform(samples) {
+function normalizeWaveform(samples: unknown): number[] {
   if (!Array.isArray(samples) || samples.length < 2) return [];
   const values = samples.map((s) => Number(s)).filter((v) => Number.isFinite(v) && v >= 0);
   const max = values.reduce((m, v) => Math.max(m, v), 0);
   if (!(max > 0)) return [];
-  const bars = [];
+  const bars: number[] = [];
   const bucket = Math.ceil(values.length / WAVEFORM_MAX_BARS);
   for (let i = 0; i < values.length; i += bucket) {
     bars.push(values.slice(i, i + bucket).reduce((m, v) => Math.max(m, v), 0) / max);
@@ -23,10 +25,12 @@ function normalizeWaveform(samples) {
 }
 
 /** Fetch the track's waveform metadata once; resolves to its bars (or []). */
-function waveformBars(track) {
-  if (state.waveforms.has(track.id)) return Promise.resolve(state.waveforms.get(track.id));
-  if (state.waveformInflight.has(track.id)) return state.waveformInflight.get(track.id);
-  const promise = state.api.waveformSamples(track)
+function waveformBars(track: Track): Promise<number[] | undefined> {
+  const cached = state.waveforms.get(track.id);
+  if (cached) return Promise.resolve(cached);
+  const inflight = state.waveformInflight.get(track.id);
+  if (inflight) return inflight;
+  const promise = state.api!.waveformSamples(track)
     .then((samples) => {
       const bars = normalizeWaveform(samples);
       state.waveforms.set(track.id, bars);
@@ -35,7 +39,7 @@ function waveformBars(track) {
     })
     .catch(() => {
       state.waveforms.set(track.id, []);
-      return [];
+      return [] as number[];
     })
     .finally(() => state.waveformInflight.delete(track.id));
   state.waveformInflight.set(track.id, promise);
@@ -43,10 +47,10 @@ function waveformBars(track) {
 }
 
 /** Progress fraction (0-1) of the active preview, for the accent overlay. */
-function waveformProgress(trackId) {
+function waveformProgress(trackId: number): number {
   const p = state.preview;
   if (p.trackId !== trackId || p.loading) return 0;
-  const audio = document.getElementById("preview-audio");
+  const audio = el<HTMLAudioElement>("preview-audio");
   if (!Number.isFinite(audio.duration) || audio.duration <= 0) return 0;
   const track = state.tracks.find((t) => t.id === trackId);
   if (!track || !(track.duration > 0)) return 0;
@@ -56,10 +60,10 @@ function waveformProgress(trackId) {
 }
 
 /** Draw (or redraw) the cached waveform into the track's canvas. */
-export function drawWaveform(trackId) {
-  const canvas = document.querySelector(`canvas[data-waveform-track="${trackId}"]`);
-  if (!canvas || !state.waveforms.has(trackId)) return;
+export function drawWaveform(trackId: number): void {
+  const canvas = document.querySelector<HTMLCanvasElement>(`canvas[data-waveform-track="${trackId}"]`);
   const bars = state.waveforms.get(trackId);
+  if (!canvas || !bars) return;
   if (bars.length === 0) {
     canvas.classList.add("is-empty"); // no waveform available for this track
     return;
@@ -72,6 +76,7 @@ export function drawWaveform(trackId) {
   canvas.width = Math.round(width * dpr);
   canvas.height = Math.round(height * dpr);
   const ctx = canvas.getContext("2d");
+  if (!ctx) return;
   ctx.scale(dpr, dpr);
   const styles = getComputedStyle(document.documentElement);
   const base = styles.getPropertyValue("--muted").trim() || "#a6a6a6";
@@ -87,7 +92,7 @@ export function drawWaveform(trackId) {
   const barCount = Math.max(1, Math.floor((width + gap) / unit));
   // Cached bars → barCount buckets (max within each bucket), so the shape
   // is preserved at every resolution.
-  const values = [];
+  const values: number[] = [];
   for (let i = 0; i < barCount; i += 1) {
     const from = Math.floor((i * bars.length) / barCount);
     const to = Math.max(from + 1, Math.floor(((i + 1) * bars.length) / barCount));
@@ -96,8 +101,8 @@ export function drawWaveform(trackId) {
   // Mirrored around the centre, on an even pixel height so both halves
   // match; a 2px floor keeps silent passages visible. The value is inverted
   // (loud → short, quiet → tall) for the inverted waveform look.
-  const barH = (v) => Math.max(2, 2 * Math.round(((1 - v) * (height - 8)) / 2));
-  const barY = (h) => (height - h) / 2;
+  const barH = (v: number) => Math.max(2, 2 * Math.round(((1 - v) * (height - 8)) / 2));
+  const barY = (h: number) => (height - h) / 2;
 
   // First bar at/after the playhead switches from accent to muted, so the
   // colour boundary always falls between two bars instead of cutting one.
@@ -109,7 +114,7 @@ export function drawWaveform(trackId) {
 }
 
 /** Kick off loads + redraws for every waveform currently on screen. */
-export function renderWaveforms() {
+export function renderWaveforms(): void {
   for (const track of state.tracks) {
     if (!document.querySelector(`canvas[data-waveform-track="${track.id}"]`)) continue;
     if (state.waveforms.has(track.id)) drawWaveform(track.id);

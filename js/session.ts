@@ -13,9 +13,11 @@ import { forgetTrackSentinel } from "./tracks.js";
 import { stopPreview } from "./preview.js";
 import { renderUser, renderPlaylistControls, renderPlaylists } from "./render.js";
 import { SoundCloudApi } from "./api.js";
+import { el } from "./util.js";
+import type { OAuthCallback } from "./types.js";
 
 /** Refresh the access token when stale; throws when it cannot be restored. */
-export async function ensureValidToken() {
+export async function ensureValidToken(): Promise<void> {
   if (state.tokens.isFresh()) return;
   if (!state.tokens.canRefresh()) {
     const reason = state.tokens.hasAccessToken()
@@ -31,20 +33,20 @@ export async function ensureValidToken() {
 }
 
 /** Fetch the authenticated user's profile and cache it. */
-export async function loadUser() {
-  state.user = await state.api.me();
+export async function loadUser(): Promise<void> {
+  state.user = await state.api!.me();
   UserStore.save(state.user);
   renderUser();
 }
 
 /** Fetch all playlists of the user, then render the list screen. */
-export async function loadPlaylists() {
+export async function loadPlaylists(): Promise<void> {
   state.playlistsLoading = true;
   showScreen("playlists");
   renderPlaylists();
   showStatus("Loading your playlists…");
   try {
-    state.playlists = await state.api.myPlaylists();
+    state.playlists = await state.api!.myPlaylists();
   } finally {
     state.playlistsLoading = false;
   }
@@ -55,7 +57,7 @@ export async function loadPlaylists() {
 }
 
 /** Wire the API client, restore the session and land on the right screen. */
-export async function enterApp() {
+export async function enterApp(): Promise<void> {
   dbg(`[enterApp] ${tokenSummary()}`);
   state.api = new SoundCloudApi({
     getConfig: () => state.config,
@@ -80,14 +82,14 @@ export async function enterApp() {
 }
 
 /** Drop ?code&state from the address bar so a reload cannot re-exchange a used code. */
-function removeCallbackFromUrl() {
+function removeCallbackFromUrl(): void {
   const url = new URL(window.location.href);
   url.search = "";
   history.replaceState(null, "", url);
 }
 
 /** OAuth redirect landed back on the page: validate + exchange the code. */
-export async function handleOAuthCallback({ code, state: receivedState, error }) {
+export async function handleOAuthCallback({ code, state: receivedState, error }: OAuthCallback): Promise<void> {
   if (error) {
     showScreen("connect");
     showStatus(`Authorization failed: ${error}`, "error");
@@ -125,7 +127,7 @@ export async function handleOAuthCallback({ code, state: receivedState, error })
 }
 
 /** Forget tokens + data and return to the connect screen. */
-export function signOut() {
+export function signOut(): void {
   if (!confirm("Sign out and forget the stored SoundCloud token?")) return;
   state.tokens.clear();
   UserStore.clear();
@@ -134,7 +136,7 @@ export function signOut() {
   state.playlists = [];
   forgetTrackSentinel();
   state.trackPager = null;
-  document.getElementById("user-area").hidden = true;
+  el("user-area").hidden = true;
   stopPreview();
   history.replaceState(null, "", window.location.pathname);
   clearStatus();

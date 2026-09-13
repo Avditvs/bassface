@@ -13,6 +13,8 @@
 
 import { dbg } from "./debug.js";
 import { state } from "./state.js";
+import { el } from "./util.js";
+import type { HlsSegment, PreviewSource, Track } from "./types.js";
 
 /** Skip the (expensive) loudness decode on very long tracks. */
 const PEAK_SCAN_MAX_MS = 8 * 60 * 1000;
@@ -32,12 +34,27 @@ const JUMP_WINDOW = 8;
 /** Start extending the jump window when less audio remains than this. */
 const EXTEND_AHEAD_SEC = 30;
 
+/** Result of the loudest-window scan. */
+interface LoudestWindow {
+  rms: number;
+  offsetSec: number;
+}
+
+/** Segment scan candidate being tracked while scanning. */
+interface SegmentCandidate {
+  index: number;
+  offsetSec: number;
+  rms: number;
+  blob: Blob;
+  originSec: number;
+}
+
 /**
  * Loudest 1-second window of a decoded buffer, via a cumulative-energy
  * prefix sum: one O(n) pass, then every window's energy in O(1) — the exact
  * global maximum, no block-by-block nested scan. Returns {rms, offsetSec}.
  */
-function loudestWindow(buffer) {
+function loudestWindow(buffer: AudioBuffer): LoudestWindow | null {
   const samples = buffer.getChannelData(0);
   const windowSize = buffer.sampleRate;
   if (samples.length < windowSize) return samples.length > 0 ? { rms: 0, offsetSec: 0 } : null;
@@ -62,7 +79,7 @@ function loudestWindow(buffer) {
 }
 
 /** Index of the segment containing the given offset (from m3u8 durations). */
-function segmentIndexAt(segments, offsetSec) {
+function segmentIndexAt(segments: HlsSegment[], offsetSec: number): { index: number; startSec: number } | null {
   let startSec = 0;
   for (const [index, segment] of segments.entries()) {
     const endSec = startSec + (segment.duration || 0);
@@ -73,8 +90,8 @@ function segmentIndexAt(segments, offsetSec) {
 }
 
 /** Cumulative start time (seconds) of every segment, in order. */
-function segmentStarts(segments) {
-  const starts = [];
+function segmentStarts(segments: HlsSegment[]): number[] {
+  const starts: number[] = [];
   let acc = 0;
   for (const segment of segments) {
     starts.push(acc);
@@ -84,7 +101,7 @@ function segmentStarts(segments) {
 }
 
 /** An AudioContext at the cheap peak-scan sample rate (falls back to default). */
-async function createScanContext() {
+async function createScanContext(): Promise<AudioContext> {
   try {
     return new AudioContext({ sampleRate: PEAK_SCAN_SAMPLE_RATE });
   } catch {
@@ -97,8 +114,8 @@ async function createScanContext() {
  * computed from SoundCloud's waveform metadata — no audio download.
  * Returns null when no usable waveform is available.
  */
-async function waveformPeakOffset(track) {
-  const samples = await state.api.waveformSamples(track);
+async function waveformPeakOffset(track: Track): Promise<number | null> {
+  const samples = await state.api!.waveformSamples(track);
   if (!samples || !(track.duration > 0)) return null;
   const perSampleSec = track.duration / 1000 / samples.length;
   const cum = new Float64Array(samples.length + 1);
@@ -126,19 +143,23 @@ async function waveformPeakOffset(track) {
  * waveform candidate and keep the true loudest 1-second window among them.
  * Returns the same shape as loadHlsPeak, or null when it fails.
  */
-async function waveformGuidedPeak(segments, coarseSec, { onError = null } = {}) {
+async function waveformGuidedPeak(
+  segments: HlsSegment[],
+  coarseSec: number,
+  { onError = null }: { onError?: ((err: unknown) => void) | null } = {},
+): Promise<PreviewSource | null> {
   const at = segmentIndexAt(segments, coarseSec);
   if (!at) return null;
   const starts = segmentStarts(segments);
-  let context;
+  let context: AudioContext | undefined;
   try {
     context = await createScanContext();
-    let best = null; // { index, offsetSec, rms, blob }
+    let best: SegmentCandidate | null = null;
     const last = Math.min(segments.length - 1, at.index + 1);
     for (let index = at.index; index <= last; index += 1) {
-      let blob;
+      let blob: Blob;
       try {
-        blob = await state.api.fetchSegment(segments[index].url);
+        blob = await state.api!.fetchSegment(segments[index].url);
       } catch (err) {
         dbg(`[preview] hls segment ${index} failed: ${err.message}`);
         continue;
@@ -153,10 +174,10 @@ async function waveformGuidedPeak(segments, coarseSec, { onError = null } = {}) 
 
     // Keep the winning segment plus the next one, so playback continues
     // past the segment boundary instead of stopping abruptly.
-    const parts = [best.blob];
+    const parts: Blob[] = [best.blob];
     if (segments[best.index + 1]) {
       try {
-        parts.push(await state.api.fetchSegment(segments[best.index + 1].url));
+        parts.push(await state.api!.fetchSegment(segments[best.index + 1].url));
       } catch { /* winner alone is fine */ }
     }
     dbg(`[preview] hls peak: segment ${best.index} @ ${best.offsetSec.toFixed(1)} s (waveform-guided)`);
@@ -181,10 +202,16 @@ async function waveformGuidedPeak(segments, coarseSec, { onError = null } = {}) 
  * peakOffset } or null when the track offers no HLS mp3 stream (the caller
  * falls back to previewSource).
  */
-export async function loadHlsPeak(track, { onRaw = null, onError = null } = {}) {
-  let segments;
+export async function loadHlsPeak(
+  track: Track,
+  { onRaw = null, onError = null }: {
+    onRaw?: ((streams: unknown) => void) | null;
+    onError?: ((err: unknown) => void) | null;
+  } = {},
+): Promise<PreviewSource | null> {
+  let segments: HlsSegment[] | null;
   try {
-    segments = await state.api.hlsSegments(track, { onRaw, onError });
+    segments = await state.api!.hlsSegments(track, { onRaw, onError });
   } catch (err) {
     onError?.(err);
     return null;
@@ -199,17 +226,17 @@ export async function loadHlsPeak(track, { onRaw = null, onError = null } = {}) 
   }
   dbg(`[preview] hls peak: scanning ${segments.length} segments`);
 
-  let context;
+  let context: AudioContext | undefined;
   try {
     context = await createScanContext();
-    let best = null; // { index, url, offsetSec, rms, blob }
+    let best: SegmentCandidate & { url: string } | null = null;
     let startSec = 0;
     let scanned = 0;
     for (const [index, segment] of segments.entries()) {
       if (startSec * 1000 > PEAK_SCAN_MAX_MS || scanned >= HLS_SCAN_MAX_SEGMENTS) break;
-      let blob;
+      let blob: Blob;
       try {
-        blob = await state.api.fetchSegment(segment.url);
+        blob = await state.api!.fetchSegment(segment.url);
       } catch (err) {
         dbg(`[preview] hls segment ${index} failed: ${err.message}`);
         continue;
@@ -227,10 +254,10 @@ export async function loadHlsPeak(track, { onRaw = null, onError = null } = {}) 
 
     // Keep the winning segment plus the next one, so playback continues
     // past the segment boundary instead of stopping abruptly.
-    const parts = [best.blob];
+    const parts: Blob[] = [best.blob];
     if (segments[best.index + 1]) {
       try {
-        parts.push(await state.api.fetchSegment(segments[best.index + 1].url));
+        parts.push(await state.api!.fetchSegment(segments[best.index + 1].url));
       } catch { /* winner alone is fine */ }
     }
     dbg(`[preview] hls peak: segment ${best.index} @ ${best.offsetSec.toFixed(1)} s`);
@@ -257,15 +284,23 @@ export async function loadHlsPeak(track, { onRaw = null, onError = null } = {}) 
  * seekOffset is where to start inside the Blob. Falls back to previewSource
  * (full mp3 → then the seek works; snippet → playback starts at 0).
  */
-export async function loadJumpSource(track, targetSec, { onRaw = null, onError = null } = {}) {
-  let segments;
+export async function loadJumpSource(
+  track: Track,
+  targetSec: number,
+  { onRaw = null, onError = null }: {
+    onRaw?: ((streams: unknown) => void) | null;
+    onError?: ((err: unknown) => void) | null;
+  } = {},
+): Promise<PreviewSource | null> {
+  let segments: HlsSegment[] | null;
   try {
-    segments = await state.api.hlsSegments(track, { onRaw, onError });
+    segments = await state.api!.hlsSegments(track, { onRaw, onError });
   } catch (err) {
     onError?.(err);
+    segments = null;
   }
   if (!segments) {
-    const source = await state.api.previewSource(track, { mode: "peak", onRaw, onError });
+    const source = await state.api!.previewSource(track, { mode: "peak", onRaw, onError });
     if (source && source.kind !== "full") dbg(`[preview] jump: only a ${source.kind} source exists — starting at 0`);
     return source;
   }
@@ -278,9 +313,11 @@ export async function loadJumpSource(track, targetSec, { onRaw = null, onError =
   // once, so playback can start quickly. Failed segments leave a hole (the
   // preview just skips them).
   const results = await Promise.allSettled(
-    segments.slice(at.index, windowEnd + 1).map((segment) => state.api.fetchSegment(segment.url)),
+    segments.slice(at.index, windowEnd + 1).map((segment) => state.api!.fetchSegment(segment.url)),
   );
-  const parts = results.filter((r) => r.status === "fulfilled").map((r) => r.value);
+  const parts = results
+    .filter((r): r is PromiseFulfilledResult<Blob> => r.status === "fulfilled")
+    .map((r) => r.value);
   const originSec = starts[at.index + results.findIndex((r) => r.status === "fulfilled")];
   if (!parts.length) return null;
   dbg(`[preview] jump: ${parts.length} segments from ${originSec.toFixed(1)} s`);
@@ -300,9 +337,9 @@ export async function loadJumpSource(track, targetSec, { onRaw = null, onError =
  * Fetch the next jump window and hot-swap the playing blob when the playhead
  * gets close to the end of the downloaded audio (called from timeupdate).
  */
-export async function extendJumpWindow() {
+export async function extendJumpWindow(): Promise<void> {
   const p = state.preview;
-  const audio = document.getElementById("preview-audio");
+  const audio = el<HTMLAudioElement>("preview-audio");
   if (p.mode !== "jump" || !p.jump || p.extending) return;
   const { segments, parts, nextIndex, lastIndex } = p.jump;
   if (nextIndex > lastIndex || parts.length === 0) return;
@@ -311,10 +348,12 @@ export async function extendJumpWindow() {
   try {
     const end = Math.min(lastIndex, nextIndex + JUMP_WINDOW - 1);
     const results = await Promise.allSettled(
-      segments.slice(nextIndex, end + 1).map((segment) => state.api.fetchSegment(segment.url)),
+      segments.slice(nextIndex, end + 1).map((segment) => state.api!.fetchSegment(segment.url)),
     );
     if (p.mode !== "jump" || !p.blob) return; // switched away meanwhile
-    const fetched = results.filter((r) => r.status === "fulfilled").map((r) => r.value);
+    const fetched = results
+      .filter((r): r is PromiseFulfilledResult<Blob> => r.status === "fulfilled")
+      .map((r) => r.value);
     if (!fetched.length) return;
     parts.push(...fetched);
     p.jump.nextIndex = end + 1;
@@ -341,9 +380,9 @@ export async function extendJumpWindow() {
  * (fallback path when no HLS stream exists). Returns null when the track is
  * too long to decode comfortably or the decode fails.
  */
-export async function loudestOffsetSeconds(blob, track) {
+export async function loudestOffsetSeconds(blob: Blob, track: Track): Promise<number | null> {
   if ((track.duration ?? 0) > PEAK_SCAN_MAX_MS) return null;
-  let context;
+  let context: AudioContext | undefined;
   try {
     context = await createScanContext();
     const buffer = await context.decodeAudioData(await blob.arrayBuffer());
@@ -357,16 +396,16 @@ export async function loudestOffsetSeconds(blob, track) {
 }
 
 /** Resolve when the element has metadata; rejects when loading errors out. */
-export function waitForMetadata(audio) {
+export function waitForMetadata(audio: HTMLAudioElement): Promise<void> {
   if (audio.readyState >= HTMLMediaElement.HAVE_METADATA) return Promise.resolve();
   return new Promise((resolve, reject) => {
-    audio.addEventListener("loadedmetadata", resolve, { once: true });
+    audio.addEventListener("loadedmetadata", () => resolve(), { once: true });
     audio.addEventListener("error", () => reject(new Error("the audio element could not load the stream")), { once: true });
   });
 }
 
 /** Free the blob backing the current preview, if any. */
-export function revokePreviewObjectUrl() {
+export function revokePreviewObjectUrl(): void {
   if (state.preview.objectUrl) {
     URL.revokeObjectURL(state.preview.objectUrl);
     state.preview.objectUrl = null;

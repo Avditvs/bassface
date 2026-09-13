@@ -13,9 +13,10 @@
  */
 
 import { state } from "./state.js";
-import { escapeHtml, formatCount } from "./util.js";
+import { escapeHtml, formatCount, targetOf, el } from "./util.js";
 import { showStatus, clearStatus } from "./screens.js";
 import { renderTrackList, renderPlaylistHeader } from "./render.js";
+import type { Playlist, Track } from "./types.js";
 
 /** Sidebar filter text (cleared when the playlist screen is left). */
 let filter = "";
@@ -24,14 +25,14 @@ let filter = "";
  * Which playlists the sidebar shows as drop targets: null = all, otherwise a
  * Set of playlist ids chosen by the user (persisted in localStorage).
  */
-let selection = loadSelection();
+let selection: Set<string> | null = loadSelection();
 
 /** Whether the sidebar is currently in "choose playlists" mode. */
 let selectionMode = false;
 
 const SELECTION_KEY = "pu.organize.selected";
 
-function loadSelection() {
+function loadSelection(): Set<string> | null {
   try {
     const raw = localStorage.getItem(SELECTION_KEY);
     if (raw === null) return null;
@@ -41,7 +42,7 @@ function loadSelection() {
   }
 }
 
-function saveSelection() {
+function saveSelection(): void {
   if (selection === null) {
     localStorage.removeItem(SELECTION_KEY);
   } else {
@@ -50,18 +51,24 @@ function saveSelection() {
 }
 
 /** All playlists eligible for the sidebar (everything but the open one). */
-function candidatePlaylists() {
+function candidatePlaylists(): Playlist[] {
   const currentId = String(state.currentPlaylist?.id ?? "");
   return state.playlists.filter((playlist) => String(playlist.id) !== currentId);
 }
 
-/** Track being dragged: { track, fromPlaylistId } — set by dragstart. */
-let dragged = null;
+/** The playlist currently open, or a clear error when there is none. */
+function currentPlaylist(): Playlist {
+  if (!state.currentPlaylist) throw new Error("No playlist is open");
+  return state.currentPlaylist;
+}
+
+/** Track being dragged: set by dragstart. */
+let dragged: { track: Track } | null = null;
 
 // --- Rendering ---------------------------------------------------------------
 
 /** The user's playlists minus the one currently open, filtered by the search box. */
-function visiblePlaylists() {
+function visiblePlaylists(): Playlist[] {
   const query = filter.trim().toLowerCase();
   return candidatePlaylists()
     .filter((playlist) => !selection || selection.has(String(playlist.id)))
@@ -69,7 +76,7 @@ function visiblePlaylists() {
 }
 
 /** Rebuild the sidebar for the open playlist (filter + entries + drop zones). */
-export function renderOrganizeSidebar() {
+export function renderOrganizeSidebar(): void {
   const aside = document.getElementById("organize");
   if (!aside || !state.currentPlaylist) return;
 
@@ -85,7 +92,7 @@ export function renderOrganizeSidebar() {
 }
 
 /** Normal mode: filter box + drop targets + how many are shown. */
-function dropModeHtml() {
+function dropModeHtml(): string {
   const candidates = candidatePlaylists();
   const playlists = visiblePlaylists();
   return `
@@ -101,14 +108,14 @@ function dropModeHtml() {
 }
 
 /** Choose mode: checkboxes deciding which playlists appear as drop targets. */
-function selectionModeHtml() {
+function selectionModeHtml(): string {
   const entries = candidatePlaylists()
     .map((playlist) => {
       const checked = !selection || selection.has(String(playlist.id));
       return `<li>
         <label class="org-check">
           <input type="checkbox" data-org-select-id="${playlist.id}" ${checked ? "checked" : ""} />
-          <span class="org-check-title" title="${escapeHtml(playlist.title)}">${escapeHtml(playlist.title)}</span>
+          <span class="org-check-title" title="${escapeHtml(playlist.title ?? "")}">${escapeHtml(playlist.title ?? "")}</span>
         </label>
       </li>`;
     })
@@ -123,7 +130,7 @@ function selectionModeHtml() {
 }
 
 /** One sidebar entry: the card is the "add" drop zone, the strip is "move". */
-function organizationEntryHtml(playlist) {
+function organizationEntryHtml(playlist: Playlist): string {
   const letter = (playlist.title ?? "?").trim().charAt(0).toUpperCase() || "♪";
   const artwork = playlist.artwork_url
     ? `<img class="org-art" src="${escapeHtml(playlist.artwork_url)}" alt="" loading="lazy" />`
@@ -134,7 +141,7 @@ function organizationEntryHtml(playlist) {
     <div class="org-drop" data-org-action="add" title="Drop to add the dragged sound to this playlist">
       ${artwork}
       <span class="org-body">
-        <span class="org-title" title="${escapeHtml(playlist.title)}">${escapeHtml(playlist.title)}</span>
+        <span class="org-title" title="${escapeHtml(playlist.title ?? "")}">${escapeHtml(playlist.title ?? "")}</span>
         <span class="org-count muted">${formatCount(playlist.track_count ?? 0)} tracks${privateBadge}</span>
       </span>
     </div>
@@ -145,48 +152,50 @@ function organizationEntryHtml(playlist) {
 // --- Drag & drop -------------------------------------------------------------
 
 /** Track rows start the drag; the dragged track is kept in module state. */
-export function onTrackDragStart(event) {
-  const row = event.target.closest?.(".track-row");
+export function onTrackDragStart(event: DragEvent): void {
+  const row = targetOf(event)?.closest<HTMLElement>(".track-row") ?? null;
   const trackId = row?.dataset.trackId;
-  const track = trackId && state.tracks.find((t) => String(t.id) === trackId);
-  if (!track) return;
+  const track = trackId ? state.tracks.find((t) => String(t.id) === trackId) : undefined;
+  if (!track || !row) return;
   dragged = { track };
-  event.dataTransfer.effectAllowed = "copyMove";
-  event.dataTransfer.setData("text/plain", String(track.id));
+  if (event.dataTransfer) {
+    event.dataTransfer.effectAllowed = "copyMove";
+    event.dataTransfer.setData("text/plain", String(track.id));
+    event.dataTransfer.setDragImage(row, 24, 24);
+  }
   row.classList.add("is-dragging");
-  event.dataTransfer.setDragImage?.(row, 24, 24);
   window.addEventListener("dragend", clearDragged, { once: true });
 }
 
-function clearDragged() {
+function clearDragged(): void {
   dragged = null;
-  document.querySelectorAll(".track-row.is-dragging").forEach((el) => el.classList.remove("is-dragging"));
-  document.querySelectorAll(".org-item .is-over").forEach((el) => el.classList.remove("is-over"));
+  document.querySelectorAll(".track-row.is-dragging").forEach((elem) => elem.classList.remove("is-dragging"));
+  document.querySelectorAll(".org-item .is-over").forEach((elem) => elem.classList.remove("is-over"));
 }
 
 /** Sidebar dragover: allow the drop and highlight the hovered zone. */
-export function onOrganizeDragOver(event) {
+export function onOrganizeDragOver(event: DragEvent): void {
   if (!dragged) return;
-  const zone = event.target.closest("[data-org-action]");
-  const item = event.target.closest(".org-item");
+  const zone = targetOf(event)?.closest<HTMLElement>("[data-org-action]");
+  const item = targetOf(event)?.closest<HTMLElement>(".org-item");
   if (!zone || !item) return;
   event.preventDefault();
-  event.dataTransfer.dropEffect = zone.dataset.orgAction === "move" ? "move" : "copy";
-  item.querySelectorAll(".is-over").forEach((el) => el.classList.remove("is-over"));
+  if (event.dataTransfer) event.dataTransfer.dropEffect = zone.dataset.orgAction === "move" ? "move" : "copy";
+  item.querySelectorAll(".is-over").forEach((elem) => elem.classList.remove("is-over"));
   zone.classList.add("is-over");
 }
 
 /** Sidebar dragleave: drop the highlight when leaving a zone. */
-export function onOrganizeDragLeave(event) {
-  const zone = event.target.closest("[data-org-action]");
+export function onOrganizeDragLeave(event: DragEvent): void {
+  const zone = targetOf(event)?.closest<HTMLElement>("[data-org-action]");
   if (zone) zone.classList.remove("is-over");
 }
 
 /** Sidebar drop: "add" copies the track, "move" copies + removes from here. */
-export function onOrganizeDrop(event) {
+export function onOrganizeDrop(event: DragEvent): void {
   if (!dragged) return;
-  const zone = event.target.closest("[data-org-action]");
-  const item = event.target.closest(".org-item");
+  const zone = targetOf(event)?.closest<HTMLElement>("[data-org-action]");
+  const item = targetOf(event)?.closest<HTMLElement>(".org-item");
   if (!zone || !item) return;
   event.preventDefault();
   const { track } = dragged;
@@ -201,15 +210,20 @@ export function onOrganizeDrop(event) {
   }
 }
 
-/**
- * Stack of reversible operations, newest last. Each entry snapshots the full
- * track list of every playlist it touched, so reverting restores both the
- * membership AND the original track order via a single PUT per playlist.
- */
-const undoStack = [];
+// --- Undo ---------------------------------------------------------------------
+
+/** One reversible operation: full track-list snapshots of every playlist touched. */
+interface UndoEntry {
+  label: string;
+  track: Track;
+  changes: { playlist: Playlist; before: Track[] }[];
+}
+
+/** Stack of reversible operations, newest last. */
+const undoStack: UndoEntry[] = [];
 
 /** Show/hide the toolbar Revert button after every operation. */
-export function renderUndoButton() {
+export function renderUndoButton(): void {
   const button = document.getElementById("undo-action");
   if (!button) return;
   const entry = undoStack[undoStack.length - 1];
@@ -218,14 +232,14 @@ export function renderUndoButton() {
 }
 
 /** Undo the most recent add/move/remove (button in the toolbar). */
-export async function revertLastAction() {
+export async function revertLastAction(): Promise<void> {
   const entry = undoStack.pop();
   if (!entry) return;
   renderUndoButton();
   showStatus(`Reverting: ${entry.label}…`);
   try {
     for (const change of entry.changes) {
-      await state.api.updatePlaylistTracks(change.playlist.id, change.before.map((t) => t.id));
+      await state.api!.updatePlaylistTracks(change.playlist.id, change.before.map((t) => t.id));
       change.playlist.track_count = change.before.length;
     }
   } catch (err) {
@@ -253,18 +267,18 @@ export async function revertLastAction() {
 
 // --- Operations (read playlist → modify id list → PUT) ------------------------
 
-async function rewritePlaylist(playlist, trackIds) {
-  const updated = await state.api.updatePlaylistTracks(playlist.id, trackIds);
+async function rewritePlaylist(playlist: Playlist, trackIds: number[]): Promise<void> {
+  const updated = await state.api!.updatePlaylistTracks(playlist.id, trackIds);
   // Keep the sidebar counts in sync with what SoundCloud now reports.
   playlist.track_count = updated?.track_count ?? trackIds.length;
   renderOrganizeSidebar();
 }
 
 /** Add a track to a target playlist (no-op when it is already there). */
-async function addTrack(track, playlist) {
+async function addTrack(track: Track, playlist: Playlist): Promise<void> {
   showStatus(`Adding “${track.title}” to “${playlist.title}”…`);
   try {
-    const full = await state.api.getPlaylist(playlist.id);
+    const full = await state.api!.getPlaylist(playlist.id);
     const before = (full.tracks ?? []).slice(); // full track objects — the revert snapshot
     const ids = before.map((t) => t.id);
     if (ids.some((id) => String(id) === String(track.id))) {
@@ -285,10 +299,11 @@ async function addTrack(track, playlist) {
 }
 
 /** Add the track to the target playlist and remove it from the open one. */
-async function moveTrack(track, playlist) {
+async function moveTrack(track: Track, playlist: Playlist): Promise<void> {
+  const current = currentPlaylist();
   showStatus(`Moving “${track.title}” to “${playlist.title}”…`);
   try {
-    const target = await state.api.getPlaylist(playlist.id);
+    const target = await state.api!.getPlaylist(playlist.id);
     const targetBefore = (target.tracks ?? []).slice();
     const targetIds = targetBefore.map((t) => t.id);
     if (!targetIds.some((id) => String(id) === String(track.id))) {
@@ -296,24 +311,24 @@ async function moveTrack(track, playlist) {
       await rewritePlaylist(playlist, targetIds);
     }
 
-    const current = await state.api.getPlaylist(state.currentPlaylist.id);
-    const currentBefore = (current.tracks ?? []).slice();
+    const currentFull = await state.api!.getPlaylist(current.id);
+    const currentBefore = (currentFull.tracks ?? []).slice();
     const remainingIds = currentBefore.map((t) => t.id).filter((id) => String(id) !== String(track.id));
-    await rewritePlaylist(state.currentPlaylist, remainingIds);
+    await rewritePlaylist(current, remainingIds);
 
     undoStack.push({
       label: `Move to “${playlist.title}”`,
       track,
       changes: [
         { playlist, before: targetBefore },
-        { playlist: state.currentPlaylist, before: currentBefore },
+        { playlist: current, before: currentBefore },
       ],
     });
     renderUndoButton();
 
     // Reflect the removal in the open view (the track is gone from here).
     state.tracks = state.tracks.filter((t) => String(t.id) !== String(track.id));
-    state.currentPlaylist.track_count = remainingIds.length;
+    current.track_count = remainingIds.length;
     renderPlaylistHeader();
     renderTrackList();
     showStatus(`Moved “${track.title}” to “${playlist.title}”.`, "success");
@@ -328,17 +343,18 @@ async function moveTrack(track, playlist) {
  * Drop zone above the track list: dropping a sound here removes it from the
  * playlist currently open.
  */
-export function onRemoveZoneDragOver(event) {
+export function onRemoveZoneDragOver(event: DragEvent): void {
   if (!dragged) return;
   event.preventDefault();
-  event.dataTransfer.dropEffect = "move";
+  if (event.dataTransfer) event.dataTransfer.dropEffect = "move";
 }
 
-export function onRemoveZoneDragLeave(event) {
-  event.currentTarget.classList.remove("is-over");
+export function onRemoveZoneDragLeave(event: DragEvent): void {
+  const zone = event.currentTarget;
+  if (zone instanceof Element) zone.classList.remove("is-over");
 }
 
-export function onRemoveZoneDrop(event) {
+export function onRemoveZoneDrop(event: DragEvent): void {
   if (!dragged) return;
   event.preventDefault();
   const { track } = dragged;
@@ -347,11 +363,11 @@ export function onRemoveZoneDrop(event) {
 }
 
 /** Remove a track from the playlist currently open. */
-async function removeTrack(track) {
-  const current = state.currentPlaylist;
+async function removeTrack(track: Track): Promise<void> {
+  const current = currentPlaylist();
   showStatus(`Removing “${track.title}” from “${current.title}”…`);
   try {
-    const full = await state.api.getPlaylist(current.id);
+    const full = await state.api!.getPlaylist(current.id);
     const before = (full.tracks ?? []).slice();
     const remainingIds = before.map((t) => t.id).filter((id) => String(id) !== String(track.id));
     await rewritePlaylist(current, remainingIds);
@@ -374,11 +390,12 @@ async function removeTrack(track) {
 // --- Sidebar lifecycle -------------------------------------------------------
 
 /** Live-apply the filter text (re-renders only the entry list). */
-export function onOrganizeFilterInput() {
-  const input = document.getElementById("organize-filter");
+export function onOrganizeFilterInput(): void {
+  const input = document.getElementById("organize-filter") as HTMLInputElement | null;
   if (!input) return;
   filter = input.value;
   const list = document.getElementById("organize-list");
+  if (!list) return;
   const playlists = visiblePlaylists();
   list.innerHTML = playlists.length === 0
     ? `<li class="empty-state">No playlists match.</li>`
@@ -386,17 +403,17 @@ export function onOrganizeFilterInput() {
 }
 
 /** Header buttons: create a playlist, toggle choose mode, or apply All/None from it. */
-export function onOrganizeClick(event) {
-  if (event.target.closest("#organize-create")) {
+export function onOrganizeClick(event: Event): void {
+  if (targetOf(event)?.closest("#organize-create")) {
     void createPlaylistFromSidebar();
     return;
   }
-  if (event.target.closest("#organize-choose")) {
+  if (targetOf(event)?.closest("#organize-choose")) {
     selectionMode = !selectionMode;
     renderOrganizeSidebar();
     return;
   }
-  const bulk = event.target.closest("[data-org-selection]");
+  const bulk = targetOf(event)?.closest<HTMLElement>("[data-org-selection]");
   if (bulk) {
     selection = bulk.dataset.orgSelection === "all" ? null : new Set();
     saveSelection();
@@ -408,12 +425,12 @@ export function onOrganizeClick(event) {
  * Ask for a title, create an empty playlist on SoundCloud, and list it in the
  * sidebar so sounds can be dragged onto it right away.
  */
-async function createPlaylistFromSidebar() {
+async function createPlaylistFromSidebar(): Promise<void> {
   const title = (window.prompt("Title of the new playlist") ?? "").trim();
   if (!title) return;
   showStatus(`Creating playlist “${title}”…`);
   try {
-    const playlist = await state.api.createPlaylist(title);
+    const playlist = await state.api!.createPlaylist(title);
     // New playlist first, so it shows up at the top of the sidebar list.
     state.playlists = [playlist, ...state.playlists.filter((p) => String(p.id) !== String(playlist.id))];
   } catch (err) {
@@ -426,14 +443,14 @@ async function createPlaylistFromSidebar() {
 }
 
 /** Checkbox toggles in choose mode update the persisted selection. */
-export function onOrganizeChange(event) {
-  const box = event.target.closest("input[data-org-select-id]");
+export function onOrganizeChange(event: Event): void {
+  const box = targetOf(event)?.closest<HTMLInputElement>("input[data-org-select-id]");
   if (!box) return;
   if (selection === null) {
     // "All" is implicit — materialize it before unchecking the first box.
     selection = new Set(candidatePlaylists().map((playlist) => String(playlist.id)));
   }
-  const id = box.dataset.orgSelectId;
+  const id = box.dataset.orgSelectId ?? "";
   if (box.checked) {
     selection.add(id);
   } else {
@@ -443,7 +460,7 @@ export function onOrganizeChange(event) {
 }
 
 /** Forget the filter when leaving the playlist screen. */
-export function resetOrganizeSidebar() {
+export function resetOrganizeSidebar(): void {
   filter = "";
   dragged = null;
   selectionMode = false;

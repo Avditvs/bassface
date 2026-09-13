@@ -4,22 +4,23 @@
  */
 
 import { TYPE_LABELS, state } from "./state.js";
-import { escapeHtml, formatCount, formatDate, formatDuration, playlistBucket } from "./util.js";
+import { escapeHtml, formatCount, formatDate, formatDuration, playlistBucket, el, targetOf } from "./util.js";
 import { previewButtonFor, updatePreviewTime } from "./preview.js";
 import { renderWaveforms } from "./waveform.js";
 import { observeTrackSentinel, forgetTrackSentinel } from "./tracks.js";
+import type { Playlist, SortKey, Track } from "./types.js";
 
 // --- Shared card/header helpers --------------------------------------------
 
 /** Artwork image or a letter placeholder, as HTML. */
-function artworkHtml(artworkUrl, title) {
+function artworkHtml(artworkUrl: string | null | undefined, title: string | undefined): string {
   return artworkUrl
     ? `<div class="artwork"><img src="${escapeHtml(artworkUrl)}" alt="" loading="lazy" /></div>`
     : `<div class="artwork-placeholder">${escapeHtml((title ?? "?").trim().charAt(0).toUpperCase() || "♪")}</div>`;
 }
 
 /** Type (+ private) badges and the count/likes/updated meta line. */
-function badgesHtml(playlist, type) {
+function badgesHtml(playlist: Playlist, type: string): { badges: string[]; meta: string } {
   const typeLabel = TYPE_LABELS[type] ?? type;
   const badges = [`<span class="badge type-${escapeHtml(type)}">${escapeHtml(typeLabel)}</span>`];
   if (playlist.sharing === "private") {
@@ -36,18 +37,18 @@ function badgesHtml(playlist, type) {
 
 // --- Playlist list (filters, sorting, pagination) --------------------------
 
-const SORTERS = {
-  updated: (a, b) => new Date(b.last_modified ?? b.created_at) - new Date(a.last_modified ?? a.created_at),
+const SORTERS: Record<SortKey, (a: Playlist, b: Playlist) => number> = {
+  updated: (a, b) => new Date(b.last_modified ?? b.created_at ?? 0).getTime() - new Date(a.last_modified ?? a.created_at ?? 0).getTime(),
   name: (a, b) => (a.title ?? "").localeCompare(b.title ?? ""),
   tracks: (a, b) => (b.track_count ?? 0) - (a.track_count ?? 0),
   likes: (a, b) => (b.likes_count ?? 0) - (a.likes_count ?? 0),
 };
 
 /** Playlists of the current page after applying the toolbar filters. */
-function visiblePlaylists() {
-  const query = document.getElementById("search").value.trim().toLowerCase();
-  const type = document.getElementById("type-filter").value;
-  const sort = document.getElementById("sort").value;
+function visiblePlaylists(): Playlist[] {
+  const query = el<HTMLInputElement>("search").value.trim().toLowerCase();
+  const type = el<HTMLSelectElement>("type-filter").value;
+  const sort = el<HTMLSelectElement>("sort").value as SortKey;
 
   const playlists = state.playlists.filter((playlist) => {
     const matchesQuery = !query || playlist.title?.toLowerCase().includes(query);
@@ -59,17 +60,17 @@ function visiblePlaylists() {
 }
 
 /** Populate the type filter with the kinds actually present in the list. */
-export function renderPlaylistControls() {
-  const select = document.getElementById("type-filter");
+export function renderPlaylistControls(): void {
+  const select = el<HTMLSelectElement>("type-filter");
   const types = [...new Set(state.playlists.map(playlistBucket))].sort();
   select.innerHTML = `<option value="">All types</option>` +
     types.map((type) => `<option value="${escapeHtml(type)}">${escapeHtml(TYPE_LABELS[type] ?? type)}</option>`).join("");
 }
 
-export function renderPlaylists() {
-  const list = document.getElementById("playlist-list");
+export function renderPlaylists(): void {
+  const list = el("playlist-list");
   const visible = visiblePlaylists();
-  document.getElementById("summary").textContent =
+  el("summary").textContent =
     `${visible.length} playlist${visible.length === 1 ? "" : "s"} · ${state.playlists.length} total`;
 
   if (state.playlistsLoading) {
@@ -92,15 +93,15 @@ export function renderPlaylists() {
 }
 
 /** Windowed page numbers: 1 … 4 5 6 … 12 (context around the current page). */
-export function renderPagination(pageCount) {
-  const nav = document.getElementById("playlist-pagination");
+export function renderPagination(pageCount: number): void {
+  const nav = el("playlist-pagination");
   if (pageCount <= 1) {
     nav.hidden = true;
     nav.innerHTML = "";
     return;
   }
 
-  const numbers = [];
+  const numbers: (number | "…")[] = [];
   for (let p = 1; p <= pageCount; p += 1) {
     if (p === 1 || p === pageCount || Math.abs(p - state.page) <= 1) {
       numbers.push(p);
@@ -109,7 +110,7 @@ export function renderPagination(pageCount) {
     }
   }
 
-  const pageButton = (p) =>
+  const pageButton = (p: number) =>
     `<button class="page-number${p === state.page ? " is-current" : ""}" type="button" data-goto-page="${p}" aria-current="${p === state.page ? "page" : "false"}">${p}</button>`;
   const ellipsis = `<span class="page-ellipsis" aria-hidden="true">…</span>`;
 
@@ -122,19 +123,19 @@ export function renderPagination(pageCount) {
   ].join("");
 }
 
-export function onPaginationClick(event) {
-  const button = event.target.closest("[data-goto-page]");
+export function onPaginationClick(event: Event): void {
+  const button = targetOf(event)?.closest<HTMLButtonElement>("[data-goto-page]");
   if (!button || button.disabled) return;
   const target = Number(button.dataset.gotoPage);
   if (!Number.isInteger(target)) return;
   state.page = target;
   renderPlaylists();
   // Keep the (re-rendered) grid in view after jumping pages.
-  document.getElementById("playlists-screen").scrollIntoView({ behavior: "smooth", block: "start" });
+  el("playlists-screen").scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
 /** One playlist card of the grid. */
-function cardFor(playlist) {
+function cardFor(playlist: Playlist): string {
   const type = playlistBucket(playlist);
   const typeLabel = TYPE_LABELS[type] ?? type;
   const { badges, meta } = badgesHtml(playlist, type);
@@ -146,7 +147,7 @@ function cardFor(playlist) {
   return `<li data-playlist-id="${playlist.id}" title="View the tracks in this playlist">
     ${artworkHtml(playlist.artwork_url, playlist.title)}
     <div class="card-body">
-      <h3 class="card-title" title="${escapeHtml(playlist.title)}">${escapeHtml(playlist.title)}</h3>
+      <h3 class="card-title" title="${escapeHtml(playlist.title ?? "")}">${escapeHtml(playlist.title ?? "")}</h3>
       <div class="badges">${badges.join("")}</div>
       ${description}
       ${meta}
@@ -159,22 +160,23 @@ function cardFor(playlist) {
 }
 
 /** Cards are clickable, except the external SoundCloud links. */
-export function onPlaylistListClick(event) {
-  if (event.target.closest("a")) return;
-  const card = event.target.closest("li[data-playlist-id]");
-  if (card) window.location.hash = `#/playlist/${card.dataset.playlistId}`;
+export function onPlaylistListClick(event: Event): void {
+  if (targetOf(event)?.closest("a")) return;
+  const card = targetOf(event)?.closest<HTMLElement>("li[data-playlist-id]");
+  if (card?.dataset.playlistId) window.location.hash = `#/playlist/${card.dataset.playlistId}`;
 }
 
 // --- Playlist detail (header + track list) ---------------------------------
 
-export function renderPlaylist() {
+export function renderPlaylist(): void {
   if (!state.currentPlaylist) return;
   renderPlaylistHeader();
   renderTrackList();
 }
 
-export function renderPlaylistHeader() {
+export function renderPlaylistHeader(): void {
   const playlist = state.currentPlaylist;
+  if (!playlist) return;
   const type = playlistBucket(playlist);
   const typeLabel = TYPE_LABELS[type] ?? type;
   const { badges, meta } = badgesHtml(playlist, type);
@@ -183,10 +185,10 @@ export function renderPlaylistHeader() {
     ? `<p class="muted playlist-desc">${escapeHtml(playlist.description)}</p>`
     : "";
 
-  document.getElementById("playlist-header").innerHTML = `
+  el("playlist-header").innerHTML = `
     <div class="playlist-header-art">${artworkHtml(playlist.artwork_url, playlist.title)}</div>
     <div class="playlist-header-body">
-      <h2 class="playlist-title">${escapeHtml(playlist.title)}</h2>
+      <h2 class="playlist-title">${escapeHtml(playlist.title ?? "")}</h2>
       <div class="badges">${badges.join("")}</div>
       ${description}
       ${meta}
@@ -194,9 +196,9 @@ export function renderPlaylistHeader() {
     </div>`;
 }
 
-export function renderTrackList() {
-  const list = document.getElementById("track-list");
-  const summary = document.getElementById("track-summary");
+export function renderTrackList(): void {
+  const list = el("track-list");
+  const summary = el("track-summary");
   const tracks = state.tracks;
   const hasMore = state.trackPager !== null && !state.trackPager.done && !state.tracksError;
   const totalCount = state.currentPlaylist?.track_count ?? tracks.length;
@@ -235,7 +237,7 @@ export function renderTrackList() {
 }
 
 /** One row of the track list. */
-function trackRowFor(track, index) {
+function trackRowFor(track: Track, index: number): string {
   const letter = (track.title ?? "?").trim().charAt(0).toUpperCase() || "♪";
   const artwork = track.artwork_url
     ? `<div class="track-art"><img src="${escapeHtml(track.artwork_url)}" alt="" loading="lazy" /></div>`
@@ -264,10 +266,10 @@ function trackRowFor(track, index) {
 
 // --- Misc ------------------------------------------------------------------
 
-export function renderUser() {
+export function renderUser(): void {
   if (!state.user) return;
-  document.getElementById("user-area").hidden = false;
-  const avatar = document.getElementById("user-avatar");
+  el("user-area").hidden = false;
+  const avatar = el<HTMLImageElement>("user-avatar");
   if (state.user.avatar_url) avatar.src = state.user.avatar_url;
-  document.getElementById("user-name").textContent = state.user.username;
+  el("user-name").textContent = state.user.username;
 }

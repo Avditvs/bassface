@@ -42,12 +42,18 @@ expire after ~1 hour; the app refreshes them automatically with the
 
 ## Run it
 
-No build step. Serve the folder over http(s) — Python, Node, or anything else:
+The app is written in **TypeScript** and compiles to plain ES modules:
 
 ```bash
 cd playlist_updater
-python3 -m http.server 8080
+npm install
+npm run build        # tsc → dist/ (+ index.html + css copied in)
+npm run serve        # build, then serve dist/ on http://127.0.0.1:8080
 ```
+
+Or serve `dist/` over http(s) with any static server. For a fast edit loop,
+use `npm run watch` (tsc in watch mode) alongside your static server. Other
+useful scripts: `npm run typecheck` (tsc --noEmit, strict).
 
 Then open <http://127.0.0.1:8080/>, paste your Client ID (and secret if you
 registered one) and click **Connect with SoundCloud**. After authorizing you
@@ -77,26 +83,27 @@ index.html          – single page UI (connect + playlist views)
 css/                – styling split into focused modules (base, layout,
                       components, forms, playlists, playlist-detail, tracks,
                       organize, debug)
-js/
-  app.js            – entry point: boot sequence, event wiring
-  state.js          – central mutable app state + shared labels
-  config.js         – localStorage persistence (credentials, tokens, user)
-  oauth.js          – OAuth 2.1 + PKCE: authorize URL, token exchange, refresh
-  api.js            – SoundCloud API client (401 auto-refresh, pagination,
+js/                 – TypeScript sources, compiled by `npm run build` to dist/
+  types.ts          – shared domain types (SoundCloud API shapes, contracts)
+  app.ts            – entry point: boot sequence, event wiring
+  state.ts          – central mutable app state + shared labels
+  config.ts         – localStorage persistence (credentials, tokens, user)
+  oauth.ts          – OAuth 2.1 + PKCE: authorize URL, token exchange, refresh
+  api.ts            – SoundCloud API client (401 auto-refresh, pagination,
                       read-modify-write helpers)
-  router.js         – hash routing (#/playlists, #/playlist/<id>)
-  screens.js        – screen switching + shared status bar
-  connect.js        – connect screen (config form, validation, redirect)
-  render.js         – DOM rendering (playlist grid, detail header, track rows)
-  tracks.js         – playlist detail: paging, infinite scroll
-  organize.js       – "Reorganize" sidebar: drag & drop between playlists,
+  router.ts         – hash routing (#/playlists, #/playlist/<id>)
+  screens.ts        – screen switching + shared status bar
+  connect.ts        – connect screen (config form, validation, redirect)
+  render.ts         – DOM rendering (playlist grid, detail header, track rows)
+  tracks.ts         – playlist detail: paging, infinite scroll
+  organize.ts       – "Reorganize" sidebar: drag & drop between playlists,
                       create playlist
-  preview.js        – audio preview UI (▶ snippet, ⏫ loudest part, click-to-jump)
-  audio-engine.js   – audio source resolution: waveform-guided peak seek,
+  preview.ts        – audio preview UI (▶ snippet, ⏫ loudest part, click-to-jump)
+  audio-engine.ts   – audio source resolution: waveform-guided peak seek,
                       HLS reassembly
-  waveform.js       – waveform fetch/cache/draw for the track rows
-  debug.js          – persistent troubleshooting log shown on the connect screen
-  util.js           – base64url / PKCE / formatting helpers
+  waveform.ts       – waveform fetch/cache/draw for the track rows
+  debug.ts          – persistent troubleshooting log shown on the connect screen
+  util.ts           – base64url / PKCE / formatting / DOM helpers
 ```
 
 ## SoundCloud API reference (used here)

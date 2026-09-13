@@ -9,17 +9,18 @@ import { showScreen, showStatus, clearStatus } from "./screens.js";
 import { stopPreview } from "./preview.js";
 import { renderPlaylistHeader, renderTrackList } from "./render.js";
 import { renderOrganizeSidebar, resetOrganizeSidebar } from "./organize.js";
+import { el } from "./util.js";
 
-let trackSentinelObserver = null;
+let trackSentinelObserver: IntersectionObserver | null = null;
 
 /** The playlist id encoded in the URL hash, or null when no playlist is open. */
-export function playlistIdFromHash() {
+export function playlistIdFromHash(): string | null {
   const match = window.location.hash.match(/^#\/playlist\/(.+)$/);
   return match ? decodeURIComponent(match[1]) : null;
 }
 
 /** Open a playlist (by numeric id) and fetch + render its tracks. */
-export async function openPlaylist(id) {
+export async function openPlaylist(id: string | number): Promise<void> {
   const playlist = state.playlists.find((p) => String(p.id) === String(id));
   if (!playlist) {
     showStatus("That playlist is no longer in your list.", "error");
@@ -42,7 +43,7 @@ export async function openPlaylist(id) {
   }
 
   showScreen("playlist");
-  document.getElementById("remove-zone").hidden = false;
+  el("remove-zone").hidden = false;
   renderPlaylistHeader();
   renderTrackList();
   renderOrganizeSidebar();
@@ -50,7 +51,7 @@ export async function openPlaylist(id) {
 
   showStatus("Loading tracks…");
   try {
-    const pager = state.api.createPlaylistTracksPager(id);
+    const pager = state.api!.createPlaylistTracksPager(id);
     const firstPage = await pager.next();
     // A faster navigation may have opened another playlist meanwhile.
     if (String(state.currentPlaylist?.id) !== String(id)) return;
@@ -67,11 +68,11 @@ export async function openPlaylist(id) {
 }
 
 /** Clear the track view (leaving the playlist screen / navigating away). */
-export function resetPlaylistView() {
+export function resetPlaylistView(): void {
   stopPreview();
   forgetTrackSentinel();
   resetOrganizeSidebar();
-  document.getElementById("remove-zone").hidden = true;
+  el("remove-zone").hidden = true;
   state.currentPlaylist = null;
   state.tracks = [];
   state.tracksLoaded = false;
@@ -81,7 +82,7 @@ export function resetPlaylistView() {
 }
 
 /** Fetch the next track page and append it to the rendered list. */
-async function loadMoreTracks() {
+async function loadMoreTracks(): Promise<void> {
   const pager = state.trackPager;
   if (!pager || pager.done || state.tracksLoadingMore || state.tracksError) return;
   state.tracksLoadingMore = true;
@@ -98,7 +99,7 @@ async function loadMoreTracks() {
 }
 
 /** Watch the sentinel row at the end of the list; fetches when it nears view. */
-export function observeTrackSentinel() {
+export function observeTrackSentinel(): void {
   const sentinel = document.getElementById("track-sentinel");
   if (!sentinel) return;
   if (!trackSentinelObserver) {
@@ -114,6 +115,6 @@ export function observeTrackSentinel() {
 }
 
 /** Drop the sentinel observer (leaving a playlist / clearing the view). */
-export function forgetTrackSentinel() {
+export function forgetTrackSentinel(): void {
   trackSentinelObserver?.disconnect();
 }

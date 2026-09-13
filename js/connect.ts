@@ -5,10 +5,11 @@
 import { buildAuthUrl } from "./oauth.js";
 import { state } from "./state.js";
 import { showStatus } from "./screens.js";
+import { el } from "./util.js";
 
 /** Hint under the redirect field: explains what must be registered where. */
-export function renderRedirectHint() {
-  const hint = document.getElementById("redirect-hint");
+export function renderRedirectHint(): void {
+  const hint = el("redirect-hint");
   const resolved = state.config.redirectUri || state.config.resolveRedirectUri();
   if (state.config.redirectUri) {
     hint.textContent = "This exact URI (including trailing slash) must be registered as a redirect URI.";
@@ -20,20 +21,20 @@ export function renderRedirectHint() {
 }
 
 /** Fill the config form from the stored (or default) settings. */
-export function fillConfigForm() {
-  document.getElementById("client-id").value = state.config.clientId;
-  document.getElementById("client-secret").value = state.config.clientSecret;
-  document.getElementById("redirect-uri").value = state.config.redirectUri;
+export function fillConfigForm(): void {
+  el<HTMLInputElement>("client-id").value = state.config.clientId;
+  el<HTMLInputElement>("client-secret").value = state.config.clientSecret;
+  el<HTMLInputElement>("redirect-uri").value = state.config.redirectUri;
   renderRedirectHint();
 }
 
 /** Validate the form, persist it, then send the user to SoundCloud. */
-export async function onConnectSubmit(event) {
+export async function onConnectSubmit(event: Event): Promise<void> {
   event.preventDefault();
 
-  state.config.clientId = document.getElementById("client-id").value.trim();
-  state.config.clientSecret = document.getElementById("client-secret").value.trim();
-  state.config.redirectUri = document.getElementById("redirect-uri").value.trim();
+  state.config.clientId = el<HTMLInputElement>("client-id").value.trim();
+  state.config.clientSecret = el<HTMLInputElement>("client-secret").value.trim();
+  state.config.redirectUri = el<HTMLInputElement>("redirect-uri").value.trim();
   state.config.save();
 
   if (!state.config.clientId) {
@@ -53,7 +54,7 @@ export async function onConnectSubmit(event) {
     return;
   }
 
-  const button = document.getElementById("connect");
+  const button = el<HTMLButtonElement>("connect");
   button.disabled = true;
   button.textContent = "Redirecting to SoundCloud…";
 

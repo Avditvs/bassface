@@ -7,16 +7,16 @@
 const DEBUG_KEY = "playlist_updater.debug";
 const DEBUG_MAX_LINES = 60;
 
-function readDebugLog() {
+function readDebugLog(): string[] {
   try {
-    return JSON.parse(localStorage.getItem(DEBUG_KEY)) ?? [];
+    return JSON.parse(localStorage.getItem(DEBUG_KEY) ?? "null") ?? [];
   } catch {
     return [];
   }
 }
 
 /** Append a timestamped line to the log (console + panel + storage). */
-export function dbg(message) {
+export function dbg(message: string): void {
   const line = `${new Date().toISOString().slice(11, 19)} ${message}`;
   console.info(line);
   const log = readDebugLog();
@@ -29,7 +29,7 @@ export function dbg(message) {
 }
 
 /** Redraw the `<pre id="debug-log">` panel with the current log. */
-export function renderDebugPanel() {
+export function renderDebugPanel(): void {
   const panel = document.getElementById("debug-log");
   if (panel) panel.textContent = readDebugLog().join("\n") || "No events logged yet.";
 }

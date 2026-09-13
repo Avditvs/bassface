@@ -7,23 +7,24 @@
 import { dbg } from "./debug.js";
 import { state } from "./state.js";
 import { showStatus, clearStatus } from "./screens.js";
-import { escapeHtml, formatDuration } from "./util.js";
+import { escapeHtml, formatDuration, targetOf, el } from "./util.js";
 import { drawWaveform } from "./waveform.js";
 import { renderTrackList } from "./render.js";
 import {
   loadHlsPeak, loadJumpSource, extendJumpWindow, loudestOffsetSeconds,
   waitForMetadata, revokePreviewObjectUrl,
 } from "./audio-engine.js";
+import type { PreviewMode, Track } from "./types.js";
 
 /**
  * Glyphs + classes for the two preview buttons of a track row. The button
  * matching the active preview's mode shows ▶/⏸; the other one is inert.
  */
-export function previewButtonFor(track, mode) {
+export function previewButtonFor(track: Track, mode: "start" | "peak"): string {
   const p = state.preview;
   const isMine = p.trackId === track.id;
   // A jump preview (waveform click) is a full-track source like "peak".
-  const activeMode = p.mode === "jump" ? "peak" : p.mode;
+  const activeMode: PreviewMode = p.mode === "jump" ? "peak" : p.mode;
   const isActive = isMine && !p.loading && activeMode === mode;
   const glyph = isActive && p.playing ? "⏸" : mode === "peak" ? "⏫" : "▶";
   const isLoading = isMine && p.loading && activeMode === mode;
@@ -34,7 +35,7 @@ export function previewButtonFor(track, mode) {
 }
 
 /** Seconds offset of the loudest window for the loaded preview, cached. */
-async function ensurePeakOffset(trackId) {
+async function ensurePeakOffset(trackId: number): Promise<number | null> {
   const p = state.preview;
   if (p.trackId !== trackId) return null; // switched away meanwhile
   if (p.peakOffset !== null || !p.blob) return p.peakOffset;
@@ -44,9 +45,13 @@ async function ensurePeakOffset(trackId) {
 }
 
 /** Start / pause / switch a preview for one track. */
-export async function togglePreview(trackId, mode = "start", { seekTo = null } = {}) {
+export async function togglePreview(
+  trackId: number,
+  mode: PreviewMode = "start",
+  { seekTo = null }: { seekTo?: number | null } = {},
+): Promise<void> {
   const p = state.preview;
-  const audio = document.getElementById("preview-audio");
+  const audio = el<HTMLAudioElement>("preview-audio");
 
   if (p.trackId === trackId && seekTo === null) {
     if (p.loading) {
@@ -58,7 +63,7 @@ export async function togglePreview(trackId, mode = "start", { seekTo = null } =
     }
     // A "jump" preview is full-track audio too: its ⏫ button pauses/resumes
     // it like a native peak preview instead of reloading.
-    const activeMode = p.mode === "jump" ? "peak" : p.mode;
+    const activeMode: PreviewMode = p.mode === "jump" ? "peak" : p.mode;
     if (mode === activeMode) {
       // Same button: pause / resume.
       if (p.playing) {
@@ -97,22 +102,22 @@ export async function togglePreview(trackId, mode = "start", { seekTo = null } =
   showStatus(`Loading preview of “${track.title}”…`);
 
   try {
-    const onRaw = (streams) => dbg(`[preview] streams raw: ${JSON.stringify(streams).slice(0, 800)}`);
-    const onError = (err) => dbg(`[preview] streams failed: ${err.message}`);
+    const onRaw = (streams: unknown) => dbg(`[preview] streams raw: ${JSON.stringify(streams).slice(0, 800)}`);
+    const onError = (err: any) => dbg(`[preview] streams failed: ${err.message}`);
     // Peak prefers HLS: segments are scanned one by one and only the loudest
     // one is kept. Jump downloads from the clicked position onward. Every
     // other mode (and HLS-less tracks) use previewSource.
     const source = mode === "peak"
-      ? (await loadHlsPeak(track, { onRaw, onError })) ?? await state.api.previewSource(track, { mode, onRaw, onError })
+      ? (await loadHlsPeak(track, { onRaw, onError })) ?? await state.api!.previewSource(track, { mode, onRaw, onError })
       : mode === "jump"
-        ? (await loadJumpSource(track, p.pendingSeekSec ?? 0, { onRaw, onError })) ?? await state.api.previewSource(track, { mode: "peak", onRaw, onError })
-        : await state.api.previewSource(track, { mode, onRaw, onError });
+        ? (await loadJumpSource(track, p.pendingSeekSec ?? 0, { onRaw, onError })) ?? await state.api!.previewSource(track, { mode: "peak", onRaw, onError })
+        : await state.api!.previewSource(track, { mode: "start", onRaw, onError });
     if (!source || (!source.blob && !source.url)) throw new Error("this track has no playable preview");
 
     // Stream URLs live on api.soundcloud.com and require the OAuth header,
     // which a bare <audio> cannot send — play from a downloaded Blob (full
     // track, direct mp3 or concatenated HLS) whenever possible.
-    let src;
+    let src: string;
     if (source.blob) {
       src = URL.createObjectURL(source.blob);
       dbg(`[preview] downloaded ${source.blob.size} bytes (${source.kind}) from ${source.url}`);
@@ -175,8 +180,8 @@ export async function togglePreview(trackId, mode = "start", { seekTo = null } =
 }
 
 /** Reset the shared audio element and the preview state. */
-export function stopPreview() {
-  const audio = document.getElementById("preview-audio");
+export function stopPreview(): void {
+  const audio = el<HTMLAudioElement>("preview-audio");
   audio.pause();
   audio.removeAttribute("src");
   audio.load(); // reset the element so the emptied src cannot fire error events
@@ -194,11 +199,11 @@ export function stopPreview() {
 }
 
 /** Live time readout + played-portion highlight + jump-window streaming. */
-export function updatePreviewTime() {
+export function updatePreviewTime(): void {
   const p = state.preview;
   if (p.trackId === null) return;
-  const audio = document.getElementById("preview-audio");
-  const span = document.querySelector(`[data-track-time="${p.trackId}"]`);
+  const audio = el<HTMLAudioElement>("preview-audio");
+  const span = document.querySelector<HTMLElement>(`[data-track-time="${p.trackId}"]`);
   if (!span) return;
   const current = Number.isFinite(audio.currentTime) ? audio.currentTime * 1000 : 0;
   const total = Number.isFinite(audio.duration) ? audio.duration * 1000 : 0;
@@ -211,7 +216,7 @@ export function updatePreviewTime() {
 }
 
 /** Click on a waveform: seek the active preview, or start one at that spot. */
-export function seekFromWaveform(canvas, event) {
+export function seekFromWaveform(canvas: HTMLCanvasElement, event: MouseEvent): void {
   const trackId = Number(canvas.dataset.waveformTrack);
   const track = state.tracks.find((t) => t.id === trackId);
   if (!track || !(track.duration > 0)) return;
@@ -222,7 +227,7 @@ export function seekFromWaveform(canvas, event) {
   // ignore the click instead of jumping to a bogus position.
   if (!rect.width || !Number.isFinite(targetSec)) return;
   const p = state.preview;
-  const audio = document.getElementById("preview-audio");
+  const audio = el<HTMLAudioElement>("preview-audio");
   // Seek directly only when the click lands inside the already-downloaded
   // audio window [originSec, originSec + duration]; otherwise reload from
   // the clicked position ("jump" mode, see loadJumpSource).
@@ -243,25 +248,25 @@ export function seekFromWaveform(canvas, event) {
 }
 
 /** Delegated clicks on the track list: waveforms first, then preview buttons. */
-export function onTrackListClick(event) {
-  const wave = event.target.closest("[data-waveform-track]");
+export function onTrackListClick(event: Event): void {
+  const wave = targetOf(event)?.closest<HTMLCanvasElement>("[data-waveform-track]");
   if (wave) {
-    seekFromWaveform(wave, event);
+    seekFromWaveform(wave, event as MouseEvent);
     return;
   }
-  const button = event.target.closest("[data-preview-track]");
+  const button = targetOf(event)?.closest<HTMLButtonElement>("[data-preview-track]");
   if (button) {
-    void togglePreview(Number(button.dataset.previewTrack), button.dataset.previewMode ?? "start");
+    void togglePreview(Number(button.dataset.previewTrack), (button.dataset.previewMode ?? "start") as PreviewMode);
   }
 }
 
-export function onPreviewEnded() {
+export function onPreviewEnded(): void {
   state.preview.playing = false;
   renderTrackList();
 }
 
-export function onPreviewError() {
-  const src = document.getElementById("preview-audio").src;
+export function onPreviewError(): void {
+  const src = el<HTMLAudioElement>("preview-audio").src;
   dbg(`[preview] audio error on ${src.slice(0, 140)}${src.length > 140 ? "…" : ""}`);
   if (state.preview.trackId === null) return;
   stopPreview();

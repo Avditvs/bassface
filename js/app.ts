@@ -6,21 +6,22 @@
  * This file is the thin controller: event wiring, error surface and the
  * boot sequence. Everything else lives in its own module:
  *
- *   config.js        persisted app settings + token/user stores
- *   oauth.js         OAuth 2.1 + PKCE primitives
- *   api.js           SoundCloud API client
- *   state.js         central mutable app state
- *   debug.js         persistent troubleshooting log
- *   screens.js       screen switching + status bar
- *   connect.js       connect screen (config form → authorize redirect)
- *   session.js       OAuth callback, token refresh, sign-in/out lifecycle
- *   router.js        hash routing (#/playlists, #/playlist/<id>)
- *   tracks.js        playlist detail + track pagination (infinite scroll)
- *   audio-engine.js  preview source building (HLS peak scan, jump windows)
- *   waveform.js      waveform canvas drawing
- *   preview.js       preview playback controller (buttons, audio element)
- *   render.js        all DOM rendering (cards, rows, headers, pagination)
- *   util.js          formatting + escaping helpers
+ *   types.ts         shared domain types (SoundCloud API shapes, contracts)
+ *   config.ts        persisted app settings + token/user stores
+ *   oauth.ts         OAuth 2.1 + PKCE primitives
+ *   api.ts           SoundCloud API client
+ *   state.ts         central mutable app state
+ *   debug.ts         persistent troubleshooting log
+ *   screens.ts       screen switching + status bar
+ *   connect.ts       connect screen (config form → authorize redirect)
+ *   session.ts       OAuth callback, token refresh, sign-in/out lifecycle
+ *   router.ts        hash routing (#/playlists, #/playlist/<id>)
+ *   tracks.ts        playlist detail + track pagination (infinite scroll)
+ *   audio-engine.ts  preview source building (HLS peak scan, jump windows)
+ *   waveform.ts      waveform canvas drawing
+ *   preview.ts       preview playback controller (buttons, audio element)
+ *   render.ts        all DOM rendering (cards, rows, headers, pagination)
+ *   util.ts          formatting + escaping + DOM helpers
  */
 
 import { state, tokenSummary } from "./state.js";
@@ -47,26 +48,28 @@ import {
   revertLastAction,
 } from "./organize.js";
 import { SoundCloudApi } from "./api.js";
+import { el } from "./util.js";
+import type { OAuthCallback } from "./types.js";
 
 /** Wire every static event listener once, at boot. */
-function initListeners() {
-  document.getElementById("config-form").addEventListener("submit", onConnectSubmit);
-  document.getElementById("sign-out").addEventListener("click", signOut);
+function initListeners(): void {
+  el("config-form").addEventListener("submit", onConnectSubmit);
+  el("sign-out").addEventListener("click", signOut);
   const resetPageAndRender = () => {
     state.page = 1;
     renderPlaylists();
   };
-  document.getElementById("search").addEventListener("input", resetPageAndRender);
-  document.getElementById("type-filter").addEventListener("change", resetPageAndRender);
-  document.getElementById("sort").addEventListener("change", resetPageAndRender);
-  document.getElementById("playlist-pagination").addEventListener("click", onPaginationClick);
-  document.getElementById("back-to-playlists").addEventListener("click", goBackToPlaylists);
-  document.getElementById("playlist-list").addEventListener("click", onPlaylistListClick);
-  document.getElementById("track-list").addEventListener("click", onTrackListClick);
+  el("search").addEventListener("input", resetPageAndRender);
+  el("type-filter").addEventListener("change", resetPageAndRender);
+  el("sort").addEventListener("change", resetPageAndRender);
+  el("playlist-pagination").addEventListener("click", onPaginationClick);
+  el("back-to-playlists").addEventListener("click", goBackToPlaylists);
+  el("playlist-list").addEventListener("click", onPlaylistListClick);
+  el("track-list").addEventListener("click", onTrackListClick);
   // Reorganize sidebar: tracks are dragged from the track list onto the
   // playlist cards (add) or their far-right strip (add + remove from here).
-  document.getElementById("track-list").addEventListener("dragstart", onTrackDragStart);
-  const organizeList = document.getElementById("organize");
+  el("track-list").addEventListener("dragstart", onTrackDragStart);
+  const organizeList = el("organize");
   organizeList.addEventListener("dragover", onOrganizeDragOver);
   organizeList.addEventListener("dragleave", onOrganizeDragLeave);
   organizeList.addEventListener("drop", onOrganizeDrop);
@@ -74,12 +77,12 @@ function initListeners() {
   organizeList.addEventListener("click", onOrganizeClick);
   organizeList.addEventListener("change", onOrganizeChange);
   // Drop-to-remove zone above the track list.
-  const removeZone = document.getElementById("remove-zone");
+  const removeZone = el("remove-zone");
   removeZone.addEventListener("dragover", onRemoveZoneDragOver);
   removeZone.addEventListener("dragleave", onRemoveZoneDragLeave);
   removeZone.addEventListener("drop", onRemoveZoneDrop);
-  document.getElementById("undo-action").addEventListener("click", () => void revertLastAction());
-  const previewAudio = document.getElementById("preview-audio");
+  el("undo-action").addEventListener("click", () => void revertLastAction());
+  const previewAudio = el<HTMLAudioElement>("preview-audio");
   previewAudio.addEventListener("ended", onPreviewEnded);
   previewAudio.addEventListener("error", onPreviewError);
   previewAudio.addEventListener("timeupdate", updatePreviewTime);
@@ -94,7 +97,7 @@ function initListeners() {
 }
 
 /** Boot: wire events, mirror the API log, then route or restore the session. */
-function init() {
+function init(): void {
   initListeners();
   fillConfigForm();
   renderDebugPanel();
@@ -107,13 +110,12 @@ function init() {
   window.addEventListener("unhandledrejection", (event) => dbg(`[page rejection] ${event.reason?.message ?? event.reason}`));
 
   const query = new URLSearchParams(window.location.search);
-  const callback = { code: query.get("code"), state: query.get("state"), error: query.get("error") };
+  const callback: OAuthCallback = { code: query.get("code"), state: query.get("state"), error: query.get("error") };
 
   if (callback.code || callback.error) {
     dbg(`[init] callback present — code=${Boolean(callback.code)} error=${callback.error ?? ""} ${tokenSummary()}`);
     void handleOAuthCallback(callback);
     return;
-    // eslint-disable-next-line no-unreachable
   }
 
   dbg(`[init] no callback — ${tokenSummary()} configComplete=${state.config.isComplete()}`);
