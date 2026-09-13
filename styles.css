@@ -375,6 +375,8 @@ input:focus, select:focus { border-color: var(--accent); }
   display: flex;
   align-items: center;
   gap: 14px;
+  height: 84px; /* fixed: every track item is the same height */
+  overflow: hidden;
   background: var(--panel);
   border: 1px solid var(--border);
   border-radius: 10px;
@@ -415,13 +417,16 @@ input:focus, select:focus { border-color: var(--accent); }
 .track-body { flex: 1; min-width: 0; }
 
 .track-title {
-  display: block;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2; /* wrap to at most 2 lines */
+  overflow: hidden;
   color: var(--text);
   font-size: 0.95rem;
   font-weight: 700;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1.25;
+  height: 2.5em; /* always two lines tall: every track row has the same height */
+  overflow-wrap: anywhere; /* break very long words/URLs instead of overflowing */
 }
 
 .track-title:hover { color: var(--accent); }
@@ -437,6 +442,9 @@ input:focus, select:focus { border-color: var(--accent); }
   align-items: flex-end;
   justify-content: center; /* keeps plays/likes on the row's centre line */
   gap: 2px;
+  flex: none;
+  box-sizing: content-box;
+  width: 84px; /* fixed: time/plays/likes column never resizes, keeps right cluster stable */
 }
 
 .track-time.is-live { color: var(--accent); }
@@ -444,8 +452,10 @@ input:focus, select:focus { border-color: var(--accent); }
 .track-preview-group {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 6px;
   flex: none;
+  width: 74px; /* two 34px buttons + 6px gap: fixed, keeps waveforms aligned */
 }
 
 .track-preview {
@@ -479,8 +489,10 @@ input:focus, select:focus { border-color: var(--accent); }
   display: block;
   flex: none;
   align-self: center;
-  width: 200px; /* fixed: every waveform renders identically */
+  box-sizing: border-box;
+  width: 260px; /* fixed: every waveform renders identically (200px + 30%) */
   height: 52px; /* same as .track-art, so the row lines up */
+  margin-left: auto; /* pin the waveform to the right cluster */
   border-radius: 8px;
   background: var(--panel-alt);
   cursor: pointer;

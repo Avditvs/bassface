@@ -850,8 +850,9 @@ function drawWaveform(trackId) {
     values.push(bars.slice(from, to).reduce((m, v) => Math.max(m, v), 0));
   }
   // Mirrored around the centre, on an even pixel height so both halves
-  // match; a 2px floor keeps silent passages visible.
-  const barH = (v) => Math.max(2, 2 * Math.round((v * (height - 8)) / 2));
+  // match; a 2px floor keeps silent passages visible. The value is inverted
+  // (loud → short, quiet → tall) for the inverted waveform look.
+  const barH = (v) => Math.max(2, 2 * Math.round(((1 - v) * (height - 8)) / 2));
   const barY = (h) => (height - h) / 2;
 
   // First bar at/after the playhead switches from accent to muted, so the
