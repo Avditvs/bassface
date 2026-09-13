@@ -27,19 +27,6 @@ body:has(#playlist-screen:not([hidden])) .app-footer {
   display: none;
 }
 
-/* Same reason: status messages must not push the layout (which would move
-   the side panels) — they float over the content as a toast instead. */
-body:has(#playlist-screen:not([hidden])) #status-bar {
-  position: fixed;
-  top: 66px; /* just below the sticky header */
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 20;
-  max-width: min(720px, calc(100vw - 48px));
-  margin-bottom: 0;
-  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.45);
-}
-
 @media (max-width: 1100px) {
   #playlist-screen:not([hidden]) .playlist-columns {
     grid-template-columns: 1fr; /* panels stack under the tracks */

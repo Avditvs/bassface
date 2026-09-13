@@ -4,6 +4,7 @@
 
 import { useApp } from "../services/store";
 import { signOut } from "../services/session";
+import { StatusBar } from "./StatusBar";
 
 export function Header() {
   const user = useApp().user;
@@ -15,6 +16,7 @@ export function Header() {
         </svg>
         <h1>Playlist Updater</h1>
       </div>
+      <StatusBar />
       {user && (
         <div className="user-area">
           {user.avatar_url && <img className="avatar" src={user.avatar_url} alt="" />}

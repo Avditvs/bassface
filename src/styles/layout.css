@@ -21,11 +21,19 @@
 
 .brand h1 { font-size: 1.05rem; margin: 0; color: var(--text); }
 
+.status-bar {
+  margin-left: auto;
+}
+
 .user-area {
   display: flex;
   align-items: center;
   gap: 10px;
   margin-left: auto;
+}
+
+.status-bar + .user-area {
+  margin-left: 0;
 }
 
 .avatar {

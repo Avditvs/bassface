@@ -11,7 +11,6 @@ import { handleOAuthCallback, enterApp } from "../services/session";
 import { runtime, showStatus, tokenSummary, useApp } from "../services/store";
 import { SoundCloudApi } from "../services/api";
 import { Header } from "./Header";
-import { StatusBar } from "./StatusBar";
 import { ConnectScreen } from "./ConnectScreen";
 import { PlaylistsScreen } from "./PlaylistsScreen";
 import { PlaylistScreen } from "./PlaylistScreen";
@@ -80,7 +79,6 @@ export function App() {
     <>
       <Header />
       <main>
-        <StatusBar />
         {screen === "connect" && <ConnectScreen />}
         {screen === "playlists" && <PlaylistsScreen />}
         {screen === "playlist" && <PlaylistScreen />}
