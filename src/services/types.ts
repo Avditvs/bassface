@@ -77,8 +77,8 @@ export interface HlsSegment {
 /** How a preview source was obtained. */
 export type PreviewKind = "full" | "snippet" | "legacy";
 
-/** The three user-facing preview modes. */
-export type PreviewMode = "start" | "peak" | "jump";
+/** The two user-facing preview modes. */
+export type PreviewMode = "start" | "jump";
 
 /** Streaming bookkeeping for jump previews (more segments stream in later). */
 export interface JumpState {
@@ -93,8 +93,6 @@ export interface PreviewSource {
   blob?: Blob;
   url: string;
   kind: PreviewKind;
-  /** Seconds into the blob where playback should start (peak/jump). */
-  peakOffset?: number;
   /** Track time (seconds) at which the blob audio begins. */
   originSec?: number;
   /** Seconds into the blob where a jump preview must seek. */
@@ -134,7 +132,6 @@ export interface PreviewState {
   objectUrl: string | null;
   mode: PreviewMode;
   blob: Blob | null;
-  peakOffset: number | null;
   pendingSeekSec: number | null;
   originSec: number | null;
   jump: JumpState | null;

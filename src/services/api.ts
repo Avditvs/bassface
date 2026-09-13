@@ -199,13 +199,13 @@ export class SoundCloudApi {
    *     2. full-length mp3 via the HLS playlist (`hls_mp3_128_url`),
    *     3. full-length mp3 (`http_mp3_128_url`),
    *     4. legacy `stream_url` / progressive transcoding URL.
-   *   mode "peak" (needs the full track to find the loudest part) —
+   *   mode "full" (needs the whole track, e.g. a waveform jump) —
    *   HLS preferred over the direct progressive mp3:
    *     1. full-length mp3 via the HLS playlist (`hls_mp3_128_url`) — segments
    *        are fetched with auth and concatenated into one Blob,
    *     2. full-length mp3 from `/tracks/:id/streams` (`http_mp3_128_url`),
-   *     3. SoundCloud's ~30 s snippet (`preview_mp3_128_url`) — peak then
-   *        starts at 0 (nothing to scan),
+   *     3. SoundCloud's ~30 s snippet (`preview_mp3_128_url`) — the caller
+   *        then plays from 0 (not the requested position),
    *     4. legacy `stream_url` / first progressive transcoding URL (no Blob —
    *        played directly, may fail when it still requires auth).
    *
@@ -219,7 +219,7 @@ export class SoundCloudApi {
   async previewSource(
     track: Track,
     { mode = "start", onRaw = null, onError = null }: {
-      mode?: "start" | "peak";
+      mode?: "start" | "full";
       onRaw?: ((streams: Streams) => void) | null;
       onError?: ((err: unknown) => void) | null;
     } = {},
@@ -227,7 +227,7 @@ export class SoundCloudApi {
     try {
       const streams: Streams = await this.request(`/tracks/${encodeURIComponent(track.id)}/streams`);
       if (onRaw) onRaw(streams);
-      const candidates: [keyof Streams, PreviewKind, boolean][] = mode === "peak"
+      const candidates: [keyof Streams, PreviewKind, boolean][] = mode === "full"
         ? [
             ["hls_mp3_128_url", "full", false],
             ["http_mp3_128_url", "full", true],
@@ -316,8 +316,7 @@ export class SoundCloudApi {
    * Download an HLS mp3 playlist and return its audio as one playable Blob.
    * Playlists longer than {@link HLS_MAX_SEGMENTS} are truncated to segments
    * taken from the middle, keeping the download bounded while starting the
-   * preview mid-track. (The peak preview uses {@link hlsSegments} instead,
-   * keeping only the loudest segment.)
+   * preview mid-track.
    */
   async fetchHlsBlob(m3u8Url: string): Promise<Blob> {
     const response = await this.fetchAuthed(m3u8Url);
@@ -396,7 +395,7 @@ export class SoundCloudApi {
   /**
    * Decode SoundCloud's classic waveform PNG into per-column loudness values:
    * each column's count of waveform pixels is proportional to the amplitude
-   * there, which is all the coarse peak search needs.
+   * there, which is what the waveform display plots per column.
    *
    * The image is a transparent-background PNG whose waveform pixels are light
    * grey (rgb(239,239,239)) — so the threshold must stay above 239 to count
@@ -434,8 +433,8 @@ export class SoundCloudApi {
 
   /**
    * Loudness samples from the track's waveform metadata (~1500 values
-   * spanning the whole track, a few KB) — lets the peak search locate the
-   * loudest region without downloading any audio. Returns the samples array
+   * spanning the whole track, a few KB) — what the waveform display renders
+   * as bars. Returns the samples array
    * or null when unavailable. Public CDN file: no OAuth header needed (and
    * sending one could break CORS on that host).
    */

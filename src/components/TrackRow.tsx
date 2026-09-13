@@ -1,6 +1,6 @@
 /**
  * One row of the track list: index, artwork, title/artist, waveform, meta
- * line and the two preview buttons (▶ snippet, ⏫ loudest part).
+ * line and the play/pause preview button.
  */
 
 import { useRef } from "react";
@@ -9,20 +9,18 @@ import { togglePreview } from "../services/preview";
 import { onTrackDragStart } from "../services/organize";
 import { escapeUrl, formatCount, formatDuration } from "../services/util";
 import { WaveformCanvas } from "./WaveformCanvas";
-import type { PreviewMode, Track } from "../services/types";
+import type { Track } from "../services/types";
 
-/** Glyph + classes for one of the two preview buttons of the row. */
-function PreviewButton({ track, mode }: { track: Track; mode: "start" | "peak" }) {
+/** Glyph + classes for the row's play/pause preview button. */
+function PreviewButton({ track }: { track: Track }) {
   const state = getState();
-  // A jump preview (waveform click) is a full-track source like "peak".
-  const activeMode: PreviewMode = state.previewMode === "jump" ? "peak" : state.previewMode;
-  const isActive = state.previewTrackId === track.id && !state.previewLoading && activeMode === mode;
-  const isLoading = state.previewTrackId === track.id && state.previewLoading && activeMode === mode;
-  const glyph = isActive && state.previewPlaying ? "⏸" : mode === "peak" ? "⏫" : "▶";
-  const label = mode === "peak" ? "Play from the loudest part" : "Play the ~30 s preview";
+  const isActive = state.previewTrackId === track.id && !state.previewLoading;
+  const isLoading = state.previewTrackId === track.id && state.previewLoading;
+  const glyph = isActive && state.previewPlaying ? "⏸" : "▶";
+  const label = isActive && state.previewPlaying ? "Pause the preview" : "Play the preview";
   const className = [
     "track-preview",
-    state.previewTrackId === track.id && activeMode === mode ? "is-active" : "",
+    isActive ? "is-active" : "",
     isLoading ? "is-loading" : "",
   ].filter(Boolean).join(" ");
 
@@ -31,10 +29,9 @@ function PreviewButton({ track, mode }: { track: Track; mode: "start" | "peak" }
       className={className}
       type="button"
       data-preview-track={track.id}
-      data-preview-mode={mode}
       title={label}
       aria-label={`${label} of ${track.title ?? "track"}`}
-      onClick={() => void togglePreview(track.id, mode)}
+      onClick={() => void togglePreview(track.id)}
     >
       {isLoading ? <span className="spinner" aria-hidden="true" /> : glyph}
     </button>
@@ -78,8 +75,7 @@ export function TrackRow({ track, index }: { track: Track; index: number }) {
         <span>{formatCount(track.likes_count ?? track.favoritings_count)} likes</span>
       </div>
       <span className="track-preview-group">
-        <PreviewButton track={track} mode="start" />
-        <PreviewButton track={track} mode="peak" />
+        <PreviewButton track={track} />
       </span>
     </li>
   );

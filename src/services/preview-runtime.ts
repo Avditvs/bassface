@@ -25,7 +25,6 @@ export interface PreviewRuntime {
   trackId: number | null;
   mode: PreviewMode;
   blob: Blob | null;
-  peakOffset: number | null;
   pendingSeekSec: number | null;
   /** Track time (seconds) at which the blob audio begins. */
   originSec: number | null;
@@ -38,7 +37,6 @@ export const previewRuntime: PreviewRuntime = {
   trackId: null,
   mode: "start",
   blob: null,
-  peakOffset: null,
   pendingSeekSec: null,
   originSec: null,
   jump: null,

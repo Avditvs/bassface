@@ -36,7 +36,7 @@ function waveformProgress(trackId: number): number {
   if (!Number.isFinite(audio.duration) || audio.duration <= 0) return 0;
   const track = getState().tracks.find((t) => t.id === trackId);
   if (!track || !(track.duration > 0)) return 0;
-  // Jump/peak blobs start mid-track: place the playhead on the full timeline.
+  // Jump blobs start mid-track: place the playhead on the full timeline.
   const originSec = p.originSec ?? 0;
   return Math.min(1, Math.max(0, (originSec + audio.currentTime) / (track.duration / 1000)));
 }

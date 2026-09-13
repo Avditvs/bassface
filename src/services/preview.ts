@@ -1,7 +1,7 @@
 /**
  * Preview controller: one hidden `<audio>` element shared by every track
- * row. Handles the two per-row buttons (▶ snippet, ⏫ loudest part), the
- * waveform click-to-jump, playback state and the time display.
+ * row. Handles the per-row play/pause button, the waveform click-to-jump,
+ * playback state and the time display.
  *
  * The identity fields that drive the UI (which track, playing/loading, mode)
  * live in the central store; blobs, offsets and the audio element live in
@@ -13,8 +13,7 @@ import { clearStatus, getState, setState, showStatus } from "./store";
 import { formatDuration } from "./util";
 import { redrawTrackWaveform } from "./waveform";
 import {
-  loadHlsPeak, loadJumpSource, extendJumpWindow, loudestOffsetSeconds,
-  waitForMetadata,
+  loadJumpSource, extendJumpWindow, waitForMetadata,
 } from "./audio-engine";
 import { getAudio, previewRuntime, revokePreviewObjectUrl } from "./preview-runtime";
 import type { PreviewMode } from "../services/types";
@@ -37,7 +36,7 @@ export function stopPreview(): void {
   }
   revokePreviewObjectUrl();
   Object.assign(previewRuntime, {
-    trackId: null, mode: "start", blob: null, peakOffset: null,
+    trackId: null, mode: "start", blob: null,
     pendingSeekSec: null, originSec: null, jump: null, extending: false,
   } satisfies Partial<typeof previewRuntime>);
   setState({
@@ -50,16 +49,6 @@ export function stopPreview(): void {
     clearLiveTrackTime(previousTrackId);
     redrawTrackWaveform(previousTrackId);
   }
-}
-
-/** Seconds offset of the loudest window for the loaded preview, cached. */
-async function ensurePeakOffset(trackId: number): Promise<number | null> {
-  const p = previewRuntime;
-  if (p.trackId !== trackId) return null; // switched away meanwhile
-  if (p.peakOffset !== null || !p.blob) return p.peakOffset;
-  const track = getState().tracks.find((t) => t.id === trackId);
-  p.peakOffset = track ? await loudestOffsetSeconds(p.blob, track) : null;
-  return p.peakOffset;
 }
 
 /** Start / pause / switch a preview for one track. */
@@ -78,28 +67,21 @@ export async function togglePreview(
       clearStatus();
       return;
     }
-    // A "jump" preview is full-track audio too: its ⏫ button pauses/resumes
-    // it like a native peak preview instead of reloading.
-    const activeMode: PreviewMode = p.mode === "jump" ? "peak" : p.mode;
-    if (mode === activeMode) {
-      // Same button: pause / resume.
-      if (getState().previewPlaying) {
-        audio.pause();
-        clearLiveTrackTime(trackId);
-        setState({ previewPlaying: false });
-      } else {
-        setState({ previewPlaying: true });
-        try {
-          await audio.play();
-        } catch {
-          setState({ previewPlaying: false }); // playback blocked (autoplay policy)
-        }
+    // Single button: pause / resume whatever is active on this row (snippet
+    // or full-track jump alike).
+    if (getState().previewPlaying) {
+      audio.pause();
+      clearLiveTrackTime(trackId);
+      setState({ previewPlaying: false });
+    } else {
+      setState({ previewPlaying: true });
+      try {
+        await audio.play();
+      } catch {
+        setState({ previewPlaying: false }); // playback blocked (autoplay policy)
       }
-      return;
     }
-    // The other button uses a different source (snippet vs full track):
-    // stop what is playing and load the requested one from scratch.
-    stopPreview();
+    return;
   }
   if (p.trackId !== null) stopPreview();
 
@@ -107,7 +89,7 @@ export async function togglePreview(
   if (!track) return;
 
   Object.assign(p, {
-    trackId, mode, blob: null, peakOffset: null, pendingSeekSec: seekTo,
+    trackId, mode, blob: null, pendingSeekSec: seekTo,
     originSec: null, jump: null, extending: false,
   });
   setState({ previewTrackId: trackId, previewLoading: true, previewMode: mode });
@@ -116,15 +98,12 @@ export async function togglePreview(
   try {
     const onRaw = (streams: unknown) => dbg(`[preview] streams raw: ${JSON.stringify(streams).slice(0, 800)}`);
     const onError = (err: unknown) => dbg(`[preview] streams failed: ${(err as Error).message}`);
-    // Peak prefers HLS: segments are scanned one by one and only the loudest
-    // one is kept. Jump downloads from the clicked position onward. Every
-    // other mode (and HLS-less tracks) use previewSource.
+    // Jump downloads from the clicked position onward; every other mode
+    // (and HLS-less tracks) use previewSource.
     const api = getState().api!;
-    const source = mode === "peak"
-      ? (await loadHlsPeak(track, { onRaw, onError })) ?? await api.previewSource(track, { mode, onRaw, onError })
-      : mode === "jump"
-        ? (await loadJumpSource(track, p.pendingSeekSec ?? 0, { onRaw, onError })) ?? await api.previewSource(track, { mode: "peak", onRaw, onError })
-        : await api.previewSource(track, { mode: "start", onRaw, onError });
+    const source = mode === "jump"
+      ? (await loadJumpSource(track, p.pendingSeekSec ?? 0, { onRaw, onError })) ?? await api.previewSource(track, { mode: "full", onRaw, onError })
+      : await api.previewSource(track, { mode: "start", onRaw, onError });
     if (!source || (!source.blob && !source.url)) throw new Error("this track has no playable preview");
 
     // Stream URLs live on api.soundcloud.com and require the OAuth header,
@@ -142,7 +121,6 @@ export async function togglePreview(
     revokePreviewObjectUrl();
     p.objectUrl = source.blob ? src : null;
     p.blob = source.blob ?? null;
-    p.peakOffset = source.peakOffset ?? null;
     p.originSec = source.originSec ?? null;
     p.jump = source.jump ?? null;
     audio.src = src;
@@ -150,24 +128,16 @@ export async function togglePreview(
     await waitForMetadata(audio);
     if (p.trackId !== trackId) return; // user switched away while loading
 
-    // "Peak" starts full-length previews at their loudest window; anything
-    // else (and any non-full source) simply starts at the beginning.
+    // A jump blob starts at the clicked position (see loadJumpSource); any
+    // other mode simply starts at the beginning.
     let offset = 0;
     if (p.mode === "jump") {
-      // The jump blob starts at the clicked position (see loadJumpSource).
       if (source.kind === "full" && source.seekOffset != null
           && Number.isFinite(audio.duration) && audio.duration > 0) {
         offset = Math.min(source.seekOffset, Math.max(0, audio.duration - 0.05));
         dbg(`[preview] jumping to ${((p.originSec ?? 0) + offset).toFixed(1)} s`);
       } else {
         dbg(`[preview] jump unavailable for ${source.kind} source — starting at 0`);
-      }
-      p.pendingSeekSec = null;
-    } else if (p.mode === "peak") {
-      if (source.kind === "full") {
-        offset = (await ensurePeakOffset(trackId)) ?? 0;
-      } else {
-        dbg(`[preview] peak unavailable for ${source.kind} source — starting at 0`);
       }
       p.pendingSeekSec = null;
     }
@@ -198,11 +168,18 @@ export function updatePreviewTime(): void {
   const audio = getAudio();
   const span = document.querySelector<HTMLElement>(`[data-track-time="${p.trackId}"]`);
   if (!span) return;
-  const current = Number.isFinite(audio.currentTime) ? audio.currentTime * 1000 : 0;
-  const total = Number.isFinite(audio.duration) ? audio.duration * 1000 : 0;
-  // Keep the baked-in duration until metadata has loaded (total > 0).
+  // The loaded blob may only be a window of the track (jump window, 30 s
+  // window, 30 s snippet), so audio.duration is that window's length — not
+  // the track's. Display the position inside the whole track instead,
+  // matching the waveform highlight (originSec + currentTime, track.duration).
+  const track = getState().tracks.find((t) => t.id === p.trackId);
+  const current = ((p.originSec ?? 0) + (Number.isFinite(audio.currentTime) ? audio.currentTime : 0)) * 1000;
+  const total = track && track.duration > 0
+    ? track.duration
+    : (Number.isFinite(audio.duration) ? audio.duration * 1000 : 0);
+  // Keep the baked-in duration until the real one is known (total > 0).
   if (total <= 0) return;
-  span.textContent = `${formatDuration(current)} / ${formatDuration(total)}`;
+  span.textContent = `${formatDuration(Math.min(current, total))} / ${formatDuration(total)}`;
   span.classList.toggle("is-live", getState().previewPlaying);
   redrawTrackWaveform(p.trackId); // keep the played portion highlighted
   void extendJumpWindow(); // stream in the next window when close to the end
