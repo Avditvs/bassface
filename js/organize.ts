@@ -402,7 +402,7 @@ export function onOrganizeFilterInput(): void {
     : playlists.map(organizationEntryHtml).join("");
 }
 
-/** Header buttons: create a playlist, toggle choose mode, or apply All/None from it. */
+/** Header buttons, playlist-card clicks (open that playlist), All/None. */
 export function onOrganizeClick(event: Event): void {
   if (targetOf(event)?.closest("#organize-create")) {
     void createPlaylistFromSidebar();
@@ -411,6 +411,14 @@ export function onOrganizeClick(event: Event): void {
   if (targetOf(event)?.closest("#organize-choose")) {
     selectionMode = !selectionMode;
     renderOrganizeSidebar();
+    return;
+  }
+  // Clicking a playlist card opens that playlist (same page layout, new target).
+  const card = targetOf(event)?.closest<HTMLElement>(".org-drop");
+  if (card) {
+    const item = card.closest<HTMLElement>(".org-item");
+    const playlist = state.playlists.find((p) => String(p.id) === item?.dataset.orgPlaylistId);
+    if (playlist) window.location.hash = `#/playlist/${playlist.id}`;
     return;
   }
   const bulk = targetOf(event)?.closest<HTMLElement>("[data-org-selection]");
