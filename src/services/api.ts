@@ -5,12 +5,12 @@
  * @see https://developers.soundcloud.com/docs/api/guide
  */
 
-import { API_BASE_URL, refreshAccessToken } from "./oauth.js";
-import { redactSecrets } from "./util.js";
+import { API_BASE_URL, refreshAccessToken } from "./oauth";
+import { redactSecrets } from "./util";
 import type {
   ApiContext, HlsSegment, Playlist, PreviewKind, PreviewSource, SCUser,
   Streams, Track,
-} from "./types.js";
+} from "../services/types";
 
 /** Upper bound on HLS segments concatenated into one preview blob (~10–20 min). */
 const HLS_MAX_SEGMENTS = 120;

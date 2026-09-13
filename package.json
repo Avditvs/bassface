@@ -1,16 +1,25 @@
 {
   "name": "playlist-updater",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "private": true,
   "type": "module",
-  "description": "Backend-free SoundCloud playlist manager (OAuth 2.1 + PKCE, entirely client-side)",
+  "description": "Backend-free SoundCloud playlist manager (OAuth 2.1 + PKCE, React client)",
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "build": "rm -rf dist && tsc && cp index.html dist/ && cp -R css dist/css",
-    "watch": "tsc --watch",
+    "build": "vite build",
+    "dev": "vite",
+    "watch": "vite",
     "serve": "npm run build && python3 -m http.server 8080 --bind 127.0.0.1 --directory dist"
   },
+  "dependencies": {
+    "react": "^19.2.1",
+    "react-dom": "^19.2.1"
+  },
   "devDependencies": {
-    "typescript": "^5.9.2"
+    "@types/react": "^19.2.7",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^5.1.4",
+    "typescript": "^5.9.2",
+    "vite": "^7.3.1"
   }
 }

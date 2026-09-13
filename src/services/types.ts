@@ -4,7 +4,7 @@
  * the small union types used across modules.
  */
 
-import type { AppConfig, TokenStore } from "./config.js";
+import type { AppConfig, TokenStore } from "./config";
 
 /** Cached `/me` profile fields used by the UI. */
 export interface SCUser {

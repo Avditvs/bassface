@@ -11,10 +11,12 @@
  *  - "start": handled by the API's previewSource (30 s snippet), not here.
  */
 
-import { dbg } from "./debug.js";
-import { state } from "./state.js";
-import { el } from "./util.js";
-import type { HlsSegment, PreviewSource, Track } from "./types.js";
+import { dbg } from "./debug";
+import { getState } from "./store";
+import {
+  getAudio, previewRuntime, revokePreviewObjectUrl,
+} from "./preview-runtime";
+import type { HlsSegment, PreviewSource, Track } from "../services/types";
 
 /** Skip the (expensive) loudness decode on very long tracks. */
 const PEAK_SCAN_MAX_MS = 8 * 60 * 1000;
@@ -115,7 +117,7 @@ async function createScanContext(): Promise<AudioContext> {
  * Returns null when no usable waveform is available.
  */
 async function waveformPeakOffset(track: Track): Promise<number | null> {
-  const samples = await state.api!.waveformSamples(track);
+  const samples = await getState().api!.waveformSamples(track);
   if (!samples || !(track.duration > 0)) return null;
   const perSampleSec = track.duration / 1000 / samples.length;
   const cum = new Float64Array(samples.length + 1);
@@ -159,7 +161,7 @@ async function waveformGuidedPeak(
     for (let index = at.index; index <= last; index += 1) {
       let blob: Blob;
       try {
-        blob = await state.api!.fetchSegment(segments[index].url);
+        blob = await getState().api!.fetchSegment(segments[index].url);
       } catch (err) {
         dbg(`[preview] hls segment ${index} failed: ${err.message}`);
         continue;
@@ -177,7 +179,7 @@ async function waveformGuidedPeak(
     const parts: Blob[] = [best.blob];
     if (segments[best.index + 1]) {
       try {
-        parts.push(await state.api!.fetchSegment(segments[best.index + 1].url));
+        parts.push(await getState().api!.fetchSegment(segments[best.index + 1].url));
       } catch { /* winner alone is fine */ }
     }
     dbg(`[preview] hls peak: segment ${best.index} @ ${best.offsetSec.toFixed(1)} s (waveform-guided)`);
@@ -211,7 +213,7 @@ export async function loadHlsPeak(
 ): Promise<PreviewSource | null> {
   let segments: HlsSegment[] | null;
   try {
-    segments = await state.api!.hlsSegments(track, { onRaw, onError });
+    segments = await getState().api!.hlsSegments(track, { onRaw, onError });
   } catch (err) {
     onError?.(err);
     return null;
@@ -236,7 +238,7 @@ export async function loadHlsPeak(
       if (startSec * 1000 > PEAK_SCAN_MAX_MS || scanned >= HLS_SCAN_MAX_SEGMENTS) break;
       let blob: Blob;
       try {
-        blob = await state.api!.fetchSegment(segment.url);
+        blob = await getState().api!.fetchSegment(segment.url);
       } catch (err) {
         dbg(`[preview] hls segment ${index} failed: ${err.message}`);
         continue;
@@ -257,7 +259,7 @@ export async function loadHlsPeak(
     const parts: Blob[] = [best.blob];
     if (segments[best.index + 1]) {
       try {
-        parts.push(await state.api!.fetchSegment(segments[best.index + 1].url));
+        parts.push(await getState().api!.fetchSegment(segments[best.index + 1].url));
       } catch { /* winner alone is fine */ }
     }
     dbg(`[preview] hls peak: segment ${best.index} @ ${best.offsetSec.toFixed(1)} s`);
@@ -294,13 +296,13 @@ export async function loadJumpSource(
 ): Promise<PreviewSource | null> {
   let segments: HlsSegment[] | null;
   try {
-    segments = await state.api!.hlsSegments(track, { onRaw, onError });
+    segments = await getState().api!.hlsSegments(track, { onRaw, onError });
   } catch (err) {
     onError?.(err);
     segments = null;
   }
   if (!segments) {
-    const source = await state.api!.previewSource(track, { mode: "peak", onRaw, onError });
+    const source = await getState().api!.previewSource(track, { mode: "peak", onRaw, onError });
     if (source && source.kind !== "full") dbg(`[preview] jump: only a ${source.kind} source exists — starting at 0`);
     return source;
   }
@@ -313,7 +315,7 @@ export async function loadJumpSource(
   // once, so playback can start quickly. Failed segments leave a hole (the
   // preview just skips them).
   const results = await Promise.allSettled(
-    segments.slice(at.index, windowEnd + 1).map((segment) => state.api!.fetchSegment(segment.url)),
+    segments.slice(at.index, windowEnd + 1).map((segment) => getState().api!.fetchSegment(segment.url)),
   );
   const parts = results
     .filter((r): r is PromiseFulfilledResult<Blob> => r.status === "fulfilled")
@@ -338,8 +340,8 @@ export async function loadJumpSource(
  * gets close to the end of the downloaded audio (called from timeupdate).
  */
 export async function extendJumpWindow(): Promise<void> {
-  const p = state.preview;
-  const audio = el<HTMLAudioElement>("preview-audio");
+  const p = previewRuntime;
+  const audio = getAudio();
   if (p.mode !== "jump" || !p.jump || p.extending) return;
   const { segments, parts, nextIndex, lastIndex } = p.jump;
   if (nextIndex > lastIndex || parts.length === 0) return;
@@ -348,7 +350,7 @@ export async function extendJumpWindow(): Promise<void> {
   try {
     const end = Math.min(lastIndex, nextIndex + JUMP_WINDOW - 1);
     const results = await Promise.allSettled(
-      segments.slice(nextIndex, end + 1).map((segment) => state.api!.fetchSegment(segment.url)),
+      segments.slice(nextIndex, end + 1).map((segment) => getState().api!.fetchSegment(segment.url)),
     );
     if (p.mode !== "jump" || !p.blob) return; // switched away meanwhile
     const fetched = results
@@ -359,7 +361,7 @@ export async function extendJumpWindow(): Promise<void> {
     p.jump.nextIndex = end + 1;
     // Swap in the extended blob without losing the playhead.
     const resumeAt = audio.currentTime;
-    const wasPlaying = p.playing && !audio.paused;
+    const wasPlaying = getState().previewPlaying && !audio.paused;
     revokePreviewObjectUrl();
     p.objectUrl = URL.createObjectURL(new Blob(parts, { type: "audio/mpeg" }));
     audio.src = p.objectUrl;
@@ -402,12 +404,4 @@ export function waitForMetadata(audio: HTMLAudioElement): Promise<void> {
     audio.addEventListener("loadedmetadata", () => resolve(), { once: true });
     audio.addEventListener("error", () => reject(new Error("the audio element could not load the stream")), { once: true });
   });
-}
-
-/** Free the blob backing the current preview, if any. */
-export function revokePreviewObjectUrl(): void {
-  if (state.preview.objectUrl) {
-    URL.revokeObjectURL(state.preview.objectUrl);
-    state.preview.objectUrl = null;
-  }
 }

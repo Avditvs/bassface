@@ -7,9 +7,9 @@
  * @see https://developers.soundcloud.com/docs/api/guide#authentication
  */
 
-import { base64UrlEncode, randomBytes, randomState, sha256Of } from "./util.js";
-import type { TokenPayload } from "./types.js";
-import type { AppConfig } from "./config.js";
+import { base64UrlEncode, randomBytes, randomState, sha256Of } from "./util";
+import type { TokenPayload } from "../services/types";
+import type { AppConfig } from "./config";
 
 export const AUTHORIZE_URL = "https://secure.soundcloud.com/authorize";
 export const TOKEN_URL = "https://secure.soundcloud.com/oauth/token";

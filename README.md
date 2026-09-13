@@ -42,18 +42,18 @@ expire after ~1 hour; the app refreshes them automatically with the
 
 ## Run it
 
-The app is written in **TypeScript** and compiles to plain ES modules:
+The app is written in **TypeScript + React** and bundled with **Vite**:
 
 ```bash
 cd playlist_updater
 npm install
-npm run build        # tsc → dist/ (+ index.html + css copied in)
+npm run build        # vite build → dist/
 npm run serve        # build, then serve dist/ on http://127.0.0.1:8080
 ```
 
 Or serve `dist/` over http(s) with any static server. For a fast edit loop,
-use `npm run watch` (tsc in watch mode) alongside your static server. Other
-useful scripts: `npm run typecheck` (tsc --noEmit, strict).
+use `npm run dev` (Vite dev server with hot reload). Other useful scripts:
+`npm run typecheck` (tsc --noEmit, strict).
 
 Then open <http://127.0.0.1:8080/>, paste your Client ID (and secret if you
 registered one) and click **Connect with SoundCloud**. After authorizing you
@@ -77,9 +77,10 @@ playlist). A **+ New** button in the sidebar creates an empty playlist.
 - **CSP** (`index.html`): `script-src 'self'`, SoundCloud-only
   `connect-src`/`img-src`, `frame-ancestors 'none'` — contains the blast
   radius of any future injection bug.
-- **All SoundCloud-data interpolation is escaped for attribute contexts**
-  (`escapeHtml`/`escapeUrl` in `util.ts`); URL-typed attributes additionally
-  reject `javascript:`/`data:` schemes.
+- **All SoundCloud-data interpolation goes through React**, which escapes
+  text and attribute values by construction; URL-typed attributes (`href`,
+  `src`) additionally pass through `escapeUrl` in `util.ts`, which rejects
+  `javascript:`/`data:` schemes.
 - **The OAuth bearer token is only sent to `*.soundcloud.com` / `*.sndcdn.com`
   hosts** (`isTokenSafeUrl` in `api.ts`) — API/HLS responses pointing
   elsewhere are refused.
@@ -104,32 +105,51 @@ playlist). A **+ New** button in the sidebar creates an empty playlist.
 ## Project layout
 
 ```
-index.html          – single page UI (connect + playlist views)
-css/                – styling split into focused modules (base, layout,
-                      components, forms, playlists, playlist-detail, tracks,
-                      organize, debug)
-js/                 – TypeScript sources, compiled by `npm run build` to dist/
-  types.ts          – shared domain types (SoundCloud API shapes, contracts)
-  app.ts            – entry point: boot sequence, event wiring
-  state.ts          – central mutable app state + shared labels
-  config.ts         – localStorage persistence (credentials, tokens, user)
-  oauth.ts          – OAuth 2.1 + PKCE: authorize URL, token exchange, refresh
-  api.ts            – SoundCloud API client (401 auto-refresh, pagination,
-                      read-modify-write helpers)
-  router.ts         – hash routing (#/playlists, #/playlist/<id>)
-  screens.ts        – screen switching + shared status bar
-  connect.ts        – connect screen (config form, validation, redirect)
-  render.ts         – DOM rendering (playlist grid, detail header, track rows)
-  tracks.ts         – playlist detail: paging, infinite scroll
-  organize.ts       – "Reorganize" sidebar: drag & drop between playlists,
-                      create playlist
-  preview.ts        – audio preview UI (▶ snippet, ⏫ loudest part, click-to-jump)
-  audio-engine.ts   – audio source resolution: waveform-guided peak seek,
-                      HLS reassembly
-  waveform.ts       – waveform fetch/cache/draw for the track rows
-  debug.ts          – persistent troubleshooting log shown on the connect screen
-  util.ts           – base64url / PKCE / formatting / DOM helpers
+index.html              – Vite entry (CSP meta tag + #root)
+vite.config.ts          – Vite + React plugin configuration
+src/
+  main.tsx              – entry point: mounts the React root, imports styles
+  types.ts              – shared domain types (SoundCloud API shapes, contracts)
+  components/
+    App.tsx             – boot sequence, hash routing, screen switching
+    Header.tsx          – brand + user badge (avatar, sign out)
+    StatusBar.tsx       – message bar (spinner / info / success / error)
+    ConnectScreen.tsx   – config form, validation, authorize redirect
+    DebugPanel.tsx      – troubleshooting log (live view of the ring buffer)
+    PlaylistsScreen.tsx – toolbar (search / type / sort), card grid, pagination
+    PlaylistScreen.tsx  – detail layout: toolbar, remove zone, audio, sidebar
+    PlaylistHeader.tsx  – artwork, title, badges, meta
+    TrackList.tsx       – track rows + infinite-scroll sentinel
+    TrackRow.tsx        – one sound row (artwork, waveform, preview buttons)
+    WaveformCanvas.tsx  – per-track loudness waveform canvas
+    OrganizeSidebar.tsx – "Reorganize" sidebar (drop targets, choose mode)
+    shared.tsx          – artwork / badges / meta presentational helpers
+  services/             – framework-agnostic logic (no React imports except
+                          the store hook, no DOM beyond canvas + audio)
+    store.ts            – central state snapshot + `useApp()` (useSyncExternalStore)
+    config.ts           – localStorage persistence (credentials, tokens, user)
+    oauth.ts            – OAuth 2.1 + PKCE: authorize URL, token exchange, refresh
+    api.ts              – SoundCloud API client (401 auto-refresh, pagination,
+                          read-modify-write helpers)
+    session.ts          – OAuth callback, token refresh, sign-in/out lifecycle
+    router.ts           – hash routing (#/playlists, #/playlist/<id>)
+    tracks.ts           – open playlist, track pagination (infinite scroll)
+    preview.ts          – preview playback controller (buttons, audio element)
+    preview-runtime.ts  – shared <audio> element + non-reactive preview fields
+    audio-engine.ts     – audio source resolution: waveform-guided peak seek,
+                          HLS reassembly
+    waveform.ts         – waveform fetch/cache/draw for the track rows
+    organize.ts         – drag & drop between playlists, create playlist, undo
+    debug.ts            – persistent troubleshooting log (subscribable)
+    util.ts             – base64url / PKCE / formatting helpers
+  styles/               – styling split into focused modules (base, layout,
+                          components, forms, playlists, playlist-detail, tracks,
+                          organize, debug)
 ```
+
+The data layer (config, oauth, api, debug) is untouched framework-agnostic
+TypeScript; the old hand-rolled DOM rendering lives on as React components
+fed by a single store snapshot (`useSyncExternalStore`).
 
 ## SoundCloud API reference (used here)
 

@@ -1,11 +1,15 @@
 /**
  * Track waveform display: fetch + cache loudness bars, draw them on the
  * per-track canvas, highlight the played portion, and redraw on resize.
+ *
+ * The bar cache lives in `runtime` (non-reactive); the `<WaveformCanvas>`
+ * React component calls `ensureWaveformBars` on mount and draws whenever the
+ * bars or the preview state change, plus on window resizes.
  */
 
-import { state } from "./state.js";
-import { el } from "./util.js";
-import type { Track } from "./types.js";
+import { getState, runtime } from "./store";
+import { getAudio, previewRuntime } from "./preview-runtime";
+import type { Track } from "../services/types";
 
 /** Cap the drawn bars so very long waveforms stay cheap to paint. */
 const WAVEFORM_MAX_BARS = 220;
@@ -24,46 +28,55 @@ function normalizeWaveform(samples: unknown): number[] {
   return bars;
 }
 
-/** Fetch the track's waveform metadata once; resolves to its bars (or []). */
-function waveformBars(track: Track): Promise<number[] | undefined> {
-  const cached = state.waveforms.get(track.id);
-  if (cached) return Promise.resolve(cached);
-  const inflight = state.waveformInflight.get(track.id);
-  if (inflight) return inflight;
-  const promise = state.api!.waveformSamples(track)
-    .then((samples) => {
-      const bars = normalizeWaveform(samples);
-      state.waveforms.set(track.id, bars);
-      drawWaveform(track.id);
-      return bars;
-    })
-    .catch(() => {
-      state.waveforms.set(track.id, []);
-      return [] as number[];
-    })
-    .finally(() => state.waveformInflight.delete(track.id));
-  state.waveformInflight.set(track.id, promise);
-  return promise;
-}
-
 /** Progress fraction (0-1) of the active preview, for the accent overlay. */
 function waveformProgress(trackId: number): number {
-  const p = state.preview;
-  if (p.trackId !== trackId || p.loading) return 0;
-  const audio = el<HTMLAudioElement>("preview-audio");
+  const p = previewRuntime;
+  if (p.trackId !== trackId || getState().previewLoading) return 0;
+  const audio = getAudio();
   if (!Number.isFinite(audio.duration) || audio.duration <= 0) return 0;
-  const track = state.tracks.find((t) => t.id === trackId);
+  const track = getState().tracks.find((t) => t.id === trackId);
   if (!track || !(track.duration > 0)) return 0;
   // Jump/peak blobs start mid-track: place the playhead on the full timeline.
   const originSec = p.originSec ?? 0;
   return Math.min(1, Math.max(0, (originSec + audio.currentTime) / (track.duration / 1000)));
 }
 
-/** Draw (or redraw) the cached waveform into the track's canvas. */
-export function drawWaveform(trackId: number): void {
+/** Fetch the track's waveform bars once (cache + in-flight de-dup). */
+export function ensureWaveformBars(track: Track, onReady?: () => void): Promise<number[] | undefined> {
+  const cached = runtime.waveforms.get(track.id);
+  if (cached) return Promise.resolve(cached);
+  const inflight = runtime.waveformInflight.get(track.id);
+  if (inflight) return inflight;
+  const promise = getState().api!.waveformSamples(track)
+    .then((samples) => {
+      const bars = normalizeWaveform(samples);
+      runtime.waveforms.set(track.id, bars);
+      onReady?.();
+      return bars;
+    })
+    .catch(() => {
+      runtime.waveforms.set(track.id, []);
+      return [] as number[];
+    })
+    .finally(() => runtime.waveformInflight.delete(track.id));
+  runtime.waveformInflight.set(track.id, promise);
+  return promise;
+}
+
+/**
+ * Redraw the waveform canvas of `trackId` from the bar cache (used by the
+ * preview controller on `timeupdate`/waveform seeks to refresh the played
+ * portion without going through React).
+ */
+export function redrawTrackWaveform(trackId: number): void {
   const canvas = document.querySelector<HTMLCanvasElement>(`canvas[data-waveform-track="${trackId}"]`);
-  const bars = state.waveforms.get(trackId);
-  if (!canvas || !bars) return;
+  const bars = runtime.waveforms.get(trackId);
+  if (canvas && bars) drawWaveform(canvas, trackId, bars);
+}
+
+/** Draw (or redraw) the cached waveform into the track's canvas. */
+export function drawWaveform(canvas: HTMLCanvasElement, trackId: number, bars: number[]): void {
+  if (!bars) return;
   if (bars.length === 0) {
     canvas.classList.add("is-empty"); // no waveform available for this track
     return;
@@ -110,14 +123,5 @@ export function drawWaveform(trackId: number): void {
   for (let i = 0; i < barCount; i += 1) {
     ctx.fillStyle = i < splitIndex ? accent : base;
     ctx.fillRect(i * unit, barY(barH(values[i])), barW, barH(values[i]));
-  }
-}
-
-/** Kick off loads + redraws for every waveform currently on screen. */
-export function renderWaveforms(): void {
-  for (const track of state.tracks) {
-    if (!document.querySelector(`canvas[data-waveform-track="${track.id}"]`)) continue;
-    if (state.waveforms.has(track.id)) drawWaveform(track.id);
-    else void waveformBars(track);
   }
 }

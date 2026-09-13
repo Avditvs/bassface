@@ -1,20 +1,8 @@
 /**
- * Small shared helpers (base64url, randomness, formatting, DOM lookups).
+ * Small shared helpers (base64url, randomness, formatting, URL escaping).
  */
 
-import type { Playlist } from "./types.js";
-
-/** Look up a static element by id; throws when the HTML is broken. */
-export function el<T extends HTMLElement = HTMLElement>(id: string): T {
-  const node = document.getElementById(id);
-  if (!node) throw new Error(`Missing #${id} element`);
-  return node as T;
-}
-
-/** The event target as an Element (null for non-Element targets). */
-export function targetOf(event: Event): Element | null {
-  return event.target instanceof Element ? event.target : null;
-}
+import type { Playlist } from "../services/types";
 
 /** Encode bytes as RFC 4648 base64url without padding. */
 export function base64UrlEncode(bytes: Uint8Array): string {
@@ -65,30 +53,17 @@ export function playlistBucket(playlist: Playlist): string {
 }
 
 /**
- * Escape a value for safe interpolation anywhere in an HTML template,
- * *including attribute contexts*: `& < > " '` are all escaped, so a value
- * like `x" onerror="…` cannot break out of a quoted attribute.
+ * Escape a value for safe use inside a URL-typed attribute (`href`/`src`).
+ * React escapes text and attributes by construction; this adds a scheme
+ * check that blocks `javascript:` / `data:` (except safe media types) so
+ * API-provided URLs cannot carry script URIs.
  */
-export function escapeHtml(text: unknown): string {
-  return String(text ?? "").replace(/[&<>"'`]/g, (char) => (
-    char === "&" ? "&amp;"
-    : char === "<" ? "&lt;"
-    : char === ">" ? "&gt;"
-    : char === '"' ? "&quot;"
-    : char === "'" ? "&#39;"
-    : "&#96;"
-  ));
-}
-
-/** Escape a value for safe use inside a URL-typed attribute (`href`/`src`).
- *  Additionally blocks `javascript:` / `data:` (except safe media types)
- *  schemes so API-provided URLs cannot carry script URIs. */
 export function escapeUrl(url: unknown): string {
   const value = String(url ?? "").trim();
   const scheme = value.match(/^([a-z][a-z0-9+.-]*):/i)?.[1]?.toLowerCase() ?? "";
   const blocked = scheme !== "" && scheme !== "http" && scheme !== "https"
     && !(scheme === "data" && /^data:image\/(png|jpe?g|gif|webp);/i.test(value));
-  return blocked ? "" : escapeHtml(value);
+  return blocked ? "" : value;
 }
 
 /**

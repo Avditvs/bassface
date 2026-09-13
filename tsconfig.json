@@ -4,13 +4,15 @@
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "module": "ESNext",
     "moduleResolution": "bundler",
-    "rootDir": "js",
-    "outDir": "dist/js",
+    "jsx": "react-jsx",
     "strict": true,
     "useUnknownInCatchVariables": false,
     "noFallthroughCasesInSwitch": true,
     "forceConsistentCasingInFileNames": true,
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "noEmit": true,
+    "isolatedModules": true,
+    "allowImportingTsExtensions": true
   },
-  "include": ["js"]
+  "include": ["src", "vite.config.ts"]
 }

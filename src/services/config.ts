@@ -3,7 +3,7 @@
  * and OAuth tokens. Everything lives in localStorage so no backend is needed.
  */
 
-import type { TokenPayload, SCUser } from "./types.js";
+import type { TokenPayload, SCUser } from "../services/types";
 
 const CONFIG_KEY = "playlist_updater.config";
 const TOKENS_KEY = "playlist_updater.tokens";

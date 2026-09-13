@@ -3,66 +3,62 @@
  * user profile and their playlists, entering the app and signing out.
  */
 
-import { TokenStore, UserStore } from "./config.js";
-import { exchangeCode, refreshAccessToken, validateState } from "./oauth.js";
-import { dbg } from "./debug.js";
-import { tokenSummary, state } from "./state.js";
-import { showScreen, showStatus, clearStatus } from "./screens.js";
-import { route } from "./router.js";
-import { forgetTrackSentinel } from "./tracks.js";
-import { stopPreview } from "./preview.js";
-import { renderUser, renderPlaylistControls, renderPlaylists } from "./render.js";
-import { SoundCloudApi } from "./api.js";
-import { el } from "./util.js";
-import type { OAuthCallback } from "./types.js";
+import { TokenStore, UserStore } from "./config";
+import { exchangeCode, refreshAccessToken, validateState } from "./oauth";
+import { dbg } from "./debug";
+import { clearStatus, getState, runtime, setState, showStatus, tokenSummary } from "./store";
+import { route } from "./router";
+import { stopPreview } from "./preview";
+import { resetPlaylistView } from "./tracks";
+import { resetOrganizeSidebar } from "./organize";
+import { SoundCloudApi } from "./api";
+import type { OAuthCallback } from "../services/types";
 
 /** Refresh the access token when stale; throws when it cannot be restored. */
 export async function ensureValidToken(): Promise<void> {
-  if (state.tokens.isFresh()) return;
-  if (!state.tokens.canRefresh()) {
-    const reason = state.tokens.hasAccessToken()
+  if (runtime.tokens.isFresh()) return;
+  if (!runtime.tokens.canRefresh()) {
+    const reason = runtime.tokens.hasAccessToken()
       ? "no refresh token was issued for this session"
       : "no access token is stored";
     throw new Error(reason);
   }
   showStatus("Refreshing SoundCloud session…");
-  const body = await refreshAccessToken({ refreshToken: state.tokens.refreshToken, config: state.config });
+  const body = await refreshAccessToken({ refreshToken: runtime.tokens.refreshToken, config: runtime.config });
   if (!body.access_token) throw new Error("Refresh response missing access_token.");
-  state.tokens.update(body);
+  runtime.tokens.update(body);
   console.info("[session] refreshed token fields:", Object.keys(body));
 }
 
 /** Fetch the authenticated user's profile and cache it. */
 export async function loadUser(): Promise<void> {
-  state.user = await state.api!.me();
-  UserStore.save(state.user);
-  renderUser();
+  const user = await getState().api!.me();
+  setState({ user });
+  UserStore.save(user);
 }
 
-/** Fetch all playlists of the user, then render the list screen. */
+/** Fetch all playlists of the user, then land on the list screen. */
 export async function loadPlaylists(): Promise<void> {
-  state.playlistsLoading = true;
-  showScreen("playlists");
-  renderPlaylists();
+  setState({ playlistsLoading: true });
   showStatus("Loading your playlists…");
   try {
-    state.playlists = await state.api!.myPlaylists();
+    const playlists = await getState().api!.myPlaylists();
+    setState({ playlists });
   } finally {
-    state.playlistsLoading = false;
+    setState({ playlistsLoading: false });
   }
-  state.page = 1;
   clearStatus();
-  renderPlaylistControls();
-  renderPlaylists();
 }
 
 /** Wire the API client, restore the session and land on the right screen. */
 export async function enterApp(): Promise<void> {
   dbg(`[enterApp] ${tokenSummary()}`);
-  state.api = new SoundCloudApi({
-    getConfig: () => state.config,
-    getTokens: () => state.tokens,
-    updateTokens: (body) => state.tokens.update(body),
+  setState({
+    api: new SoundCloudApi({
+      getConfig: () => runtime.config,
+      getTokens: () => runtime.tokens,
+      updateTokens: (body) => runtime.tokens.update(body),
+    }),
   });
 
   try {
@@ -71,13 +67,13 @@ export async function enterApp(): Promise<void> {
     await loadPlaylists();
     // Route to the playlist detail when opened via a `#/playlist/<id>` deep link.
     route();
-    dbg(`[enterApp] success — ${state.playlists.length} playlists loaded`);
+    dbg(`[enterApp] success — ${getState().playlists.length} playlists loaded`);
   } catch (err) {
-    dbg(`[enterApp] failed: ${err.message} — ${tokenSummary()}`);
+    dbg(`[enterApp] failed: ${(err as Error).message} — ${tokenSummary()}`);
     // Keep the stored tokens for troubleshooting; never silently destroy the
     // session here (a transient error must not force a full reconnect).
-    showScreen("connect");
-    showStatus(`Could not restore your session: ${err.message}. Connect again.`, "error");
+    setState({ api: null });
+    showStatus(`Could not restore your session: ${(err as Error).message}. Connect again.`, "error");
   }
 }
 
@@ -91,29 +87,26 @@ function removeCallbackFromUrl(): void {
 /** OAuth redirect landed back on the page: validate + exchange the code. */
 export async function handleOAuthCallback({ code, state: receivedState, error }: OAuthCallback): Promise<void> {
   if (error) {
-    showScreen("connect");
     showStatus(`Authorization failed: ${error}`, "error");
     return;
   }
   if (!code) {
-    showScreen("connect");
     showStatus("Authorization callback missing the code parameter.", "error");
     return;
   }
   if (!validateState(receivedState)) {
-    showScreen("connect");
     showStatus("State mismatch — authorization aborted (possible CSRF). Try again.", "error");
     return;
   }
 
   showStatus("Exchanging the authorization code…");
   try {
-    const body = await exchangeCode({ code, config: state.config });
+    const body = await exchangeCode({ code, config: runtime.config });
     if (!body.access_token) {
       throw new Error(`No access_token in response: ${JSON.stringify(body)}`);
     }
-    state.tokens.update(body);
-    state.tokens.save();
+    runtime.tokens.update(body);
+    runtime.tokens.save();
     removeCallbackFromUrl();
     dbg(`[oauth] exchange 200 — at=${!!body.access_token} rt=${!!body.refresh_token} expires=${body.expires_in}`);
     await enterApp();
@@ -121,24 +114,27 @@ export async function handleOAuthCallback({ code, state: receivedState, error }:
     // The code is single-use regardless of exchange success: drop it from the
     // address bar so a reload cannot replay a dead code.
     removeCallbackFromUrl();
-    showScreen("connect");
-    showStatus(`Could not complete sign-in: ${err.message}`, "error");
+    showStatus(`Could not complete sign-in: ${(err as Error).message}`, "error");
   }
 }
 
 /** Forget tokens + data and return to the connect screen. */
 export function signOut(): void {
   if (!confirm("Sign out and forget the stored SoundCloud token?")) return;
-  state.tokens.clear();
+  runtime.tokens.clear();
   UserStore.clear();
-  state.tokens = TokenStore.load();
-  state.user = null;
-  state.playlists = [];
-  forgetTrackSentinel();
-  state.trackPager = null;
-  el("user-area").hidden = true;
+  runtime.tokens = TokenStore.load();
   stopPreview();
+  resetPlaylistView();
+  resetOrganizeSidebar();
   history.replaceState(null, "", window.location.pathname);
+  setState({
+    api: null,
+    user: null,
+    playlists: [],
+    playlistsLoading: false,
+    currentPlaylist: null,
+    undoEntry: null,
+  });
   clearStatus();
-  showScreen("connect");
 }
