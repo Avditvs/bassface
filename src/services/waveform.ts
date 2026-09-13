@@ -74,6 +74,29 @@ export function redrawTrackWaveform(trackId: number): void {
   if (canvas && bars) drawWaveform(canvas, trackId, bars);
 }
 
+/** Cached CSS colors of the waveform (re-read only when stylesheets change). */
+let cachedColors: { base: string; accent: string } | null = null;
+
+function waveformColors(): { base: string; accent: string } {
+  // getComputedStyle forces a style resolution: cache it, the two colors only
+  // change when the document's stylesheets do.
+  if (!cachedColors) {
+    const styles = getComputedStyle(document.documentElement);
+    cachedColors = {
+      base: styles.getPropertyValue("--muted").trim() || "#a6a6a6",
+      accent: styles.getPropertyValue("--accent").trim() || "#ff5500",
+    };
+  }
+  return cachedColors;
+}
+
+// Stylesheet changes (theme switch, hot reload) invalidate the color cache.
+document.addEventListener("DOMContentLoaded", () => {
+  document.querySelectorAll("style, link[rel='stylesheet']").forEach((el) => {
+    el.addEventListener("load", () => { cachedColors = null; });
+  });
+});
+
 /** Draw (or redraw) the cached waveform into the track's canvas. */
 export function drawWaveform(canvas: HTMLCanvasElement, trackId: number, bars: number[]): void {
   if (!bars) return;
@@ -86,14 +109,18 @@ export function drawWaveform(canvas: HTMLCanvasElement, trackId: number, bars: n
   const height = canvas.clientHeight;
   if (!width || !height) return;
   const dpr = window.devicePixelRatio || 1;
-  canvas.width = Math.round(width * dpr);
-  canvas.height = Math.round(height * dpr);
+  const deviceW = Math.round(width * dpr);
+  const deviceH = Math.round(height * dpr);
+  // Reassigning canvas.width reallocates the backing store — skip it when the
+  // device-pixel size is unchanged (timeupdate redraws hit this path 4×/s).
+  if (canvas.width !== deviceW || canvas.height !== deviceH) {
+    canvas.width = deviceW;
+    canvas.height = deviceH;
+  }
   const ctx = canvas.getContext("2d");
   if (!ctx) return;
-  ctx.scale(dpr, dpr);
-  const styles = getComputedStyle(document.documentElement);
-  const base = styles.getPropertyValue("--muted").trim() || "#a6a6a6";
-  const accent = styles.getPropertyValue("--accent").trim() || "#ff5500";
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const { base, accent } = waveformColors();
   const played = waveformProgress(trackId);
 
   // The bar count follows the canvas width: every bar gets exactly the same
