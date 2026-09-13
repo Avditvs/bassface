@@ -348,6 +348,242 @@ function goBackToPlaylists() {
 /** Skip the (expensive) loudness decode on very long tracks. */
 const PEAK_SCAN_MAX_MS = 8 * 60 * 1000;
 
+/** Loudness needs nowhere near 48 kHz — decoding low-rate is ~6× cheaper. */
+const PEAK_SCAN_SAMPLE_RATE = 8000;
+
+/** Never scan more segments than the old truncated-blob behaviour fetched. */
+const HLS_SCAN_MAX_SEGMENTS = 120;
+
+/**
+ * Loudest 1-second window of a decoded buffer, via a cumulative-energy
+ * prefix sum: one O(n) pass, then every window's energy in O(1) — the exact
+ * global maximum, no block-by-block nested scan. Returns {rms, offsetSec}.
+ */
+function loudestWindow(buffer) {
+  const samples = buffer.getChannelData(0);
+  const windowSize = buffer.sampleRate;
+  if (samples.length < windowSize) return samples.length > 0 ? { rms: 0, offsetSec: 0 } : null;
+  const stride = Math.max(1, Math.floor(windowSize / 250)); // 250 points per window
+  const count = Math.floor(samples.length / stride);
+  const cum = new Float64Array(count + 1);
+  for (let k = 0; k < count; k += 1) {
+    const s = samples[k * stride];
+    cum[k + 1] = cum[k] + s * s;
+  }
+  const win = Math.max(1, Math.floor(windowSize / stride)); // strided points per 1 s
+  let bestK = 0;
+  let bestE = -1;
+  for (let k = 0; k + win <= count; k += 1) {
+    const energy = cum[k + win] - cum[k];
+    if (energy > bestE) {
+      bestE = energy;
+      bestK = k;
+    }
+  }
+  return { rms: bestE / win, offsetSec: (bestK * stride) / buffer.sampleRate };
+}
+
+/**
+ * Index of the segment containing the given offset (from m3u8 durations).
+ */
+function segmentIndexAt(segments, offsetSec) {
+  let startSec = 0;
+  for (const [index, segment] of segments.entries()) {
+    const endSec = startSec + (segment.duration || 0);
+    if (offsetSec < endSec || index === segments.length - 1) return { index, startSec };
+    startSec = endSec;
+  }
+  return null;
+}
+
+/**
+ * Coarse seconds offset of the centre of the loudest ~1-second window,
+ * computed from SoundCloud's waveform metadata — no audio download.
+ * Returns null when no usable waveform is available.
+ */
+async function waveformPeakOffset(track) {
+  const samples = await state.api.waveformSamples(track);
+  if (!samples || !(track.duration > 0)) return null;
+  const perSampleSec = track.duration / 1000 / samples.length;
+  const cum = new Float64Array(samples.length + 1);
+  for (let k = 0; k < samples.length; k += 1) {
+    const s = Number(samples[k]) || 0;
+    cum[k + 1] = cum[k] + s * s;
+  }
+  const win = Math.max(1, Math.round(1 / perSampleSec)); // ~1 s of samples
+  let bestK = 0;
+  let bestE = -1;
+  for (let k = 0; k + win <= samples.length; k += 1) {
+    const energy = cum[k + win] - cum[k];
+    if (energy > bestE) {
+      bestE = energy;
+      bestK = k;
+    }
+  }
+  const offset = (bestK + win / 2) * perSampleSec;
+  dbg(`[preview] waveform coarse peak at ${offset.toFixed(1)} s`);
+  return offset;
+}
+
+/**
+ * Waveform-guided peak: decode only the two segments around the coarse
+ * waveform candidate and keep the true loudest 1-second window among them.
+ * Returns the same shape as loadHlsPeak, or null when it fails.
+ */
+async function waveformGuidedPeak(segments, coarseSec, { onError = null } = {}) {
+  const at = segmentIndexAt(segments, coarseSec);
+  if (!at) return null;
+  let context;
+  try {
+    try {
+      context = new AudioContext({ sampleRate: PEAK_SCAN_SAMPLE_RATE });
+    } catch {
+      context = new AudioContext(); // low rate not supported: default quality
+    }
+    let best = null; // { index, offsetSec, rms, blob }
+    const last = Math.min(segments.length - 1, at.index + 1);
+    for (let index = at.index; index <= last; index += 1) {
+      let blob;
+      try {
+        blob = await state.api.fetchSegment(segments[index].url);
+      } catch (err) {
+        dbg(`[preview] hls segment ${index} failed: ${err.message}`);
+        continue;
+      }
+      const buffer = await context.decodeAudioData(await blob.arrayBuffer());
+      const window = loudestWindow(buffer);
+      if (window && (!best || window.rms > best.rms)) {
+        best = { index, offsetSec: window.offsetSec, rms: window.rms, blob };
+      }
+    }
+    if (!best) return null;
+
+    // Keep the winning segment plus the next one, so playback continues
+    // past the segment boundary instead of stopping abruptly.
+    const parts = [best.blob];
+    if (segments[best.index + 1]) {
+      try {
+        parts.push(await state.api.fetchSegment(segments[best.index + 1].url));
+      } catch { /* winner alone is fine */ }
+    }
+    dbg(`[preview] hls peak: segment ${best.index} @ ${best.offsetSec.toFixed(1)} s (waveform-guided)`);
+    return {
+      blob: new Blob(parts, { type: "audio/mpeg" }),
+      url: segments[best.index].url,
+      kind: "full",
+      peakOffset: best.offsetSec,
+    };
+  } catch (err) {
+    onError?.(err);
+    return null;
+  } finally {
+    context?.close();
+  }
+}
+
+/**
+ * Full-track preview for the ⏫ button via HLS, jumping straight to the
+ * loudest part. Coarse pass from the waveform metadata (a few KB, no
+ * audio), then only the segments around the candidate are decoded; the
+ * full segment scan below is the fallback when no waveform is available.
+ * Returns { blob, url, kind: "full", peakOffset } or null when the track
+ * offers no HLS mp3 stream (the caller falls back to previewSource).
+ */
+async function loadHlsPeak(track, { onRaw = null, onError = null } = {}) {
+  let segments;
+  try {
+    segments = await state.api.hlsSegments(track, { onRaw, onError });
+  } catch (err) {
+    onError?.(err);
+    return null;
+  }
+  if (!segments) return null;
+
+  const coarseSec = await waveformPeakOffset(track);
+  if (coarseSec !== null) {
+    const guided = await waveformGuidedPeak(segments, coarseSec, { onError });
+    if (guided) return guided;
+    dbg("[preview] hls peak: waveform-guided scan failed — falling back to full scan");
+  }
+  dbg(`[preview] hls peak: scanning ${segments.length} segments`);
+
+  let context;
+  try {
+    try {
+      context = new AudioContext({ sampleRate: PEAK_SCAN_SAMPLE_RATE });
+    } catch {
+      context = new AudioContext(); // low rate not supported: default quality
+    }
+    let best = null; // { index, url, offsetSec, rms, blob }
+    let startSec = 0;
+    let scanned = 0;
+    for (const [index, segment] of segments.entries()) {
+      if (startSec * 1000 > PEAK_SCAN_MAX_MS || scanned >= HLS_SCAN_MAX_SEGMENTS) break;
+      let blob;
+      try {
+        blob = await state.api.fetchSegment(segment.url);
+      } catch (err) {
+        dbg(`[preview] hls segment ${index} failed: ${err.message}`);
+        continue;
+      }
+      scanned += 1;
+      const buffer = await context.decodeAudioData(await blob.arrayBuffer());
+      const window = loudestWindow(buffer);
+      if (window && (!best || window.rms > best.rms)) {
+        best = { index, url: segment.url, offsetSec: window.offsetSec, rms: window.rms, blob };
+      }
+      startSec += segment.duration || buffer.duration;
+    }
+    if (!best) return null;
+    dbg(`[preview] hls peak: full scan done — ${scanned} segments scored`);
+
+    // Keep the winning segment plus the next one, so playback continues
+    // past the segment boundary instead of stopping abruptly.
+    const parts = [best.blob];
+    if (segments[best.index + 1]) {
+      try {
+        parts.push(await state.api.fetchSegment(segments[best.index + 1].url));
+      } catch { /* winner alone is fine */ }
+    }
+    dbg(`[preview] hls peak: segment ${best.index} @ ${best.offsetSec.toFixed(1)} s`);
+    return {
+      blob: new Blob(parts, { type: "audio/mpeg" }),
+      url: best.url,
+      kind: "full",
+      peakOffset: best.offsetSec,
+    };
+  } catch (err) {
+    onError?.(err);
+    return null;
+  } finally {
+    context?.close();
+  }
+}
+
+/**
+ * Seconds offset of the loudest 1-second window in a downloaded mp3 blob
+ * (fallback path when no HLS stream exists). Returns null when the track is
+ * too long to decode comfortably or the decode fails.
+ */
+async function loudestOffsetSeconds(blob, track) {
+  if ((track.duration ?? 0) > PEAK_SCAN_MAX_MS) return null;
+  let context;
+  try {
+    try {
+      context = new AudioContext({ sampleRate: PEAK_SCAN_SAMPLE_RATE });
+    } catch {
+      context = new AudioContext(); // low rate not supported: default quality
+    }
+    const buffer = await context.decodeAudioData(await blob.arrayBuffer());
+    const window = loudestWindow(buffer);
+    return window ? window.offsetSec : 0;
+  } catch {
+    return null; // start from the beginning instead
+  } finally {
+    context?.close();
+  }
+}
+
 /**
  * Glyphs + classes for the two preview buttons of a track row. The button
  * matching the active preview's mode shows ▶/⏸; the other one is inert.
@@ -360,7 +596,7 @@ function previewButtonFor(track, mode) {
   const isLoading = isMine && p.loading && p.mode === mode;
   const classes = ["track-preview", isMine && p.mode === mode ? "is-active" : "", isLoading ? "is-loading" : ""].filter(Boolean).join(" ");
   const content = isLoading ? `<span class="spinner" aria-hidden="true"></span>` : glyph;
-  const label = mode === "peak" ? "Play from the loudest part" : "Play from the start";
+  const label = mode === "peak" ? "Play from the loudest part" : "Play the ~30 s preview";
   return `<button class="${classes}" type="button" data-preview-track="${track.id}" data-preview-mode="${mode}" title="${label}" aria-label="${label} of ${escapeHtml(track.title ?? "track")}">${content}</button>`;
 }
 
@@ -385,22 +621,9 @@ async function togglePreview(trackId, mode = "start") {
       renderTrackList();
       return;
     }
-    // Other button on the active row: jump within the already-loaded audio.
-    p.mode = mode;
-    p.playing = false;
-    p.loading = true;
-    renderTrackList();
-    const offset = mode === "peak" ? (await ensurePeakOffset(trackId)) ?? 0 : 0;
-    p.loading = false;
-    if (offset > 0) audio.currentTime = offset;
-    p.playing = true;
-    try {
-      await audio.play();
-    } catch {
-      p.playing = false; // playback blocked (e.g. autoplay policy)
-    }
-    renderTrackList();
-    return;
+    // The other button uses a different source (snippet vs full track):
+    // stop what is playing and load the requested one from scratch.
+    stopPreview();
   }
   if (p.trackId !== null) stopPreview();
 
@@ -416,10 +639,13 @@ async function togglePreview(trackId, mode = "start") {
   showStatus(`Loading preview of “${track.title}”…`);
 
   try {
-    const source = await state.api.previewSource(track, {
-      onRaw: (streams) => dbg(`[preview] streams raw: ${JSON.stringify(streams).slice(0, 800)}`),
-      onError: (err) => dbg(`[preview] streams failed: ${err.message}`),
-    });
+    const onRaw = (streams) => dbg(`[preview] streams raw: ${JSON.stringify(streams).slice(0, 800)}`);
+    const onError = (err) => dbg(`[preview] streams failed: ${err.message}`);
+    // Peak prefers HLS: segments are scanned one by one and only the loudest
+    // one is kept. Every other mode (and HLS-less tracks) use previewSource.
+    const source = mode === "peak"
+      ? (await loadHlsPeak(track, { onRaw, onError })) ?? await state.api.previewSource(track, { mode, onRaw, onError })
+      : await state.api.previewSource(track, { mode, onRaw, onError });
     if (!source || (!source.blob && !source.url)) throw new Error("this track has no playable preview");
 
     // Stream URLs live on api.soundcloud.com and require the OAuth header,
@@ -437,7 +663,7 @@ async function togglePreview(trackId, mode = "start") {
     revokePreviewObjectUrl();
     p.objectUrl = source.blob ? src : null;
     p.blob = source.blob ?? null;
-    p.peakOffset = null;
+    p.peakOffset = source.peakOffset ?? null;
     audio.src = src;
     p.loading = false;
     await waitForMetadata(audio);
@@ -491,43 +717,6 @@ function waitForMetadata(audio) {
     audio.addEventListener("loadedmetadata", resolve, { once: true });
     audio.addEventListener("error", () => reject(new Error("the audio element could not load the stream")), { once: true });
   });
-}
-
-/**
- * Seconds offset of the loudest 1-second window in a downloaded mp3 blob
- * (cheap RMS scan over one channel). Returns null when the track is too
- * long to decode comfortably or the decode fails.
- */
-async function loudestOffsetSeconds(blob, track) {
-  if ((track.duration ?? 0) > PEAK_SCAN_MAX_MS) return null;
-  let context;
-  try {
-    context = new AudioContext();
-    const buffer = await context.decodeAudioData(await blob.arrayBuffer());
-    const samples = buffer.getChannelData(0);
-    const windowSize = buffer.sampleRate;
-    const stride = Math.max(1, Math.floor(windowSize / 500));
-    let peakOffset = 0;
-    let peakRms = -1;
-    for (let start = 0; start + windowSize <= samples.length; start += windowSize) {
-      let sumSquares = 0;
-      let count = 0;
-      for (let i = start; i < start + windowSize; i += stride) {
-        sumSquares += samples[i] * samples[i];
-        count += 1;
-      }
-      const rms = sumSquares / Math.max(1, count);
-      if (rms > peakRms) {
-        peakRms = rms;
-        peakOffset = start / buffer.sampleRate;
-      }
-    }
-    return peakOffset;
-  } catch {
-    return null; // start from the beginning instead
-  } finally {
-    context?.close();
-  }
 }
 
 /** Free the blob backing the current preview, if any. */
@@ -768,16 +957,6 @@ function trackRowFor(track, index) {
   const byLine = [track.user?.username, track.genre].filter(Boolean).join(" · ");
   const title = escapeHtml(track.title ?? "Untitled");
   const permalink = escapeHtml(track.permalink_url);
-
-  const previewLoading = state.preview.trackId === track.id && state.preview.loading;
-  const previewClass = [
-    "track-preview",
-    state.preview.trackId === track.id ? "is-active" : "",
-    previewLoading ? "is-loading" : "",
-  ].filter(Boolean).join(" ");
-  const previewContent = previewLoading
-    ? `<span class="spinner" aria-hidden="true"></span>`
-    : previewGlyph(track.id);
 
   return `<li class="track-row">
     <span class="track-index">${index + 1}</span>
