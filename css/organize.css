@@ -1,0 +1,151 @@
+/* organize.css — Reorganize sidebar: playlist selector, track list and
+   drag-and-drop targets. */
+
+.organize {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  overflow: auto;
+  min-height: 0;
+}
+
+.org-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.org-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0 0 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.org-head .org-title { margin: 0; }
+
+.org-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.org-shown { margin: 10px 0 0; }
+
+.org-check-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.org-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 6px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.org-check:hover { background: var(--panel-alt); }
+
+.org-check input { accent-color: var(--accent); }
+
+.org-check-title {
+  font-size: 0.88rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.org-actions {
+  display: flex;
+  gap: 8px;
+  margin: 0 0 12px;
+}
+
+.org-help { margin: 0 0 12px; }
+
+.org-filter { width: 100%; min-width: 0; margin-bottom: 12px; }
+
+.org-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.org-item { display: flex; gap: 8px; }
+
+.org-drop {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--panel-alt);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 12px;
+  min-height: 76px;
+}
+
+.org-drop.is-over {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.org-art {
+  width: 56px;
+  height: 56px;
+  flex: none;
+  border-radius: 8px;
+  object-fit: cover;
+  background: var(--panel-alt);
+}
+
+.org-art-placeholder {
+  display: grid;
+  place-items: center;
+  font-weight: 800;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.org-body { display: flex; flex-direction: column; min-width: 0; }
+
+.org-count { font-size: 0.8rem; }
+
+/* Far-right strip: drop here to add + remove from the current playlist. */
+.org-move {
+  flex: none;
+  width: 72px;
+  font-size: 1.6rem;
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+  background: var(--panel-alt);
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+  cursor: grab;
+  user-select: none;
+}
+
+.org-move.is-over {
+  border-color: var(--danger);
+  color: var(--danger);
+  background: rgba(229, 72, 77, 0.18);
+}
+
+/* The dragged track row fades while the drag is in flight. */
+.track-row.is-dragging { opacity: 0.45; }

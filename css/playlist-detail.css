@@ -1,0 +1,127 @@
+/* playlist-detail.css — playlist detail screen: three-column layout
+   (Remove panel / tracks / Reorganize sidebar) and playlist header. */
+
+/* ---------- three-column layout ---------- */
+
+/* Playlist detail: three columns — Remove panel (left), tracks (middle),
+   Reorganize sidebar (right). The grid is exactly viewport-height: the page
+   itself never scrolls on this screen, only the middle column scrolls, so
+   the side panels cannot move. */
+#playlist-screen:not([hidden]) .playlist-columns {
+  display: grid;
+  grid-template-columns: 260px minmax(0, 1fr) 420px;
+  gap: 20px;
+  align-items: stretch; /* side panels span the full grid height */
+  height: calc(100vh - 59px - 32px); /* viewport minus header and margins */
+}
+
+/* The middle column is the scroller (page never scrolls here). */
+.playlist-main {
+  overflow-y: auto;
+  min-height: 0; /* let the grid item shrink below its content height */
+}
+
+/* The playlist screen fills the viewport, so the footer is in the way:
+   hide it while a playlist is open. */
+body:has(#playlist-screen:not([hidden])) .app-footer {
+  display: none;
+}
+
+/* Same reason: status messages must not push the layout (which would move
+   the side panels) — they float over the content as a toast instead. */
+body:has(#playlist-screen:not([hidden])) #status-bar {
+  position: fixed;
+  top: 66px; /* just below the sticky header */
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 20;
+  max-width: min(720px, calc(100vw - 48px));
+  margin-bottom: 0;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.45);
+}
+
+@media (max-width: 1100px) {
+  #playlist-screen:not([hidden]) .playlist-columns {
+    grid-template-columns: 1fr; /* panels stack under the tracks */
+    height: auto; /* back to normal document scrolling */
+  }
+  .playlist-main { overflow: visible; }
+  .remove-zone { min-height: 96px; }
+}
+
+/* ---------- playlist header ---------- */
+
+.playlist-header {
+  display: flex;
+  gap: 24px;
+  align-items: flex-start;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 22px 24px;
+  margin-top: 16px;
+}
+
+.playlist-header-art {
+  flex: none;
+  width: 170px;
+  height: 170px;
+}
+
+.playlist-header-art .artwork,
+.playlist-header-art .artwork-placeholder { border-radius: 10px; }
+
+.playlist-header-body { flex: 1; min-width: 0; }
+
+.playlist-title {
+  font-size: 1.35rem;
+  font-weight: 800;
+  margin: 0 0 10px;
+}
+
+.playlist-desc { margin: 8px 0; }
+
+.playlist-link { margin: 10px 0 0; }
+
+.card-open {
+  flex: 1;
+  font-size: 0.82rem;
+  text-align: center;
+  padding: 7px 0;
+}
+
+/* ---------- drop-to-remove panel (left column) ---------- */
+
+/* Tall panel on the left of the track list: drop a dragged sound here to
+   remove it from the playlist currently open. Statically placed — the page
+   never scrolls on this screen, so it cannot move. */
+.remove-panel {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+}
+
+.remove-title {
+  font-size: 1rem;
+  font-weight: 700;
+  margin: 0 0 12px;
+}
+
+/* The drop target itself: fills the rest of the panel. */
+.remove-zone {
+  flex: 1;
+  min-height: 320px;
+  padding: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  font-size: 0.95rem;
+  color: var(--muted);
+  border: 2px dashed var(--border);
+  border-radius: 12px;
+  text-align: center;
+}

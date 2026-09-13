@@ -1,0 +1,74 @@
+/* components.css — shared building blocks: status bar, spinner, toolbar,
+   badges and empty states. */
+
+/* ---------- status / errors ---------- */
+
+.status-bar {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 16px;
+  margin-bottom: 20px;
+}
+
+.status-bar.error { border-color: var(--danger); color: var(--danger); }
+
+.status-bar.success { border-color: var(--accent); color: var(--text); }
+
+/* ---------- spinner ---------- */
+
+.spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  vertical-align: -2px;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.status-bar .spinner { margin-right: 9px; }
+
+.empty-state .spinner { margin-right: 8px; }
+
+/* ---------- toolbar ---------- */
+
+.toolbar {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.search { min-width: 240px; }
+.select { min-width: 170px; }
+
+#summary { margin: 12px 0 4px; }
+
+/* ---------- badges ---------- */
+
+.badges { display: flex; gap: 6px; margin-bottom: 8px; flex-wrap: wrap; }
+
+.badge {
+  font-size: 0.72rem;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--panel-alt);
+  color: var(--muted);
+}
+
+.badge.type-album { background: var(--accent-soft); color: var(--accent); }
+.badge.type-private { background: rgba(229, 72, 77, 0.15); color: var(--danger); }
+
+/* ---------- empty / loading states ---------- */
+
+.empty-state {
+  color: var(--muted);
+  font-size: 0.95rem;
+  padding: 32px 0;
+  text-align: center;
+  border: 1px dashed var(--border);
+  border-radius: 12px;
+}

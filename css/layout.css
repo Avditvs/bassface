@@ -1,0 +1,71 @@
+/* layout.css — app shell: sticky header, main container, footer. */
+
+.app-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 28px;
+  border-bottom: 1px solid var(--border);
+  background: var(--panel);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--accent);
+}
+
+.brand h1 { font-size: 1.05rem; margin: 0; color: var(--text); }
+
+.user-area {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: auto;
+}
+
+.avatar {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.user-name { color: var(--muted); font-size: 0.9rem; }
+
+main {
+  max-width: 1100px;
+  margin: 32px auto;
+  padding: 0 24px;
+}
+
+/* Playlist detail: use the full window width so the track list gets the room
+   and the Reorganize sidebar sits at the right edge of the screen. The wider
+   container keeps the same 24px side padding on both sides. Vertical margins
+   are tightened so the side panels can span almost the whole viewport. */
+main:has(#playlist-screen:not([hidden])) {
+  max-width: calc(100vw - 48px);
+  margin-top: 16px;
+  margin-bottom: 16px;
+}
+
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 28px;
+  max-width: 640px;
+  margin: 0 auto;
+}
+
+.panel h2 { margin-top: 0; }
+
+.app-footer {
+  padding: 18px 28px;
+  border-top: 1px solid var(--border);
+  text-align: center;
+}

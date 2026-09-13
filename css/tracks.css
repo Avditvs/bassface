@@ -1,0 +1,166 @@
+/* tracks.css — track list: rows, previews, waveforms and infinite-scroll
+   sentinel. */
+
+.track-list {
+  list-style: none;
+  margin: 16px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+#track-summary { margin: 12px 0 4px; }
+
+.track-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  height: 84px; /* fixed: every track item is the same height */
+  overflow: hidden;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 16px;
+}
+
+.track-index {
+  width: 2.4ch;
+  text-align: right;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.track-art {
+  width: 52px;
+  height: 52px;
+  flex: none;
+  border-radius: 8px;
+  background: var(--panel-alt);
+  overflow: hidden;
+}
+
+.track-art img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.track-art-placeholder {
+  display: grid;
+  place-items: center;
+  font-weight: 800;
+  color: var(--muted);
+  font-size: 1.05rem;
+}
+
+.track-body { flex: 1; min-width: 0; }
+
+.track-title {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2; /* wrap to at most 2 lines */
+  overflow: hidden;
+  color: var(--text);
+  font-size: 0.95rem;
+  font-weight: 700;
+  line-height: 1.25;
+  height: 2.5em; /* always two lines tall: every track row has the same height */
+  overflow-wrap: anywhere; /* break very long words/URLs instead of overflowing */
+}
+
+.track-title:hover { color: var(--accent); }
+
+.track-sub { margin: 3px 0 0; }
+
+.track-meta {
+  font-size: 0.8rem;
+  color: var(--muted);
+  text-align: right;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: center; /* keeps plays/likes on the row's centre line */
+  gap: 2px;
+  flex: none;
+  box-sizing: content-box;
+  width: 84px; /* fixed: time/plays/likes column never resizes, keeps right cluster stable */
+}
+
+.track-time.is-live { color: var(--accent); }
+
+/* ---------- preview playback ---------- */
+
+.track-preview-group {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  flex: none;
+  width: 74px; /* two 34px buttons + 6px gap: fixed, keeps waveforms aligned */
+}
+
+.track-preview {
+  flex: none;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--panel-alt);
+  color: var(--text);
+  font-size: 0.82rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.track-preview:hover { border-color: var(--accent); color: var(--accent); }
+
+.track-preview.is-active {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.track-preview.is-loading {
+  border-color: var(--accent);
+  color: var(--accent);
+  cursor: progress;
+}
+
+.track-preview .spinner { width: 12px; height: 12px; border-width: 2px; vertical-align: middle; }
+
+/* ---------- waveform ---------- */
+
+.track-waveform {
+  display: block;
+  flex: none;
+  align-self: center;
+  box-sizing: border-box;
+  width: 260px; /* fixed: every waveform renders identically (200px + 30%) */
+  height: 52px; /* same as .track-art, so the row lines up */
+  margin-left: auto; /* pin the waveform to the right cluster */
+  border-radius: 8px;
+  background: var(--panel-alt);
+  cursor: pointer;
+}
+
+.track-waveform.is-empty { cursor: default; opacity: 0.45; }
+
+@media (max-width: 860px) {
+  .track-waveform { display: none; } /* not enough room next to the meta */
+}
+
+/* ---------- infinite-scroll sentinel ---------- */
+
+.track-sentinel {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 18px 0;
+  color: var(--muted);
+  font-size: 0.88rem;
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+}
