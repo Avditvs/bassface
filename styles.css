@@ -473,6 +473,21 @@ input:focus, select:focus { border-color: var(--accent); }
   cursor: progress;
 }
 
+.track-waveform {
+  flex: none;
+  width: clamp(140px, 16vw, 260px);
+  height: 44px;
+  border-radius: 6px;
+  background: var(--panel-alt);
+  cursor: pointer;
+}
+
+.track-waveform.is-empty { cursor: default; }
+
+@media (max-width: 860px) {
+  .track-waveform { display: none; } /* not enough room next to the meta */
+}
+
 /* ---------- infinite-scroll sentinel ---------- */
 
 .track-sentinel {

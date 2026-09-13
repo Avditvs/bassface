@@ -58,7 +58,9 @@ const state = {
   trackPager: null,
   tracksLoadingMore: false,
   currentPlaylist: null,
-  preview: { trackId: null, playing: false, loading: false, objectUrl: null, mode: "start", blob: null, peakOffset: null },
+  preview: { trackId: null, playing: false, loading: false, objectUrl: null, mode: "start", blob: null, peakOffset: null, pendingSeekSec: null, originSec: null, jump: null, extending: false },
+  waveforms: new Map(), // track id → loudness bars (empty array = unavailable)
+  waveformInflight: new Map(), // track id → in-flight waveform load
   playlistsLoading: false,
   page: 1,
   pageSize: 24,
@@ -414,6 +416,15 @@ const PEAK_SCAN_SAMPLE_RATE = 8000;
 /** Never scan more segments than the old truncated-blob behaviour fetched. */
 const HLS_SCAN_MAX_SEGMENTS = 120;
 
+/** Cap how much audio one waveform jump may download in total (~10 min). */
+const JUMP_MAX_SEGMENTS = 60;
+
+/** Segments fetched per jump window — kept small to limit requests. */
+const JUMP_WINDOW = 8;
+
+/** Start extending the jump window when less audio remains than this. */
+const EXTEND_AHEAD_SEC = 30;
+
 /**
  * Loudest 1-second window of a decoded buffer, via a cumulative-energy
  * prefix sum: one O(n) pass, then every window's energy in O(1) — the exact
@@ -493,6 +504,13 @@ async function waveformPeakOffset(track) {
 async function waveformGuidedPeak(segments, coarseSec, { onError = null } = {}) {
   const at = segmentIndexAt(segments, coarseSec);
   if (!at) return null;
+  // Cumulative start time of every segment, to report the blob's origin.
+  const starts = [];
+  let acc = 0;
+  for (const segment of segments) {
+    starts.push(acc);
+    acc += segment.duration || 0;
+  }
   let context;
   try {
     try {
@@ -513,7 +531,7 @@ async function waveformGuidedPeak(segments, coarseSec, { onError = null } = {}) 
       const buffer = await context.decodeAudioData(await blob.arrayBuffer());
       const window = loudestWindow(buffer);
       if (window && (!best || window.rms > best.rms)) {
-        best = { index, offsetSec: window.offsetSec, rms: window.rms, blob };
+        best = { index, offsetSec: window.offsetSec, rms: window.rms, blob, originSec: starts[index] };
       }
     }
     if (!best) return null;
@@ -532,6 +550,7 @@ async function waveformGuidedPeak(segments, coarseSec, { onError = null } = {}) 
       url: segments[best.index].url,
       kind: "full",
       peakOffset: best.offsetSec,
+      originSec: best.originSec,
     };
   } catch (err) {
     onError?.(err);
@@ -590,7 +609,7 @@ async function loadHlsPeak(track, { onRaw = null, onError = null } = {}) {
       const buffer = await context.decodeAudioData(await blob.arrayBuffer());
       const window = loudestWindow(buffer);
       if (window && (!best || window.rms > best.rms)) {
-        best = { index, url: segment.url, offsetSec: window.offsetSec, rms: window.rms, blob };
+        best = { index, url: segment.url, offsetSec: window.offsetSec, rms: window.rms, blob, originSec: startSec };
       }
       startSec += segment.duration || buffer.duration;
     }
@@ -611,12 +630,106 @@ async function loadHlsPeak(track, { onRaw = null, onError = null } = {}) {
       url: best.url,
       kind: "full",
       peakOffset: best.offsetSec,
+      originSec: best.originSec,
     };
   } catch (err) {
     onError?.(err);
     return null;
   } finally {
     context?.close();
+  }
+}
+
+/**
+ * Full-track source for waveform jumps: HLS segments are downloaded from the
+ * clicked position onward (bounded), so the Blob's audio really starts at the
+ * requested time — unlike the peak source, which keeps only the loudest
+ * segment. Returns { blob, url, kind: "full", seekOffset, originSec } where
+ * seekOffset is where to start inside the Blob. Falls back to previewSource
+ * (full mp3 → then the seek works; snippet → playback starts at 0).
+ */
+async function loadJumpSource(track, targetSec, { onRaw = null, onError = null } = {}) {
+  let segments;
+  try {
+    segments = await state.api.hlsSegments(track, { onRaw, onError });
+  } catch (err) {
+    onError?.(err);
+  }
+  if (!segments) {
+    const source = await state.api.previewSource(track, { mode: "peak", onRaw, onError });
+    if (source && source.kind !== "full") dbg(`[preview] jump: only a ${source.kind} source exists — starting at 0`);
+    return source;
+  }
+  const at = segmentIndexAt(segments, targetSec);
+  if (!at) return null;
+  const last = Math.min(segments.length - 1, at.index + JUMP_MAX_SEGMENTS - 1);
+  const windowEnd = Math.min(last, at.index + JUMP_WINDOW - 1);
+  // Cumulative start time of every segment, to place the blob on the timeline.
+  const starts = [];
+  let acc = 0;
+  for (const segment of segments) {
+    starts.push(acc);
+    acc += segment.duration || 0;
+  }
+  // Fetch the first window in parallel: one request per segment, but all at
+  // once, so playback can start quickly. Failed segments leave a hole (the
+  // preview just skips them).
+  const results = await Promise.allSettled(
+    segments.slice(at.index, windowEnd + 1).map((segment) => state.api.fetchSegment(segment.url)),
+  );
+  const parts = results.filter((r) => r.status === "fulfilled").map((r) => r.value);
+  const originSec = starts[at.index + results.findIndex((r) => r.status === "fulfilled")];
+  if (!parts.length) return null;
+  dbg(`[preview] jump: ${parts.length} segments from ${originSec.toFixed(1)} s`);
+  return {
+    blob: new Blob(parts, { type: "audio/mpeg" }),
+    url: segments[at.index].url,
+    kind: "full",
+    seekOffset: Math.max(0, targetSec - originSec),
+    originSec,
+    // Bookkeeping for extendJumpWindow(): more segments stream in as the
+    // playhead approaches the end of the downloaded audio.
+    jump: { segments, parts, nextIndex: windowEnd + 1, lastIndex: last },
+  };
+}
+
+/**
+ * Fetch the next jump window and hot-swap the playing blob when the playhead
+ * gets close to the end of the downloaded audio (called from timeupdate).
+ */
+async function extendJumpWindow() {
+  const p = state.preview;
+  const audio = document.getElementById("preview-audio");
+  if (p.mode !== "jump" || !p.jump || p.extending) return;
+  const { segments, parts, nextIndex, lastIndex } = p.jump;
+  if (nextIndex > lastIndex || parts.length === 0) return;
+  if (!Number.isFinite(audio.duration) || audio.duration - audio.currentTime > EXTEND_AHEAD_SEC) return;
+  p.extending = true;
+  try {
+    const end = Math.min(lastIndex, nextIndex + JUMP_WINDOW - 1);
+    const results = await Promise.allSettled(
+      segments.slice(nextIndex, end + 1).map((segment) => state.api.fetchSegment(segment.url)),
+    );
+    if (p.mode !== "jump" || !p.blob) return; // switched away meanwhile
+    const fetched = results.filter((r) => r.status === "fulfilled").map((r) => r.value);
+    if (!fetched.length) return;
+    parts.push(...fetched);
+    p.jump.nextIndex = end + 1;
+    // Swap in the extended blob without losing the playhead.
+    const resumeAt = audio.currentTime;
+    const wasPlaying = p.playing && !audio.paused;
+    revokePreviewObjectUrl();
+    p.objectUrl = URL.createObjectURL(new Blob(parts, { type: "audio/mpeg" }));
+    audio.src = p.objectUrl;
+    await waitForMetadata(audio);
+    if (p.mode !== "jump") return; // switched away during the swap
+    audio.currentTime = resumeAt;
+    if (wasPlaying) {
+      try { await audio.play(); } catch { /* retried on next click */ }
+    }
+    dbg(`[preview] jump window extended — ${parts.length} segments buffered`);
+  } finally {
+    p.extending = false;
   }
 }
 
@@ -644,6 +757,140 @@ async function loudestOffsetSeconds(blob, track) {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Waveform display + click-to-jump (right of each track card)
+// ---------------------------------------------------------------------------
+
+/** Cap the drawn bars so very long waveforms stay cheap to paint. */
+const WAVEFORM_MAX_BARS = 220;
+
+/** Raw waveform samples → normalised (0-1) max-per-bucket bars. */
+function normalizeWaveform(samples) {
+  if (!Array.isArray(samples) || samples.length < 2) return [];
+  const values = samples.map((s) => Number(s)).filter((v) => Number.isFinite(v) && v >= 0);
+  const max = values.reduce((m, v) => Math.max(m, v), 0);
+  if (!(max > 0)) return [];
+  const bars = [];
+  const bucket = Math.ceil(values.length / WAVEFORM_MAX_BARS);
+  for (let i = 0; i < values.length; i += bucket) {
+    bars.push(values.slice(i, i + bucket).reduce((m, v) => Math.max(m, v), 0) / max);
+  }
+  return bars;
+}
+
+/** Fetch the track's waveform metadata once; resolves to its bars (or []). */
+function waveformBars(track) {
+  if (state.waveforms.has(track.id)) return Promise.resolve(state.waveforms.get(track.id));
+  if (state.waveformInflight.has(track.id)) return state.waveformInflight.get(track.id);
+  const promise = state.api.waveformSamples(track)
+    .then((samples) => {
+      const bars = normalizeWaveform(samples);
+      state.waveforms.set(track.id, bars);
+      drawWaveform(track.id);
+      return bars;
+    })
+    .catch(() => {
+      state.waveforms.set(track.id, []);
+      return [];
+    })
+    .finally(() => state.waveformInflight.delete(track.id));
+  state.waveformInflight.set(track.id, promise);
+  return promise;
+}
+
+/** Progress fraction (0-1) of the active preview, for the accent overlay. */
+function waveformProgress(trackId) {
+  const p = state.preview;
+  if (p.trackId !== trackId || p.loading) return 0;
+  const audio = document.getElementById("preview-audio");
+  if (!Number.isFinite(audio.duration) || audio.duration <= 0) return 0;
+  const track = state.tracks.find((t) => t.id === trackId);
+  if (!track || !(track.duration > 0)) return 0;
+  // Jump/peak blobs start mid-track: place the playhead on the full timeline.
+  const originSec = p.originSec ?? 0;
+  return Math.min(1, Math.max(0, (originSec + audio.currentTime) / (track.duration / 1000)));
+}
+
+/** Draw (or redraw) the cached waveform into the track's canvas. */
+function drawWaveform(trackId) {
+  const canvas = document.querySelector(`canvas[data-waveform-track="${trackId}"]`);
+  if (!canvas || !state.waveforms.has(trackId)) return;
+  const bars = state.waveforms.get(trackId);
+  if (bars.length === 0) {
+    canvas.classList.add("is-empty"); // no waveform available for this track
+    return;
+  }
+  canvas.classList.remove("is-empty");
+  const width = canvas.clientWidth;
+  const height = canvas.clientHeight;
+  if (!width || !height) return;
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = Math.round(width * dpr);
+  canvas.height = Math.round(height * dpr);
+  const ctx = canvas.getContext("2d");
+  ctx.scale(dpr, dpr);
+  const styles = getComputedStyle(document.documentElement);
+  const base = styles.getPropertyValue("--muted").trim() || "#a6a6a6";
+  const accent = styles.getPropertyValue("--accent").trim() || "#ff5500";
+  const played = waveformProgress(trackId);
+  // SoundCloud-style solid mirrored area: one column per CSS pixel. Separated
+  // bars read as a picket fence on loud, uniform material.
+  const splitX = Math.round(played * width);
+  const drawColumns = (from, to, color) => {
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    for (let x = from; x < to; x += 1) {
+      const value = bars[Math.min(bars.length - 1, Math.floor((x / width) * bars.length))];
+      const barHeight = Math.max(2, value * (height - 4));
+      ctx.rect(x, (height - barHeight) / 2, 1, barHeight);
+    }
+    ctx.fill();
+  };
+  drawColumns(0, splitX, accent);
+  drawColumns(splitX, width, base);
+}
+
+/** Kick off loads + redraws for every waveform currently on screen. */
+function renderWaveforms() {
+  for (const track of state.tracks) {
+    if (!document.querySelector(`canvas[data-waveform-track="${track.id}"]`)) continue;
+    if (state.waveforms.has(track.id)) drawWaveform(track.id);
+    else void waveformBars(track);
+  }
+}
+
+/** Click on a waveform: seek the active preview, or start one at that spot. */
+function seekFromWaveform(canvas, event) {
+  const trackId = Number(canvas.dataset.waveformTrack);
+  const track = state.tracks.find((t) => t.id === trackId);
+  if (!track || !(track.duration > 0)) return;
+  const rect = canvas.getBoundingClientRect();
+  const fraction = Math.min(1, Math.max(0, (event.clientX - rect.left) / rect.width));
+  const targetSec = fraction * (track.duration / 1000);
+  // Not laid out yet (or coordinateless event): the fraction would be NaN —
+  // ignore the click instead of jumping to a bogus position.
+  if (!rect.width || !Number.isFinite(targetSec)) return;
+  const p = state.preview;
+  const audio = document.getElementById("preview-audio");
+  // Seek directly only when the click lands inside the already-downloaded
+  // audio window [originSec, originSec + duration]; otherwise reload from
+  // the clicked position ("jump" mode, see loadJumpSource).
+  const originSec = p.originSec ?? 0;
+  const coveredEnd = originSec + (Number.isFinite(audio.duration) ? audio.duration : 0);
+  if (p.trackId === trackId && !p.loading && p.blob && audio.duration > 0
+      && targetSec >= originSec && targetSec < coveredEnd - 0.05) {
+    audio.currentTime = targetSec - originSec;
+    if (audio.paused) {
+      void audio.play().catch(() => { /* retried on next click */ });
+      p.playing = true;
+    }
+    drawWaveform(trackId);
+    return;
+  }
+  // Nothing (or not the right window) loaded: fetch the track from that spot.
+  void togglePreview(trackId, "jump", { seekTo: targetSec });
+}
+
 /**
  * Glyphs + classes for the two preview buttons of a track row. The button
  * matching the active preview's mode shows ▶/⏸; the other one is inert.
@@ -651,21 +898,33 @@ async function loudestOffsetSeconds(blob, track) {
 function previewButtonFor(track, mode) {
   const p = state.preview;
   const isMine = p.trackId === track.id;
-  const isActive = isMine && !p.loading && p.mode === mode;
+  // A jump preview (waveform click) is a full-track source like "peak".
+  const activeMode = p.mode === "jump" ? "peak" : p.mode;
+  const isActive = isMine && !p.loading && activeMode === mode;
   const glyph = isActive && p.playing ? "⏸" : mode === "peak" ? "⏫" : "▶";
-  const isLoading = isMine && p.loading && p.mode === mode;
-  const classes = ["track-preview", isMine && p.mode === mode ? "is-active" : "", isLoading ? "is-loading" : ""].filter(Boolean).join(" ");
+  const isLoading = isMine && p.loading && activeMode === mode;
+  const classes = ["track-preview", isMine && activeMode === mode ? "is-active" : "", isLoading ? "is-loading" : ""].filter(Boolean).join(" ");
   const content = isLoading ? `<span class="spinner" aria-hidden="true"></span>` : glyph;
   const label = mode === "peak" ? "Play from the loudest part" : "Play the ~30 s preview";
   return `<button class="${classes}" type="button" data-preview-track="${track.id}" data-preview-mode="${mode}" title="${label}" aria-label="${label} of ${escapeHtml(track.title ?? "track")}">${content}</button>`;
 }
 
-async function togglePreview(trackId, mode = "start") {
+async function togglePreview(trackId, mode = "start", { seekTo = null } = {}) {
   const p = state.preview;
   const audio = document.getElementById("preview-audio");
 
-  if (p.trackId === trackId && !p.loading) {
-    if (mode === p.mode) {
+  if (p.trackId === trackId && seekTo === null) {
+    if (p.loading) {
+      // Still loading: a second click cancels the pending preview.
+      stopPreview();
+      renderTrackList();
+      clearStatus();
+      return;
+    }
+    // A "jump" preview is full-track audio too: its ⏫ button pauses/resumes
+    // it like a native peak preview instead of reloading.
+    const activeMode = p.mode === "jump" ? "peak" : p.mode;
+    if (mode === activeMode) {
       // Same button: pause / resume.
       if (p.playing) {
         audio.pause();
@@ -694,6 +953,10 @@ async function togglePreview(trackId, mode = "start") {
   p.mode = mode;
   p.blob = null;
   p.peakOffset = null;
+  p.pendingSeekSec = seekTo;
+  p.originSec = null;
+  p.jump = null;
+  p.extending = false;
   p.loading = true;
   renderTrackList();
   showStatus(`Loading preview of “${track.title}”…`);
@@ -702,10 +965,13 @@ async function togglePreview(trackId, mode = "start") {
     const onRaw = (streams) => dbg(`[preview] streams raw: ${JSON.stringify(streams).slice(0, 800)}`);
     const onError = (err) => dbg(`[preview] streams failed: ${err.message}`);
     // Peak prefers HLS: segments are scanned one by one and only the loudest
-    // one is kept. Every other mode (and HLS-less tracks) use previewSource.
+    // one is kept. Jump downloads from the clicked position onward. Every
+    // other mode (and HLS-less tracks) use previewSource.
     const source = mode === "peak"
       ? (await loadHlsPeak(track, { onRaw, onError })) ?? await state.api.previewSource(track, { mode, onRaw, onError })
-      : await state.api.previewSource(track, { mode, onRaw, onError });
+      : mode === "jump"
+        ? (await loadJumpSource(track, p.pendingSeekSec ?? 0, { onRaw, onError })) ?? await state.api.previewSource(track, { mode: "peak", onRaw, onError })
+        : await state.api.previewSource(track, { mode, onRaw, onError });
     if (!source || (!source.blob && !source.url)) throw new Error("this track has no playable preview");
 
     // Stream URLs live on api.soundcloud.com and require the OAuth header,
@@ -724,6 +990,8 @@ async function togglePreview(trackId, mode = "start") {
     p.objectUrl = source.blob ? src : null;
     p.blob = source.blob ?? null;
     p.peakOffset = source.peakOffset ?? null;
+    p.originSec = source.originSec ?? null;
+    p.jump = source.jump ?? null;
     audio.src = src;
     p.loading = false;
     await waitForMetadata(audio);
@@ -732,12 +1000,23 @@ async function togglePreview(trackId, mode = "start") {
     // "Peak" starts full-length previews at their loudest window; anything
     // else (and any non-full source) simply starts at the beginning.
     let offset = 0;
-    if (p.mode === "peak") {
+    if (p.mode === "jump") {
+      // The jump blob starts at the clicked position (see loadJumpSource).
+      if (source.kind === "full" && source.seekOffset != null
+          && Number.isFinite(audio.duration) && audio.duration > 0) {
+        offset = Math.min(source.seekOffset, Math.max(0, audio.duration - 0.05));
+        dbg(`[preview] jumping to ${((p.originSec ?? 0) + offset).toFixed(1)} s`);
+      } else {
+        dbg(`[preview] jump unavailable for ${source.kind} source — starting at 0`);
+      }
+      p.pendingSeekSec = null;
+    } else if (p.mode === "peak") {
       if (source.kind === "full") {
         offset = (await ensurePeakOffset(trackId)) ?? 0;
       } else {
         dbg(`[preview] peak unavailable for ${source.kind} source — starting at 0`);
       }
+      p.pendingSeekSec = null;
     }
     if (p.trackId !== trackId) return; // user switched away during the scan
     if (offset > 0) {
@@ -799,6 +1078,10 @@ function stopPreview() {
   state.preview.mode = "start";
   state.preview.blob = null;
   state.preview.peakOffset = null;
+  state.preview.pendingSeekSec = null;
+  state.preview.originSec = null;
+  state.preview.jump = null;
+  state.preview.extending = false;
 }
 
 function updatePreviewTime() {
@@ -813,9 +1096,16 @@ function updatePreviewTime() {
   if (total <= 0) return;
   span.textContent = `${formatDuration(current)} / ${formatDuration(total)}`;
   span.classList.toggle("is-live", p.playing);
+  drawWaveform(p.trackId); // keep the played portion highlighted
+  void extendJumpWindow(); // stream in the next window when close to the end
 }
 
 function onTrackListClick(event) {
+  const wave = event.target.closest("[data-waveform-track]");
+  if (wave) {
+    seekFromWaveform(wave, event);
+    return;
+  }
   const button = event.target.closest("[data-preview-track]");
   if (button) {
     void togglePreview(Number(button.dataset.previewTrack), button.dataset.previewMode ?? "start");
@@ -1068,6 +1358,7 @@ function renderTrackList() {
     forgetTrackSentinel();
   }
   updatePreviewTime();
+  renderWaveforms();
 }
 
 function trackRowFor(track, index) {
@@ -1087,6 +1378,7 @@ function trackRowFor(track, index) {
       <a class="track-title" href="${permalink}" target="_blank" rel="noreferrer">${title}</a>
       ${byLine ? `<p class="muted track-sub">${escapeHtml(byLine)}</p>` : ""}
     </div>
+    <canvas class="track-waveform" data-waveform-track="${track.id}" title="Click the waveform to jump into this track" aria-hidden="true"></canvas>
     <div class="track-meta">
       <span class="track-time" data-track-time="${track.id}">${formatDuration(track.duration)}</span>
       <span>${formatCount(track.playback_count)} plays</span>
