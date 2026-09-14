@@ -60,6 +60,8 @@ export interface AppState {
   chromaKeys: Record<number, string>;
   /** Track whose chroma analysis is currently running. */
   chromaLoadingTrackId: number | null;
+  /** Whether the analyze-all batch is running (the toolbar button shows it). */
+  chromaAllRunning: boolean;
 }
 
 let state: AppState = {
@@ -82,6 +84,7 @@ let state: AppState = {
   undoEntry: null,
   chromaKeys: {},
   chromaLoadingTrackId: null,
+  chromaAllRunning: false,
 };
 
 const listeners = new Set<() => void>();
@@ -123,6 +126,9 @@ export const runtime = {
   chromas: new Map<number, ChromaAnalysis>(),
   /** track id → in-flight chroma analysis */
   chromaInflight: new Map<number, Promise<ChromaAnalysis>>(),
+  /** Non-reactive analyze-all bookkeeping: running flag + stop request. */
+  chromaAllRunning: false,
+  chromaAllStop: false,
 };
 
 /** One-line token summary for the troubleshooting log. */

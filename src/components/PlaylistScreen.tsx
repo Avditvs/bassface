@@ -7,6 +7,7 @@
 import { useApp } from "../services/store";
 import { goBackToPlaylists } from "../services/router";
 import { revertLastAction } from "../services/organize";
+import { analyzeAllTrackChromas } from "../services/chroma";
 import {
   onPreviewEnded, onPreviewError, updatePreviewTime,
 } from "../services/preview";
@@ -41,6 +42,15 @@ export function PlaylistScreen() {
           <div className="toolbar">
             <button className="button button-quiet" type="button" onClick={goBackToPlaylists}>
               ← All playlists
+            </button>
+            <button
+              className={`button button-quiet${state.chromaAllRunning ? " is-loading" : ""}`}
+              type="button"
+              title="Estimate the key of every loaded track from 1–2 HLS segments each (click again to stop)"
+              onClick={() => void analyzeAllTrackChromas()}
+            >
+              {state.chromaAllRunning ? <span className="spinner" aria-hidden="true" /> : "♪"}
+              {state.chromaAllRunning ? " Stop key analysis" : " Analyze all keys"}
             </button>
             {state.undoEntry && (
               <button

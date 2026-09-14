@@ -184,8 +184,10 @@ fed by a single store snapshot (`useSyncExternalStore`).
 - **Key estimation (♪ button)**: in-browser chroma analysis from 1–2 of the
   track's HLS mp3 segments — FFT pitch-class energy → 12-dim chroma vector →
   best Krumhansl–Kessler major/minor match, shown on the row with its
-  correlation. Results persist in `localStorage` (`playlist_updater.chromas`),
-  so keys are computed once per track, ever
+  correlation. **Analyze all keys** in the playlist toolbar batches the whole
+  loaded track list (3 in parallel, click again to stop). Results persist in
+  `localStorage` (`playlist_updater.chromas`), so keys are computed once per
+  track, ever
 
 ## Next steps (roadmap)
 

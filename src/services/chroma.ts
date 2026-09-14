@@ -17,6 +17,7 @@
 import { dbg } from "./debug";
 import { ChromaStore } from "./config";
 import { getState, runtime, setState, showStatus } from "./store";
+import { loadMoreTracks } from "./tracks";
 import type { ChromaAnalysis, HlsSegment, Track } from "../services/types";
 
 /** FFT window length — sets the frequency resolution (~5.4 Hz @ 44.1 kHz). */
@@ -294,4 +295,93 @@ export async function analyzeTrackChroma(trackId: number): Promise<void> {
     });
   runtime.chromaInflight.set(trackId, promise);
   await promise.catch(() => { /* status already shown */ });
+}
+
+/** Parallel analyses in the analyze-all pool (2 segment requests each). */
+const ALL_CONCURRENCY = 3;
+
+/** Store an analysis everywhere it lives: runtime cache, localStorage, UI. */
+function recordAnalysis(trackId: number, analysis: ChromaAnalysis): void {
+  runtime.chromas.set(trackId, analysis);
+  ChromaStore.save(trackId, analysis);
+  setState({ chromaKeys: { ...getState().chromaKeys, [trackId]: keyLabel(analysis) } });
+}
+
+/**
+ * Fetch every remaining page of the playlist's track list (the infinite
+ * scroll normally does this on approach). Returns the full track list; the
+ * newly fetched pages land in the store, so the rows appear as usual.
+ */
+async function loadAllTracks(): Promise<Track[]> {
+  let state = getState();
+  let guard = 0;
+  while (state.trackPager && !state.trackPager.done && guard < 100) {
+    await loadMoreTracks();
+    const after = getState();
+    // A page load that failed (or fetched nothing new) must not loop forever.
+    if (after.tracksLoadingMore || after.tracksError) break;
+    if (after.tracks.length === state.tracks.length) break;
+    state = after;
+    guard += 1;
+  }
+  return getState().tracks;
+}
+
+/**
+ * Analyze the key of every track of the open playlist — including tracks not
+ * yet fetched by the infinite scroll (the remaining pages are loaded first).
+ * Skips cached ones. Runs a small parallel pool; a second click on the
+ * toolbar button stops the remaining queue. Per-track failures are logged and
+ * skipped, the rest of the batch continues.
+ */
+export async function analyzeAllTrackChromas(): Promise<void> {
+  if (runtime.chromaAllRunning) {
+    runtime.chromaAllStop = true; // second click: stop after the current batch
+    return;
+  }
+  const alreadyAnalyzed = getState().tracks.filter((track) => runtime.chromas.has(track.id)).length;
+  showStatus("Loading all tracks of the playlist…", "loading");
+  const allTracks = await loadAllTracks();
+  const pending = allTracks.filter((track) => !runtime.chromas.has(track.id));
+  if (pending.length === 0) {
+    showStatus(allTracks.length === 0
+      ? "This playlist has no tracks"
+      : `Every track already has a key (${alreadyAnalyzed || allTracks.length})`, "info");
+    return;
+  }
+  runtime.chromaAllRunning = true;
+  runtime.chromaAllStop = false;
+  setState({ chromaAllRunning: true });
+  showStatus(`Analyzing keys of ${pending.length} tracks… (click again to stop)`, "loading");
+  let done = 0;
+  let failed = 0;
+  const analyzeOne = async (track: Track): Promise<void> => {
+    try {
+      const analysis = await analyzeChroma(track);
+      if (!runtime.chromaAllStop) recordAnalysis(track.id, analysis);
+    } catch (err) {
+      failed += 1;
+      dbg(`[chroma] analyze-all: track ${track.id} failed: ${(err as Error).message}`);
+    }
+    done += 1;
+    showStatus(`Analyzing keys… ${done}/${pending.length} (click again to stop)`, "loading");
+  };
+  const queue = [...pending];
+  await Promise.all(Array.from({ length: ALL_CONCURRENCY }, async () => {
+    while (queue.length > 0 && !runtime.chromaAllStop) {
+      const track = queue.shift()!;
+      await analyzeOne(track);
+    }
+  }));
+  runtime.chromaAllRunning = false;
+  setState({ chromaAllRunning: false });
+  if (runtime.chromaAllStop) {
+    showStatus(`Key analysis stopped — ${done} of ${pending.length} done`, "info");
+  } else {
+    showStatus(
+      `Keys analyzed for ${pending.length - failed} of ${pending.length} tracks`
+      + (failed > 0 ? ` — ${failed} failed (no HLS stream?)` : ""),
+      "success",
+    );
+  }
 }
