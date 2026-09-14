@@ -46,7 +46,7 @@ export function PlaylistScreen() {
             <button
               className={`button button-quiet${state.chromaAllRunning ? " is-loading" : ""}`}
               type="button"
-              title="Estimate the key of every loaded track from 1–2 HLS segments each (click again to stop)"
+              title="Estimate the key of every track from segments spread across each one (click again to stop)"
               onClick={() => void analyzeAllTrackChromas()}
             >
               {state.chromaAllRunning ? <span className="spinner" aria-hidden="true" /> : "♪"}

@@ -149,8 +149,8 @@ export interface PreviewState {
 }
 
 /**
- * Chroma analysis of one track, computed in-browser from 1–2 of its HLS mp3
- * segments (see services/chroma.ts).
+ * Chroma analysis of one track, computed in-browser from HLS mp3 segments
+ * spread across the track (see services/chroma.ts).
  */
 export interface ChromaAnalysis {
   /** L2-normalised 12-dim chroma vector, pitch classes C, C#, … B. */
@@ -161,11 +161,11 @@ export interface ChromaAnalysis {
   mode: "major" | "minor";
   /** Pearson correlation of the winning key profile with the chroma (−1..1). */
   correlation: number;
-  /** FFT frames that contributed, after the silence gate. */
-  frames: number;
-  /** Seconds of audio actually analyzed (1–2 segments). */
+  /** ~4 s analysis chunks that contributed, after the silence gate. */
+  chunks: number;
+  /** Seconds of audio actually analyzed (spread segments). */
   analyzedSec: number;
-  /** How many HLS segments the analysis used (1 or 2). */
+  /** How many HLS segments the analysis used. */
   segmentsUsed: number;
 }
 

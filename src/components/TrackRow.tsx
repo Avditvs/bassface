@@ -40,7 +40,7 @@ function PreviewButton({ track }: { track: Track }) {
 }
 
 /**
- * Button that estimates the track's key from 1–2 HLS segments (chroma).
+ * Button that estimates the track's key from segments spread across the track (chroma).
  * Shows ♪ until a key is known, then the key label itself (still clickable
  * to re-analyze).
  */
@@ -50,7 +50,7 @@ function ChromaButton({ track }: { track: Track }) {
   const isLoading = state.chromaLoadingTrackId === track.id;
   const label = key
     ? `Estimated key: ${key} — re-analyze`
-    : "Estimate the key from 1–2 HLS segments (chroma analysis)";
+    : "Estimate the key from segments spread across the track (chroma analysis)";
   return (
     <button
       className={`track-chroma${key ? " has-key" : ""}${isLoading ? " is-loading" : ""}`}

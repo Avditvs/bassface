@@ -2,16 +2,16 @@
  * In-browser chroma analysis for harmonic key estimation (see
  * https://en.wikipedia.org/wiki/Chroma_feature).
  *
- * A track's key is estimated from **1–2 of its HLS mp3 segments** — no full
- * download: two segments (~5–10 s each) from the musically active middle of
- * the track are decoded, split into overlapping 8192-sample Hann windows and
- * mapped onto the 12 pitch classes (the chroma vector). The best
- * Krumhansl–Kessler major/minor profile correlation names the key.
+ * A track's key is estimated from **HLS mp3 segments spread across the
+ * track** — no full download: the segments (~5–10 s each) are decoded, split
+ * into ~4 s chunks, and every chunk into overlapping 8192-sample Hann
+ * windows mapped onto the 12 pitch classes (chroma vectors). Silent chunks
+ * are dropped, the chunk vectors averaged, and the best Krumhansl–Kessler
+ * major/minor profile correlation names the key.
  *
  * 8192 samples at 44.1 kHz give ~5.4 Hz frequency resolution — enough to
  * separate neighbouring semitones down to ~C2, which shorter windows cannot
- * (time–frequency trade-off). Frames below 15% of the loudest frame's energy
- * are skipped so silent leads/tails never pollute the chroma.
+ * (time–frequency trade-off).
  */
 
 import { dbg } from "./debug";
@@ -35,11 +35,15 @@ const F_MAX = 2100;
 /** Frames quieter than this fraction of the loudest frame are skipped. */
 const SILENCE_GATE = 0.15;
 
-/** HLS segments analyzed per track (the "1–2 windows" budget). */
-const SEGMENTS_PER_TRACK = 2;
+/** Absolute RMS floor: chunks below this are silence, whatever the loudest.
+ *  The relative gate alone cannot detect a wholly silent track. */
+const SILENCE_FLOOR = 1e-4;
 
-/** Where in the track the segments are taken from (avoid intro/outro). */
-const SEGMENT_FRACTIONS = [0.3, 0.7];
+/** Segments analyzed per track, spread across the whole track. */
+const SEGMENTS_PER_TRACK = 4;
+
+/** Target duration (seconds) of one analysis chunk inside a segment. */
+const CHUNK_SEC = 4;
 
 /** Pitch-class names, chroma index order (C = 0). */
 const NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"] as const;
@@ -185,11 +189,20 @@ async function decodeBlobs(blobs: Blob[]): Promise<AudioBuffer[]> {
 }
 
 /** Chroma vector of one decoded segment (frames averaged after the gate). */
-function chromaOfBuffer(buffer: AudioBuffer, classes: Int8Array, window: Float64Array): { chroma: number[]; frames: number } {
+/**
+ * Chroma vector of every ~CHUNK_SEC chunk of one decoded segment: frames are
+ * grouped into chunks, each chunk normalised to a unit 12-vector, and chunks
+ * whose mean energy is far below the loudest one (quiet lead/tail, gap) are
+ * dropped so only musically active passages feed the estimate.
+ */
+function chunkChromas(
+  buffer: AudioBuffer,
+  classes: Int8Array,
+  window: Float64Array,
+): number[][] {
   const mono = monoMixdown(buffer);
   const re = new Float64Array(FFT_SIZE);
   const im = new Float64Array(FFT_SIZE);
-  const acc = new Array<number>(12).fill(0);
   const energies: number[] = [];
   const perFrame: number[][] = [];
   for (let start = 0; start + FFT_SIZE <= mono.length; start += HOP_SIZE) {
@@ -208,34 +221,39 @@ function chromaOfBuffer(buffer: AudioBuffer, classes: Int8Array, window: Float64
       if (pc < 0) continue;
       const energy = re[bin] * re[bin] + im[bin] * im[bin];
       frame[pc] += energy;
-      acc[pc] += energy;
     }
     perFrame.push(frame);
   }
-  // Silence gate: drop the frames from quiet leads/tails, renormalise.
+  const framesPerChunk = Math.max(1, Math.round((CHUNK_SEC * buffer.sampleRate) / HOP_SIZE));
   const maxEnergy = energies.reduce((m, e) => Math.max(m, e), 0);
-  const kept = new Array<number>(12).fill(0);
-  let frames = 0;
-  for (let f = 0; f < perFrame.length; f += 1) {
-    if (maxEnergy > 0 && energies[f] < SILENCE_GATE * maxEnergy) continue;
-    for (let pc = 0; pc < 12; pc += 1) kept[pc] += perFrame[f][pc];
-    frames += 1;
+  const chunks: number[][] = [];
+  for (let from = 0; from < perFrame.length; from += framesPerChunk) {
+    const to = Math.min(perFrame.length, from + framesPerChunk);
+    let energy = 0;
+    const chunk = new Array<number>(12).fill(0);
+    for (let f = from; f < to; f += 1) {
+      energy += energies[f];
+      for (let pc = 0; pc < 12; pc += 1) chunk[pc] += perFrame[f][pc];
+    }
+    if (maxEnergy > 0 && energy / (to - from) < SILENCE_GATE * maxEnergy) continue;
+    if (energy / (to - from) < SILENCE_FLOOR) continue; // digitally silent
+    const norm = Math.hypot(...chunk) || 1;
+    chunks.push(chunk.map((v) => v / norm));
   }
-  const source = frames > 0 ? kept : acc; // never return all-zero chroma
-  const norm = Math.hypot(...source) || 1;
-  return { chroma: source.map((v) => v / norm), frames };
+  return chunks;
 }
 
-/** Pick `SEGMENTS_PER_TRACK` segment indexes spread over the track. */
+/** Evenly spread segment indexes across the track (avoiding the very ends). */
 function pickSegments(segments: HlsSegment[]): number[] {
-  const indexes = SEGMENT_FRACTIONS
-    .map((f) => Math.min(segments.length - 1, Math.floor(segments.length * f)))
-    // A track shorter than the budget de-duplicates to a single segment.
-    .filter((index, i, all) => all.indexOf(index) === i);
-  return indexes.slice(0, SEGMENTS_PER_TRACK);
+  const indexes: number[] = [];
+  for (let i = 1; i <= SEGMENTS_PER_TRACK; i += 1) {
+    indexes.push(Math.min(segments.length - 1, Math.floor((segments.length * i) / (SEGMENTS_PER_TRACK + 1))));
+  }
+  // A track shorter than the budget de-duplicates to fewer segments.
+  return [...new Set(indexes)];
 }
 
-/** Chroma analysis of a track from 1–2 of its HLS segments. */
+/** Chroma analysis of a track from segments spread across its whole length. */
 export async function analyzeChroma(track: Track): Promise<ChromaAnalysis> {
   const api = getState().api!;
   const segments = await api.hlsSegments(track);
@@ -245,19 +263,27 @@ export async function analyzeChroma(track: Track): Promise<ChromaAnalysis> {
   const buffers = await decodeBlobs(blobs);
   const window = hannWindow();
   const totalSec = buffers.reduce((sum, b) => sum + b.duration, 0);
-  const chroma = new Array<number>(12).fill(0);
-  let frames = 0;
+  // Per-chunk chroma vectors from every segment, equally weighted (a segment
+  // with more kept chunks doesn't dominate the estimate).
+  const chunkVectors: number[][] = [];
   for (const buffer of buffers) {
-    const part = chromaOfBuffer(buffer, binPitchClasses(buffer.sampleRate), window);
-    for (let pc = 0; pc < 12; pc += 1) chroma[pc] += part.chroma[pc] / buffers.length;
-    frames += part.frames;
+    chunkVectors.push(...chunkChromas(buffer, binPitchClasses(buffer.sampleRate), window));
+  }
+  if (chunkVectors.length === 0) throw new Error("the analyzed segments are silent");
+  const chroma = new Array<number>(12).fill(0);
+  for (const vector of chunkVectors) {
+    for (let pc = 0; pc < 12; pc += 1) chroma[pc] += vector[pc] / chunkVectors.length;
   }
   const norm = Math.hypot(...chroma) || 1;
   const normalized = chroma.map((v) => v / norm);
   const key = estimateKey(normalized);
-  dbg(`[chroma] track ${track.id}: ${chosen.length} segment(s), ${totalSec.toFixed(1)} s, ${frames} frames — chroma `
-    + normalized.map((v) => v.toFixed(3)).join(","));
-  return { chroma: normalized, ...key, frames, analyzedSec: totalSec, segmentsUsed: chosen.length };
+  dbg(`[chroma] track ${track.id}: ${chosen.length} segment(s), ${chunkVectors.length} chunk(s), `
+    + `${totalSec.toFixed(1)} s — chroma ` + normalized.map((v) => v.toFixed(3)).join(","));
+  return {
+    chroma: normalized, ...key,
+    chunks: chunkVectors.length,
+    analyzedSec: totalSec, segmentsUsed: chosen.length,
+  };
 }
 
 /**
@@ -270,7 +296,7 @@ export async function analyzeTrackChroma(trackId: number): Promise<void> {
   const track = getState().tracks.find((t) => t.id === trackId);
   if (!track) return;
   setState({ chromaLoadingTrackId: trackId });
-  showStatus(`Analyzing the key of “${track.title}” from ${SEGMENTS_PER_TRACK} segments…`);
+  showStatus(`Analyzing the key of “${track.title}” from ${SEGMENTS_PER_TRACK} spread segments…`);
   const promise = analyzeChroma(track)
     .then((analysis) => {
       runtime.chromas.set(trackId, analysis);
@@ -282,7 +308,7 @@ export async function analyzeTrackChroma(trackId: number): Promise<void> {
       });
       showStatus(
         `Key of “${track.title}”: ${label} — ${analysis.mode} (r=${analysis.correlation.toFixed(2)}), `
-        + `${analysis.segmentsUsed} segment(s), ${analysis.analyzedSec.toFixed(1)} s analyzed`,
+        + `${analysis.segmentsUsed} segment(s), ${analysis.chunks} chunk(s), ${analysis.analyzedSec.toFixed(1)} s analyzed`,
         "success",
       );
       return analysis;
