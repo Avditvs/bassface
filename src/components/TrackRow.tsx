@@ -6,6 +6,7 @@
 import { useRef } from "react";
 import { getState } from "../services/store";
 import { togglePreview } from "../services/preview";
+import { analyzeTrackChroma } from "../services/chroma";
 import { onTrackDragStart } from "../services/organize";
 import { escapeUrl, formatCount, formatDuration } from "../services/util";
 import { WaveformCanvas } from "./WaveformCanvas";
@@ -34,6 +35,32 @@ function PreviewButton({ track }: { track: Track }) {
       onClick={() => void togglePreview(track.id)}
     >
       {isLoading ? <span className="spinner" aria-hidden="true" /> : glyph}
+    </button>
+  );
+}
+
+/**
+ * Button that estimates the track's key from 1–2 HLS segments (chroma).
+ * Shows ♪ until a key is known, then the key label itself (still clickable
+ * to re-analyze).
+ */
+function ChromaButton({ track }: { track: Track }) {
+  const state = getState();
+  const key = state.chromaKeys[track.id];
+  const isLoading = state.chromaLoadingTrackId === track.id;
+  const label = key
+    ? `Estimated key: ${key} — re-analyze`
+    : "Estimate the key from 1–2 HLS segments (chroma analysis)";
+  return (
+    <button
+      className={`track-chroma${key ? " has-key" : ""}${isLoading ? " is-loading" : ""}`}
+      type="button"
+      data-chroma-track={track.id}
+      title={label}
+      aria-label={`${label} of ${track.title ?? "track"}`}
+      onClick={() => void analyzeTrackChroma(track.id)}
+    >
+      {isLoading ? <span className="spinner" aria-hidden="true" /> : key ?? "♪"}
     </button>
   );
 }
@@ -75,6 +102,7 @@ export function TrackRow({ track, index }: { track: Track; index: number }) {
         <span>{formatCount(track.likes_count ?? track.favoritings_count)} likes</span>
       </div>
       <span className="track-preview-group">
+        <ChromaButton track={track} />
         <PreviewButton track={track} />
       </span>
     </li>

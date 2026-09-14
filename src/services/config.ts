@@ -3,11 +3,12 @@
  * and OAuth tokens. Everything lives in localStorage so no backend is needed.
  */
 
-import type { TokenPayload, SCUser } from "../services/types";
+import type { ChromaAnalysis, TokenPayload, SCUser } from "../services/types";
 
 const CONFIG_KEY = "playlist_updater.config";
 const TOKENS_KEY = "playlist_updater.tokens";
 const USER_KEY = "playlist_updater.user";
+const CHROMAS_KEY = "playlist_updater.chromas";
 
 const CONFIG_DEFAULTS = {
   clientId: "",
@@ -149,3 +150,21 @@ export class UserStore {
     localStorage.removeItem(USER_KEY);
   }
 }
+
+/**
+ * Per-track chroma analyses (key estimations, see services/chroma.ts), keyed
+ * by SoundCloud track id — stable across sessions, so a key computed once
+ * never costs a second analysis. Deliberately kept on sign-out: it is
+ * content-derived data, not user data.
+ */
+export const ChromaStore = {
+  load(): Record<number, ChromaAnalysis> {
+    return readJson(CHROMAS_KEY) ?? {};
+  },
+
+  save(trackId: number, analysis: ChromaAnalysis): void {
+    const all = readJson(CHROMAS_KEY) ?? {};
+    all[trackId] = analysis;
+    writeJson(CHROMAS_KEY, all);
+  },
+};

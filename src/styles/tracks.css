@@ -130,6 +130,40 @@
 
 .track-preview .spinner { width: 12px; height: 12px; border-width: 2px; vertical-align: middle; }
 
+/* ---------- chroma (key estimation) ---------- */
+
+.track-chroma {
+  flex: none;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--panel-alt);
+  color: var(--text);
+  font-size: 0.82rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.track-chroma:hover { border-color: var(--accent); color: var(--accent); }
+
+.track-chroma.is-loading { border-color: var(--accent); color: var(--accent); cursor: progress; }
+
+.track-chroma .spinner { width: 12px; height: 12px; border-width: 2px; vertical-align: middle; }
+
+/* Once a key is known the button shows its label ("Am", "C#m") instead of ♪. */
+.track-chroma.has-key {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.track-chroma.has-key:hover {
+  background: var(--accent-soft);
+}
+
 /* ---------- waveform ---------- */
 
 .track-waveform {

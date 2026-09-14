@@ -10,7 +10,9 @@
 import { useSyncExternalStore } from "react";
 import { AppConfig, TokenStore, UserStore } from "./config";
 import type { SoundCloudApi } from "./api";
-import type { Playlist, PreviewMode, SCUser, StatusKind, Track, TrackPager } from "../services/types";
+import type {
+  ChromaAnalysis, Playlist, PreviewMode, SCUser, StatusKind, Track, TrackPager,
+} from "../services/types";
 
 /** Display labels for the playlist kinds SoundCloud exposes. */
 export const TYPE_LABELS: Record<string, string> = {
@@ -54,6 +56,10 @@ export interface AppState {
   previewMode: PreviewMode;
   /** Most recent reversible organize action (toolbar Revert button). */
   undoEntry: { label: string } | null;
+  /** track id → estimated key label ("Am", "C#", …) shown on the track row. */
+  chromaKeys: Record<number, string>;
+  /** Track whose chroma analysis is currently running. */
+  chromaLoadingTrackId: number | null;
 }
 
 let state: AppState = {
@@ -74,6 +80,8 @@ let state: AppState = {
   previewLoading: false,
   previewMode: "start",
   undoEntry: null,
+  chromaKeys: {},
+  chromaLoadingTrackId: null,
 };
 
 const listeners = new Set<() => void>();
@@ -111,6 +119,10 @@ export const runtime = {
   waveforms: new Map<number, number[]>(),
   /** track id → in-flight waveform load */
   waveformInflight: new Map<number, Promise<number[] | undefined>>(),
+  /** track id → chroma analysis (1–2 HLS segments, see services/chroma.ts) */
+  chromas: new Map<number, ChromaAnalysis>(),
+  /** track id → in-flight chroma analysis */
+  chromaInflight: new Map<number, Promise<ChromaAnalysis>>(),
 };
 
 /** One-line token summary for the troubleshooting log. */

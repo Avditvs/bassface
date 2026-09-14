@@ -146,6 +146,27 @@ export interface PreviewState {
   extending: boolean;
 }
 
+/**
+ * Chroma analysis of one track, computed in-browser from 1–2 of its HLS mp3
+ * segments (see services/chroma.ts).
+ */
+export interface ChromaAnalysis {
+  /** L2-normalised 12-dim chroma vector, pitch classes C, C#, … B. */
+  chroma: number[];
+  /** Estimated tonic pitch class ("C", "F#", …). */
+  tonic: string;
+  /** Estimated mode of the best Krumhansl–Kessler profile match. */
+  mode: "major" | "minor";
+  /** Pearson correlation of the winning key profile with the chroma (−1..1). */
+  correlation: number;
+  /** FFT frames that contributed, after the silence gate. */
+  frames: number;
+  /** Seconds of audio actually analyzed (1–2 segments). */
+  analyzedSec: number;
+  /** How many HLS segments the analysis used (1 or 2). */
+  segmentsUsed: number;
+}
+
 /** OAuth callback query parameters. */
 export interface OAuthCallback {
   code: string | null;

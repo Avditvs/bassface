@@ -138,6 +138,9 @@ src/
     preview-runtime.ts  – shared <audio> element + non-reactive preview fields
     audio-engine.ts     – audio source resolution: waveform-guided peak seek,
                           HLS reassembly
+    chroma.ts           – in-browser chroma analysis: key estimation from
+                          1–2 HLS segments (FFT → pitch classes →
+                          Krumhansl–Kessler profile)
     waveform.ts         – waveform fetch/cache/draw for the track rows
     organize.ts         – drag & drop between playlists, create playlist, undo
     debug.ts            – persistent troubleshooting log (subscribable)
@@ -178,6 +181,11 @@ fed by a single store snapshot (`useSyncExternalStore`).
   which also removes them from the open playlist) — all via read-modify-write
   `PUT /playlists/:id`
 - Create a new, empty playlist (`POST /playlists`)
+- **Key estimation (♪ button)**: in-browser chroma analysis from 1–2 of the
+  track's HLS mp3 segments — FFT pitch-class energy → 12-dim chroma vector →
+  best Krumhansl–Kessler major/minor match, shown on the row with its
+  correlation. Results persist in `localStorage` (`playlist_updater.chromas`),
+  so keys are computed once per track, ever
 
 ## Next steps (roadmap)
 
