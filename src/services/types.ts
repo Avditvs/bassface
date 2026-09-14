@@ -105,6 +105,8 @@ export interface PreviewSource {
   originSec?: number;
   /** Seconds into the blob where a jump preview must seek. */
   seekOffset?: number;
+  /** Total length (seconds) of the HLS stream timeline, when segments exist. */
+  streamDurationSec?: number;
   jump?: JumpState;
 }
 

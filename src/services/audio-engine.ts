@@ -158,6 +158,7 @@ async function loadStreamedJumpSource(
   at: { index: number; startSec: number },
   last: number,
   targetSec: number,
+  streamTotalSec: number,
 ): Promise<PreviewSource | null> {
   const firstEnd = Math.min(last, at.index + JUMP_START_SEGMENTS - 1);
   const { blobs, firstOk } = await fetchSegmentWindow(at.index, firstEnd, segments);
@@ -179,6 +180,7 @@ async function loadStreamedJumpSource(
       kind: "full",
       seekOffset: Math.max(0, targetSec - originSec),
       originSec,
+      streamDurationSec: streamTotalSec,
       jump: {
         segments, parts: [], nextIndex: firstEnd + 1, lastIndex: last,
         streamed: true, sourceBuffer, mediaSource,
@@ -234,14 +236,26 @@ export async function loadJumpSource(
     return fallback();
   }
   if (!segments) return fallback();
-  const at = segmentIndexAt(segments, targetSec);
+  const starts = segmentStarts(segments);
+  // The waveform, the clicks and `track.duration` live on the track's
+  // metadata timeline; the HLS stream may run slightly longer or shorter
+  // (mp3 128 transcodes drift from the metadata duration). Map the jump
+  // target onto the stream timeline so the audio sought is the audio at the
+  // clicked waveform position, and expose the stream total so the playhead
+  // and the time readout use the same timeline (no drift while playing).
+  const streamTotalSec = starts[starts.length - 1] + (segments[segments.length - 1].duration || 0);
+  const metaSec = track.duration > 0 ? track.duration / 1000 : 0;
+  const streamSec = metaSec > 0 && streamTotalSec > 0 ? targetSec * (streamTotalSec / metaSec) : targetSec;
+  if (Math.abs(streamTotalSec - metaSec) > 0.5) {
+    dbg(`[preview] jump: stream runs ${streamTotalSec.toFixed(1)} s vs metadata ${metaSec.toFixed(1)} s — rescaled the target by ${(streamTotalSec / metaSec).toFixed(4)}`);
+  }
+  const at = segmentIndexAt(segments, streamSec);
   if (!at) return fallback();
   const last = Math.min(segments.length - 1, at.index + JUMP_MAX_SEGMENTS - 1);
-  const starts = segmentStarts(segments);
 
   // Preferred path: stream the segments through a MediaSource (gapless).
   if (mseSupported()) {
-    const streamed = await loadStreamedJumpSource(audio, segments, starts, at, last, targetSec);
+    const streamed = await loadStreamedJumpSource(audio, segments, starts, at, last, streamSec, streamTotalSec);
     if (streamed) {
       dbg(`[preview] jump: streaming via MediaSource — ${JUMP_START_SEGMENTS} segments from ${(streamed.originSec ?? 0).toFixed(1)} s`);
       return streamed;
@@ -261,6 +275,7 @@ export async function loadJumpSource(
     kind: "full",
     seekOffset: Math.max(0, targetSec - originSec),
     originSec,
+    streamDurationSec: streamTotalSec,
     // Bookkeeping for extendJumpWindow(): more segments stream in as the
     // playhead approaches the end of the downloaded audio.
     jump: { segments, parts, nextIndex: windowEnd + 1, lastIndex: last },

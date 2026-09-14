@@ -38,7 +38,11 @@ function waveformProgress(trackId: number): number {
   if (!track || !(track.duration > 0)) return 0;
   // Jump blobs start mid-track: place the playhead on the full timeline.
   const originSec = p.originSec ?? 0;
-  return Math.min(1, Math.max(0, (originSec + audio.currentTime) / (track.duration / 1000)));
+  // Divide by the timeline the element actually plays (HLS stream total or
+  // full-mp3 duration, both known to drift from the metadata duration) so
+  // the highlight never drifts away from the music.
+  const totalSec = p.streamTotalSec ?? track.duration / 1000;
+  return Math.min(1, Math.max(0, (originSec + audio.currentTime) / totalSec));
 }
 
 /** Fetch the track's waveform bars once (cache + in-flight de-dup). */

@@ -37,7 +37,7 @@ export function stopPreview(): void {
   revokePreviewObjectUrl();
   Object.assign(previewRuntime, {
     trackId: null, mode: "start", blob: null,
-    pendingSeekSec: null, originSec: null, jump: null, extending: false,
+    pendingSeekSec: null, originSec: null, streamTotalSec: null, jump: null, extending: false,
   } satisfies Partial<typeof previewRuntime>);
   setState({
     previewTrackId: null, previewPlaying: false, previewLoading: false, previewMode: "start",
@@ -90,7 +90,7 @@ export async function togglePreview(
 
   Object.assign(p, {
     trackId, mode, blob: null, pendingSeekSec: seekTo,
-    originSec: null, jump: null, extending: false,
+    originSec: null, streamTotalSec: null, jump: null, extending: false,
   });
   setState({ previewTrackId: trackId, previewLoading: true, previewMode: mode });
   showStatus(`Loading preview of “${track.title}”…`);
@@ -122,11 +122,20 @@ export async function togglePreview(
     p.objectUrl = source.blob || streamed ? src : null;
     p.blob = source.blob ?? null;
     p.originSec = source.originSec ?? null;
+    p.streamTotalSec = source.streamDurationSec ?? null;
     p.jump = source.jump ?? null;
     if (!streamed) audio.src = src;
     setState({ previewLoading: false });
     await waitForMetadata(audio);
     if (p.trackId !== trackId) return; // user switched away while loading
+
+    // Fallback full sources carry the whole mp3 from position 0: its real
+    // duration is the timeline the playhead must use (the metadata duration
+    // can drift from it, like the HLS stream total does).
+    if (!p.jump && source.kind === "full" && source.complete
+        && Number.isFinite(audio.duration) && audio.duration > 0) {
+      p.streamTotalSec = audio.duration;
+    }
 
     // A jump blob starts at the clicked position (see loadJumpSource); any
     // other mode simply starts at the beginning.
@@ -168,15 +177,20 @@ export function updatePreviewTime(): void {
   const audio = getAudio();
   const span = document.querySelector<HTMLElement>(`[data-track-time="${p.trackId}"]`);
   if (!span) return;
-  // The loaded blob may only be a window of the track (jump window, 30 s
-  // window), so audio.duration is that window's length — not
-  // the track's. Display the position inside the whole track instead,
-  // matching the waveform highlight (originSec + currentTime, track.duration).
+  // The loaded blob may only be a window of the track (jump window), so
+  // audio.duration is that window's length — not the track's. Display the
+  // position inside the whole track instead, matching the waveform
+  // highlight (originSec + currentTime, on the stream's total length).
   const track = getState().tracks.find((t) => t.id === p.trackId);
   const current = ((p.originSec ?? 0) + (Number.isFinite(audio.currentTime) ? audio.currentTime : 0)) * 1000;
-  const total = track && track.duration > 0
-    ? track.duration
-    : (Number.isFinite(audio.duration) ? audio.duration * 1000 : 0);
+  // Total on the timeline the element actually plays: the HLS stream total
+  // (or the full-mp3 duration) when known — both can drift from the track's
+  // metadata duration — falling back to that metadata, then the element.
+  const total = p.streamTotalSec != null
+    ? p.streamTotalSec * 1000
+    : track && track.duration > 0
+      ? track.duration
+      : (Number.isFinite(audio.duration) ? audio.duration * 1000 : 0);
   // Keep the baked-in duration until the real one is known (total > 0).
   if (total <= 0) return;
   span.textContent = `${formatDuration(Math.min(current, total))} / ${formatDuration(total)}`;
@@ -198,6 +212,13 @@ export function seekFromWaveform(canvas: HTMLCanvasElement, event: MouseEvent): 
   if (!rect.width || !Number.isFinite(targetSec)) return;
   const p = previewRuntime;
   const audio = getAudio();
+  // The active preview plays on the stream timeline, which can drift from
+  // the metadata duration the waveform's fractions are read in: rescale the
+  // clicked position so the sought audio matches the clicked waveform spot.
+  const metaSec = track.duration / 1000;
+  const streamSec = p.trackId === trackId && p.streamTotalSec != null && metaSec > 0
+    ? targetSec * (p.streamTotalSec / metaSec)
+    : targetSec;
   // Seek directly only when the click lands inside audio the element already
   // holds: on the MediaSource path every buffered range is seekable — played
   // segments are never evicted, so jumping back is gapless; on the Blob path
@@ -207,7 +228,7 @@ export function seekFromWaveform(canvas: HTMLCanvasElement, event: MouseEvent): 
   const originSec = p.originSec ?? 0;
   let covered = false;
   if (p.trackId === trackId && !getState().previewLoading && (p.blob || streamed) && audio.duration > 0) {
-    const local = targetSec - originSec;
+    const local = streamSec - originSec;
     if (streamed) {
       for (let i = 0; i < audio.buffered.length && !covered; i += 1) {
         covered = local >= audio.buffered.start(i) && local < audio.buffered.end(i) - 0.05;
@@ -217,7 +238,7 @@ export function seekFromWaveform(canvas: HTMLCanvasElement, event: MouseEvent): 
     }
   }
   if (covered) {
-    audio.currentTime = Math.max(0, targetSec - originSec);
+    audio.currentTime = Math.max(0, streamSec - originSec);
     if (audio.paused) {
       void audio.play().catch(() => { /* retried on next click */ });
       setState({ previewPlaying: true });

@@ -28,6 +28,10 @@ export interface PreviewRuntime {
   pendingSeekSec: number | null;
   /** Track time (seconds) at which the blob audio begins. */
   originSec: number | null;
+  /** Total length (seconds) of the timeline the element plays: the HLS
+   *  stream total when segments exist, the full-mp3 duration on the fallback
+   *  path — null while unknown (the metadata duration is used instead). */
+  streamTotalSec: number | null;
   jump: JumpState | null;
   extending: boolean;
   objectUrl: string | null;
@@ -39,6 +43,7 @@ export const previewRuntime: PreviewRuntime = {
   blob: null,
   pendingSeekSec: null,
   originSec: null,
+  streamTotalSec: null,
   jump: null,
   extending: false,
   objectUrl: null,
