@@ -43,7 +43,9 @@ export function PlayerBar() {
           <strong title={track.title ?? "Untitled"}>{track.title ?? "Untitled"}</strong>
           <span className="player-artist">{artist}{track.genre ? ` · ${track.genre}` : ""}</span>
         </div>
-        <WaveformCanvas track={track} className="player-waveform" />
+        {/* Keyed by track: a fresh canvas per track, so a switch can never
+            leave the previous track's bars painted. */}
+        <WaveformCanvas key={track.id} track={track} className="player-waveform" />
         <span className="player-time" aria-label={`Position ${formatDuration(position)} of ${formatDuration(duration)}`}>
           {formatDuration(position)} <span>/</span> {formatDuration(duration)}
         </span>

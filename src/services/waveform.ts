@@ -109,6 +109,18 @@ export function drawWaveform(canvas: HTMLCanvasElement, trackId: number, bars: n
   if (!bars) return;
   if (bars.length === 0) {
     canvas.classList.add("is-empty"); // no waveform available for this track
+    // The canvas keeps its pixels otherwise: wipe any previous track's bars.
+    const dpr = window.devicePixelRatio || 1;
+    const emptyW = Math.round(canvas.clientWidth * dpr);
+    const emptyH = Math.round(canvas.clientHeight * dpr);
+    if (emptyW && emptyH) {
+      if (canvas.width !== emptyW || canvas.height !== emptyH) {
+        canvas.width = emptyW;
+        canvas.height = emptyH;
+      } else {
+        canvas.getContext("2d")?.clearRect(0, 0, emptyW, emptyH);
+      }
+    }
     return;
   }
   canvas.classList.remove("is-empty");
@@ -153,9 +165,22 @@ export function drawWaveform(canvas: HTMLCanvasElement, trackId: number, bars: n
 
   // First bar at/after the playhead switches from accent to muted, so the
   // colour boundary always falls between two bars instead of cutting one.
+  // Bars are capsules (rounded on top and bottom); two paths — one per
+  // colour — are built first, then filled in a single call each.
   const splitIndex = Math.floor(played * barCount);
+  const playedPath = new Path2D();
+  const basePath = new Path2D();
+  const addBar = (path: Path2D, x: number, y: number, h: number) => {
+    const radius = Math.min(barW / 2, h / 2);
+    if (typeof path.roundRect === "function") path.roundRect(x, y, barW, h, radius);
+    else path.rect(x, y, barW, h); // pre-roundRect browsers
+  };
   for (let i = 0; i < barCount; i += 1) {
-    ctx.fillStyle = i < splitIndex ? accent : base;
-    ctx.fillRect(i * unit, barY(barH(values[i])), barW, barH(values[i]));
+    const h = barH(values[i]);
+    addBar(i < splitIndex ? playedPath : basePath, i * unit, barY(h), h);
   }
+  ctx.fillStyle = base;
+  ctx.fill(basePath);
+  ctx.fillStyle = accent;
+  ctx.fill(playedPath);
 }
