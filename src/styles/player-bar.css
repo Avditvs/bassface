@@ -9,9 +9,13 @@
   overflow: hidden;
   border: 1px solid var(--border);
   border-radius: 12px;
-  background: color-mix(in srgb, var(--panel) 94%, transparent);
+  /* Opaque on purpose: a translucent background + backdrop-filter must
+     re-capture and re-blur the scrolling content behind the bar on every
+     frame, which makes the bar flicker while scrolling (Chromium bug with
+     sticky/backdrop-filter elements). Keep it opaque, blur-free. */
+  background: var(--panel);
   box-shadow: 0 12px 34px rgba(0, 0, 0, 0.38);
-  backdrop-filter: blur(14px);
+  will-change: transform;
 }
 
 .player-progress {
