@@ -61,11 +61,15 @@ export function toggleSelection(id: string, checked: boolean): void {
     // "All" is implicit — materialize it before unchecking the first box.
     selection = new Set(candidatePlaylists().map((playlist) => String(playlist.id)));
   }
+  // Copy-on-write: a fresh Set lets React see the change and re-render the
+  // checkboxes (mutating in place would keep the same reference).
+  const next = new Set(selection);
   if (checked) {
-    selection.add(id);
+    next.add(id);
   } else {
-    selection.delete(id);
+    next.delete(id);
   }
+  selection = next;
   saveSelection();
 }
 
