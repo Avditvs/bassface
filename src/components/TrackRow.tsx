@@ -8,7 +8,8 @@ import { getState } from "../services/store";
 import { togglePreview } from "../services/preview";
 import { analyzeTrackChroma } from "../services/chroma";
 import { onTrackDragStart } from "../services/organize";
-import { escapeUrl, formatCount, formatDuration } from "../services/util";
+import { isLikedView } from "../services/tracks";
+import { escapeUrl, formatCount, formatDate, formatDuration } from "../services/util";
 import { WaveformCanvas } from "./WaveformCanvas";
 import type { Track } from "../services/types";
 
@@ -67,7 +68,10 @@ function ChromaButton({ track }: { track: Track }) {
 
 export function TrackRow({ track, index }: { track: Track; index: number }) {
   const rowRef = useRef<HTMLLIElement>(null);
-  const byLine = [track.user?.username, track.genre].filter(Boolean).join(" · ");
+  const liked = isLikedView() && track.created_at
+    ? `♥ Liked ${formatDate(track.created_at)}`
+    : "";
+  const byLine = [track.user?.username, track.genre, liked].filter(Boolean).join(" · ");
 
   return (
     <li

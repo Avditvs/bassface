@@ -76,7 +76,7 @@ export function App() {
 
   const screen = !state.api
     ? "connect"
-    : state.route.name === "playlist" && state.currentPlaylist
+    : state.route.name !== "playlists" && state.currentPlaylist
       ? "playlist"
       : "playlists";
 

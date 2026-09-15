@@ -1,14 +1,34 @@
 /**
- * Playlist detail header: artwork, title, badges, description, meta.
+ * Playlist detail header: artwork, title, badges, description, meta. The
+ * liked-tracks view (virtual playlist) gets a simpler header instead.
  */
-
 import { useApp } from "../services/store";
 import { Badges, CardMeta } from "./shared";
 import { Artwork } from "./shared";
+import { formatCount } from "../services/util";
 
 export function PlaylistHeader() {
-  const playlist = useApp().currentPlaylist;
+  const state = useApp();
+  const playlist = state.currentPlaylist;
   if (!playlist) return null;
+
+  if (state.route.name === "liked") {
+    return (
+      <div id="playlist-header" className="playlist-header">
+        <div className="playlist-header-art">
+          <Artwork artworkUrl={playlist.artwork_url} title="♥" />
+        </div>
+        <div className="playlist-header-body">
+          <h2 className="playlist-title">Liked tracks</h2>
+          <p className="muted playlist-desc">
+            {formatCount(state.tracks.length)} liked so far, most recently liked first.
+            Drag a sound onto a playlist in the Reorganize sidebar to add it — it stays liked.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div id="playlist-header" className="playlist-header">
       <div className="playlist-header-art">

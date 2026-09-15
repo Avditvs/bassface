@@ -17,6 +17,12 @@
   height: calc(100vh - 59px - 32px); /* viewport minus header and margins */
 }
 
+/* Liked-tracks view: no remove panel, main column takes its space.
+   Same #id prefix as the base rule so the override wins on specificity. */
+#playlist-screen:not([hidden]) .playlist-columns.is-liked {
+  grid-template-columns: minmax(0, 1fr) 420px;
+}
+
 /* Player bar present anywhere in main: also subtract its height (73px) +
    12px margin so the columns never slide underneath it. The #id selector is
    repeated so this override wins against the base rule above. */
@@ -52,6 +58,9 @@ body:has(#playlist-screen:not([hidden])) .app-footer {
   #playlist-screen:not([hidden]) .playlist-columns {
     grid-template-columns: 1fr; /* panels stack under the tracks */
     height: auto; /* back to normal document scrolling */
+  }
+  #playlist-screen:not([hidden]) .playlist-columns.is-liked {
+    grid-template-columns: 1fr; /* same stacking in the liked view */
   }
   .playlist-main { display: block; overflow: visible; }
   .playlist-content { overflow: visible; padding-right: 0; }

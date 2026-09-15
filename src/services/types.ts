@@ -36,6 +36,9 @@ export interface Track {
   id: number;
   title?: string;
   duration: number;
+  /** Track upload date — except on `/me/likes/tracks`, where SoundCloud
+   *  reports the like date in this field (see api.ts). */
+  created_at?: string;
   artwork_url?: string | null;
   permalink_url: string;
   genre?: string | null;

@@ -173,8 +173,25 @@ export class SoundCloudApi {
    * @see https://developers.soundcloud.com/docs/api/guide#listen
    */
   createPlaylistTracksPager(id: number | string, { pageSize = 50 }: { pageSize?: number } = {}): TrackPagerLike {
+    return this.trackPagerOver(`${API_BASE_URL}/playlists/${encodeURIComponent(id)}/tracks?linked_partitioning=true&limit=${pageSize}`);
+  }
+
+  /**
+   * On-demand page loader for the authenticated user's liked (favorited)
+   * tracks, paginated exactly like the playlist-tracks endpoint. Known
+   * SoundCloud quirk: on this endpoint each track's `created_at` field is
+   * the date the like was made, not the track's upload date — the UI uses
+   * it to show when a sound was liked. The endpoint returns the tracks
+   * most recently liked first.
+   */
+  createLikedTracksPager({ pageSize = 50 }: { pageSize?: number } = {}): TrackPagerLike {
+    return this.trackPagerOver(`${API_BASE_URL}/me/likes/tracks?linked_partitioning=true&limit=${pageSize}`);
+  }
+
+  /** Shared `linked_partitioning` walker for track collections. */
+  private trackPagerOver(initialHref: string): TrackPagerLike {
     const api = this; // the pager object itself has no request()
-    let href: string | null = `${API_BASE_URL}/playlists/${encodeURIComponent(id)}/tracks?linked_partitioning=true&limit=${pageSize}`;
+    let href: string | null = initialHref;
     return {
       /** Whether every page has been fetched. */
       get done(): boolean {

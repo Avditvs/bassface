@@ -6,14 +6,13 @@
 import { useEffect, useRef } from "react";
 import { useApp } from "../services/store";
 import { formatCount } from "../services/util";
-import { loadMoreTracks } from "../services/tracks";
+import { isLikedView, loadMoreTracks } from "../services/tracks";
 import { TrackRow } from "./TrackRow";
 
 export function TrackList() {
   const state = useApp();
   const sentinelRef = useRef<HTMLLIElement>(null);
   const hasMore = state.trackPager !== null && !state.trackPager.done && !state.tracksError;
-  const totalCount = state.currentPlaylist?.track_count ?? state.tracks.length;
 
   // Watch the sentinel row at the end of the list; fetch when it nears view.
   useEffect(() => {
@@ -48,12 +47,12 @@ export function TrackList() {
     <>
       <p className="muted" id="track-summary">
         {state.tracks.length
-          ? `${formatCount(state.tracks.length)} of ${formatCount(totalCount)} sound${totalCount === 1 ? "" : "s"} in this playlist${hasMore ? " — scroll for more" : ""}`
+          ? `${formatCount(state.tracks.length)} liked sound${state.tracks.length === 1 ? "" : "s"}${hasMore ? " — scroll for more" : " in total"}`
           : ""}
       </p>
       <ul id="track-list" className="track-list">
         {state.tracks.length === 0 && (
-          <li className="empty-state">This playlist has no sounds (yet).</li>
+          <li className="empty-state">{isLikedView() ? "You have not liked any sounds (yet)." : "This playlist has no sounds (yet)."}</li>
         )}
         {state.tracks.map((track, index) => (
           <TrackRow key={track.id} track={track} index={index} />

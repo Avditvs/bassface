@@ -6,7 +6,7 @@
 
 import { useMemo, useState } from "react";
 import { TYPE_LABELS, useApp } from "../services/store";
-import { navigateToPlaylist } from "../services/router";
+import { navigateToLiked, navigateToPlaylist } from "../services/router";
 import { escapeUrl, playlistBucket } from "../services/util";
 import { Artwork, Badges, CardMeta } from "./shared";
 import type { Playlist, SortKey } from "../services/types";
@@ -152,6 +152,14 @@ export function PlaylistsScreen() {
   return (
     <section id="playlists-screen">
       <div className="toolbar">
+        <button
+          className="button button-quiet"
+          type="button"
+          title="List every track you liked on SoundCloud, most recently liked first — drag them onto playlists in the Reorganize sidebar"
+          onClick={navigateToLiked}
+        >
+          ♥ Liked tracks
+        </button>
         <input
           className="search"
           type="search"

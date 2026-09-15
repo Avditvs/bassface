@@ -22,7 +22,7 @@ export const TYPE_LABELS: Record<string, string> = {
 
 /** The parsed location hash (see router.ts). */
 export interface Route {
-  name: "playlists" | "playlist";
+  name: "playlists" | "playlist" | "liked";
   playlistId: string | null;
 }
 

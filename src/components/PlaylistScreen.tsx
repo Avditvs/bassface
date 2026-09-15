@@ -8,6 +8,7 @@ import { useApp } from "../services/store";
 import { goBackToPlaylists } from "../services/router";
 import { revertLastAction } from "../services/organize";
 import { analyzeAllTrackChromas } from "../services/chroma";
+import { isLikedView } from "../services/tracks";
 import { onRemoveZoneDragLeave, onRemoveZoneDragOver, onRemoveZoneDrop } from "../services/organize";
 import { OrganizeSidebar } from "./OrganizeSidebar";
 import { PlaylistHeader } from "./PlaylistHeader";
@@ -20,19 +21,21 @@ export function PlaylistScreen() {
 
   return (
     <section id="playlist-screen">
-      <div className="playlist-columns">
-        <aside id="remove-panel" className="remove-panel" aria-label="Remove from playlist">
-          <h2 className="remove-title">Remove</h2>
-          <div
-            id="remove-zone"
-            className="remove-zone"
-            onDragOver={onRemoveZoneDragOver}
-            onDragLeave={onRemoveZoneDragLeave}
-            onDrop={onRemoveZoneDrop}
-          >
-            🗑 Drop a sound here to remove it from this playlist
-          </div>
-        </aside>
+      <div className={`playlist-columns${isLikedView() ? " is-liked" : ""}`}>
+        {!isLikedView() && (
+          <aside id="remove-panel" className="remove-panel" aria-label="Remove from playlist">
+            <h2 className="remove-title">Remove</h2>
+            <div
+              id="remove-zone"
+              className="remove-zone"
+              onDragOver={onRemoveZoneDragOver}
+              onDragLeave={onRemoveZoneDragLeave}
+              onDrop={onRemoveZoneDrop}
+            >
+              🗑 Drop a sound here to remove it from this playlist
+            </div>
+          </aside>
+        )}
 
         <div className="playlist-main">
           <div className="playlist-content">

@@ -15,6 +15,21 @@ export function playlistIdFromHash(): string | null {
   return match ? decodeURIComponent(match[1]) : null;
 }
 
+/** Virtual id backing the liked-tracks view — never matches a real playlist. */
+export const LIKED_PLAYLIST_ID = 0;
+
+/** Header object of the liked-tracks view (no SoundCloud playlist behind it). */
+const LIKED_PLAYLIST: Playlist = {
+  id: LIKED_PLAYLIST_ID,
+  title: "Liked tracks",
+  permalink_url: "",
+};
+
+/** Whether the open view is the virtual liked-tracks view. */
+export function isLikedView(): boolean {
+  return getState().route.name === "liked";
+}
+
 /** Replace the track list state wholesale (e.g. after an undo snapshot). */
 export function replaceTracks(tracks: Track[], currentPlaylist: Playlist): void {
   setState({
@@ -38,6 +53,40 @@ function clearTrackState(): void {
     trackPager: null,
     tracksLoadingMore: false,
   });
+}
+
+/**
+ * Open the liked-tracks view (route `#/liked`): a virtual playlist backed by
+ * `GET /me/likes/tracks`, most recently liked first. Sounds can be dragged
+ * into real playlists via the Reorganize sidebar exactly like in a playlist.
+ */
+export async function openLikedTracks(): Promise<void> {
+  resetOrganizeSidebar();
+  clearTrackState();
+  // Keep the URL in sync without re-triggering route() (replaceState is silent).
+  if (window.location.hash !== "#/liked") {
+    history.replaceState(null, "", "#/liked");
+  }
+  setState({ route: { name: "liked", playlistId: null }, currentPlaylist: LIKED_PLAYLIST });
+  clearStatus();
+
+  showStatus("Loading liked tracks…");
+  try {
+    const pager = getState().api!.createLikedTracksPager();
+    const firstPage = await pager.next();
+    // A faster navigation may have opened another view meanwhile.
+    if (getState().currentPlaylist?.id !== LIKED_PLAYLIST_ID) return;
+    setState({
+      trackPager: pager,
+      tracks: firstPage ?? [],
+      tracksLoaded: true,
+      tracksError: "",
+    });
+    clearStatus();
+  } catch (err) {
+    setState({ tracksLoaded: true, tracksError: err.message });
+    showStatus(`Could not load liked tracks: ${err.message}`, "error");
+  }
 }
 
 /** Open a playlist (by numeric id) and fetch its tracks. */

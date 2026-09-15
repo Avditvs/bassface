@@ -15,7 +15,7 @@
 
 import { getState, setState, showStatus, clearStatus } from "./store";
 import { navigateToPlaylist } from "./router";
-import { replaceTracks } from "./tracks";
+import { isLikedView, replaceTracks } from "./tracks";
 import type { Playlist, Track } from "../services/types";
 
 /**
@@ -235,6 +235,11 @@ export async function addTrack(track: Track, playlist: Playlist): Promise<void> 
 
 /** Add the track to the target playlist and remove it from the open one. */
 export async function moveTrack(track: Track, playlist: Playlist): Promise<void> {
+  if (isLikedView()) {
+    // The liked-tracks view has no playlist behind it: moving is just adding.
+    await addTrack(track, playlist);
+    return;
+  }
   const current = currentPlaylist();
   showStatus(`Moving “${track.title}” to “${playlist.title}”…`);
   try {
@@ -297,6 +302,7 @@ export function onRemoveZoneDrop(event: React.DragEvent): void {
 
 /** Remove a track from the playlist currently open. */
 export async function removeTrack(track: Track): Promise<void> {
+  if (isLikedView()) return; // nothing to remove from the virtual liked view
   const current = currentPlaylist();
   showStatus(`Removing “${track.title}” from “${current.title}”…`);
   try {

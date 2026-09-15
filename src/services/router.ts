@@ -6,10 +6,13 @@
 
 import { getState, setState } from "./store";
 import type { Route } from "./store";
-import { openPlaylist, resetPlaylistView } from "./tracks";
+import { openLikedTracks, openPlaylist, resetPlaylistView } from "./tracks";
 
 /** Parse the current location hash into a route. */
 export function parseHash(): Route {
+  if (window.location.hash.startsWith("#/liked")) {
+    return { name: "liked", playlistId: null };
+  }
   const match = window.location.hash.match(/^#\/playlist\/(.+)$/);
   if (match) return { name: "playlist", playlistId: decodeURIComponent(match[1]) };
   return { name: "playlists", playlistId: null };
@@ -29,6 +32,10 @@ export function route(): void {
     void openPlaylist(parsed.playlistId);
     return;
   }
+  if (parsed.name === "liked") {
+    void openLikedTracks();
+    return;
+  }
   resetPlaylistView();
 }
 
@@ -40,4 +47,9 @@ export function goBackToPlaylists(): void {
 /** Navigate to a playlist detail page. */
 export function navigateToPlaylist(id: string | number): void {
   window.location.hash = `#/playlist/${id}`;
+}
+
+/** Navigate to the liked-tracks view (hash routes back like any screen). */
+export function navigateToLiked(): void {
+  window.location.hash = "#/liked";
 }
