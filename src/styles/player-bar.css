@@ -1,0 +1,155 @@
+/* player-bar.css — fixed bottom summary and controls for the active preview. */
+
+.player-bar {
+  position: sticky; /* stays visible at the viewport bottom on every screen */
+  bottom: 8px;
+  flex: none; /* never squished by flex layouts (homepage pinned mode) */
+  margin-top: 12px;
+  z-index: 2;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--panel) 94%, transparent);
+  box-shadow: 0 12px 34px rgba(0, 0, 0, 0.38);
+  backdrop-filter: blur(14px);
+}
+
+.player-progress {
+  height: 3px;
+  background: var(--panel-alt);
+}
+
+.player-progress span {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  transition: width 0.2s linear;
+}
+
+.player-bar__content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 68px;
+  padding: 8px 12px 8px 8px;
+}
+
+.player-art {
+  width: 50px;
+  height: 50px;
+  flex: none;
+  border-radius: 7px;
+  object-fit: cover;
+  background: var(--panel-alt);
+}
+
+.player-art--placeholder {
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.player-track { min-width: 0; flex: 1; display: flex; flex-direction: column; }
+
+.player-track strong,
+.player-artist {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.player-track strong { font-size: 0.9rem; }
+.player-artist { color: var(--muted); font-size: 0.78rem; }
+
+.player-indicator {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--accent);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.player-equalizer { display: inline-flex; align-items: end; gap: 2px; height: 11px; }
+.player-equalizer i { width: 2px; height: 4px; background: currentColor; animation: player-pulse 0.8s ease-in-out infinite alternate; }
+.player-equalizer i:nth-child(2) { height: 9px; animation-delay: -0.5s; }
+.player-equalizer i:nth-child(3) { height: 6px; animation-delay: -0.25s; }
+.player-equalizer:not(.is-playing) i { animation-play-state: paused; }
+@keyframes player-pulse { to { transform: scaleY(0.45); } }
+
+.player-waveform {
+  display: block;
+  width: min(28vw, 320px);
+  height: 38px;
+  flex: 1 1 120px;
+  min-width: 80px;
+  border-radius: 5px;
+  background: var(--panel-alt);
+  cursor: pointer;
+}
+.player-waveform.is-empty { cursor: default; opacity: 0.45; }
+
+.player-time { flex: none; color: var(--muted); font-size: 0.8rem; font-variant-numeric: tabular-nums; }
+.player-time span { color: var(--border); padding: 0 2px; }
+
+.player-actions { display: flex; gap: 6px; flex: none; }
+.player-control {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: var(--panel-alt);
+  color: var(--text);
+  cursor: pointer;
+  font-size: 1.15rem;
+  line-height: 1;
+}
+.player-control:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+.player-control:disabled { cursor: progress; opacity: 0.55; }
+.player-control--primary { border-color: var(--accent); background: var(--accent); color: #fff; font-size: 0.76rem; }
+.player-control--primary:hover:not(:disabled) { background: #ff6b20; color: #fff; }
+
+/* Non-playlist screens keep the 1100px container, but the bar itself spans
+   the same width as on the playlist screen (100vw - 96px): 24px side insets
+   on narrow viewports, going negative once the container width stops
+   capping the layout (≥1100px viewports). */
+main:not(:has(#playlist-screen:not([hidden]))) .player-bar { margin-inline: 24px; }
+
+@media (min-width: 1100px) {
+  main:not(:has(#playlist-screen:not([hidden]))) .player-bar {
+    margin-inline: calc(574px - 50vw);
+  }
+}
+
+/* Homepage with an active preview: pin the bar as a bottom strip and scroll
+   the playlists above it — the bar occupies its own space and never covers
+   the cards (same pattern as the playlist screen's three columns). */
+main:not(:has(#playlist-screen:not([hidden]))):has(.player-bar) {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 59px - 64px); /* viewport minus header and 32px margins */
+}
+
+main:not(:has(#playlist-screen:not([hidden]))):has(.player-bar) #playlists-screen {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 4px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+/* The pinned bar takes the footer's place at the bottom of the screen. */
+body:has(.player-bar) .app-footer { display: none; }
+
+@media (max-width: 620px) {
+  .player-bar__content { gap: 9px; min-height: 62px; }
+  .player-art { width: 44px; height: 44px; }
+  .player-waveform { width: auto; height: 32px; min-width: 50px; }
+  .player-time { display: none; }
+}

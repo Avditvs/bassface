@@ -17,6 +17,7 @@ import "./styles/playlists.css";
 import "./styles/playlist-detail.css";
 import "./styles/organize.css";
 import "./styles/tracks.css";
+import "./styles/player-bar.css";
 import "./styles/debug.css";
 
 const container = document.getElementById("root");

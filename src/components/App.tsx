@@ -14,6 +14,11 @@ import { Header } from "./Header";
 import { ConnectScreen } from "./ConnectScreen";
 import { PlaylistsScreen } from "./PlaylistsScreen";
 import { PlaylistScreen } from "./PlaylistScreen";
+import { PlayerBar } from "./PlayerBar";
+import {
+  onPreviewEnded, onPreviewError, updatePreviewTime,
+} from "../services/preview";
+import { registerAudioElement } from "../services/preview-runtime";
 
 /** Wire diagnostics, handle an OAuth callback, or restore the session. */
 let booted = false;
@@ -82,6 +87,18 @@ export function App() {
         {screen === "connect" && <ConnectScreen />}
         {screen === "playlists" && <PlaylistsScreen />}
         {screen === "playlist" && <PlaylistScreen />}
+        {/* Sticky on every screen; only renders while a preview is active. */}
+        <PlayerBar />
+        {/* Shared preview element: lives at the shell level so playback
+            survives navigation between the screens. */}
+        <audio
+          id="preview-audio"
+          hidden
+          ref={registerAudioElement}
+          onEnded={onPreviewEnded}
+          onError={onPreviewError}
+          onTimeUpdate={updatePreviewTime}
+        />
       </main>
       <footer className="app-footer">
         <p className="muted">

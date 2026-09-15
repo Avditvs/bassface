@@ -41,6 +41,7 @@ export function stopPreview(): void {
   } satisfies Partial<typeof previewRuntime>);
   setState({
     previewTrackId: null, previewPlaying: false, previewLoading: false, previewMode: "start",
+    previewTrack: null, previewPositionMs: 0, previewDurationMs: 0,
   });
   // The active canvas is normally redrawn from audio `timeupdate` events.
   // Switching tracks stops those events, so redraw the old canvas explicitly
@@ -59,6 +60,13 @@ export async function togglePreview(
 ): Promise<void> {
   const p = previewRuntime;
   const audio = getAudio();
+
+  // Resolve the track before any stopPreview() below: stopping clears the
+  // shell-level snapshot, and on screens with an empty track list (homepage)
+  // the lookup afterwards would fail and silently abort the jump.
+  const track = getState().previewTrack?.id === trackId
+    ? getState().previewTrack!
+    : getState().tracks.find((t) => t.id === trackId);
 
   if (p.trackId === trackId && seekTo === null) {
     if (getState().previewLoading) {
@@ -85,14 +93,16 @@ export async function togglePreview(
   }
   if (p.trackId !== null) stopPreview();
 
-  const track = getState().tracks.find((t) => t.id === trackId);
   if (!track) return;
 
   Object.assign(p, {
     trackId, mode, blob: null, pendingSeekSec: seekTo,
     originSec: null, streamTotalSec: null, jump: null, extending: false,
   });
-  setState({ previewTrackId: trackId, previewLoading: true, previewMode: mode });
+  setState({
+    previewTrackId: trackId, previewLoading: true, previewMode: mode,
+    previewTrack: track, previewPositionMs: 0, previewDurationMs: track.duration,
+  });
   showStatus(`Loading preview of “${track.title}”…`);
 
   try {
@@ -163,7 +173,7 @@ export async function togglePreview(
     }
     setState({ previewPlaying: !audio.paused });
   } catch (err) {
-    setState({ previewTrackId: null, previewLoading: false });
+    setState({ previewTrackId: null, previewLoading: false, previewPositionMs: 0, previewDurationMs: 0 });
     p.trackId = null;
     dbg(`[preview] failed: ${(err as Error).message}`);
     showStatus(`Preview failed: ${(err as Error).message}`, "error");
@@ -176,12 +186,13 @@ export function updatePreviewTime(): void {
   if (p.trackId === null) return;
   const audio = getAudio();
   const span = document.querySelector<HTMLElement>(`[data-track-time="${p.trackId}"]`);
-  if (!span) return;
   // The loaded blob may only be a window of the track (jump window), so
   // audio.duration is that window's length — not the track's. Display the
   // position inside the whole track instead, matching the waveform
   // highlight (originSec + currentTime, on the stream's total length).
-  const track = getState().tracks.find((t) => t.id === p.trackId);
+  const track = getState().previewTrack?.id === p.trackId
+    ? getState().previewTrack!
+    : getState().tracks.find((t) => t.id === p.trackId);
   const current = ((p.originSec ?? 0) + (Number.isFinite(audio.currentTime) ? audio.currentTime : 0)) * 1000;
   // Total on the timeline the element actually plays: the HLS stream total
   // (or the full-mp3 duration) when known — both can drift from the track's
@@ -193,8 +204,12 @@ export function updatePreviewTime(): void {
       : (Number.isFinite(audio.duration) ? audio.duration * 1000 : 0);
   // Keep the baked-in duration until the real one is known (total > 0).
   if (total <= 0) return;
-  span.textContent = `${formatDuration(Math.min(current, total))} / ${formatDuration(total)}`;
-  span.classList.toggle("is-live", getState().previewPlaying);
+  const position = Math.min(current, total);
+  setState({ previewPositionMs: position, previewDurationMs: total });
+  if (span) {
+    span.textContent = `${formatDuration(position)} / ${formatDuration(total)}`;
+    span.classList.toggle("is-live", getState().previewPlaying);
+  }
   redrawTrackWaveform(p.trackId); // keep the played portion highlighted
   void extendJumpWindow(); // stream in the next window when close to the end
 }
@@ -202,7 +217,8 @@ export function updatePreviewTime(): void {
 /** Click on a waveform: seek the active preview, or start one at that spot. */
 export function seekFromWaveform(canvas: HTMLCanvasElement, event: MouseEvent): void {
   const trackId = Number(canvas.dataset.waveformTrack);
-  const track = getState().tracks.find((t) => t.id === trackId);
+  const state = getState();
+  const track = state.previewTrack?.id === trackId ? state.previewTrack : state.tracks.find((t) => t.id === trackId);
   if (!track || !(track.duration > 0)) return;
   const rect = canvas.getBoundingClientRect();
   const fraction = Math.min(1, Math.max(0, (event.clientX - rect.left) / rect.width));

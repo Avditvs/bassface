@@ -6,7 +6,6 @@
 
 import { dbg } from "./debug";
 import { clearStatus, getState, setState, showStatus } from "./store";
-import { stopPreview } from "./preview";
 import { resetOrganizeSidebar } from "./organize";
 import type { Playlist, Track } from "../services/types";
 
@@ -51,7 +50,8 @@ export async function openPlaylist(id: string | number): Promise<void> {
     return;
   }
 
-  stopPreview();
+  // Playback continues across navigation: the shared audio element and the
+  // active track live at the shell level (see App.tsx / PlayerBar).
   resetOrganizeSidebar();
   clearTrackState();
   // Keep the URL in sync without re-triggering route() (replaceState is silent).
@@ -82,7 +82,6 @@ export async function openPlaylist(id: string | number): Promise<void> {
 
 /** Clear the track view (leaving the playlist screen / navigating away). */
 export function resetPlaylistView(): void {
-  stopPreview();
   resetOrganizeSidebar();
   setState({
     currentPlaylist: null,

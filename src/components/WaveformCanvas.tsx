@@ -10,7 +10,7 @@ import { drawWaveform, ensureWaveformBars } from "../services/waveform";
 import { seekFromWaveform } from "../services/preview";
 import type { Track } from "../services/types";
 
-export function WaveformCanvas({ track }: { track: Track }) {
+export function WaveformCanvas({ track, className = "track-waveform" }: { track: Track; className?: string }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   /** Loudness bars once loaded (empty array = no waveform for this track). */
   const [bars, setBars] = useState<number[] | null>(null);
@@ -58,7 +58,7 @@ export function WaveformCanvas({ track }: { track: Track }) {
   return (
     <canvas
       ref={canvasRef}
-      className="track-waveform"
+      className={className}
       data-waveform-track={track.id}
       title="Click the waveform to jump into this track"
       aria-hidden="true"

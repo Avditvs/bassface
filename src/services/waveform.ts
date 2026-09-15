@@ -34,7 +34,10 @@ function waveformProgress(trackId: number): number {
   if (p.trackId !== trackId || getState().previewLoading) return 0;
   const audio = getAudio();
   if (!Number.isFinite(audio.duration) || audio.duration <= 0) return 0;
-  const track = getState().tracks.find((t) => t.id === trackId);
+  // The preview can span screens: fall back to the shell-level track
+  // snapshot when the current page's track list does not hold the track.
+  const state = getState();
+  const track = state.previewTrack?.id === trackId ? state.previewTrack : state.tracks.find((t) => t.id === trackId);
   if (!track || !(track.duration > 0)) return 0;
   // Jump blobs start mid-track: place the playhead on the full timeline.
   const originSec = p.originSec ?? 0;
@@ -73,9 +76,9 @@ export function ensureWaveformBars(track: Track, onReady?: () => void): Promise<
  * portion without going through React).
  */
 export function redrawTrackWaveform(trackId: number): void {
-  const canvas = document.querySelector<HTMLCanvasElement>(`canvas[data-waveform-track="${trackId}"]`);
+  const canvases = document.querySelectorAll<HTMLCanvasElement>(`canvas[data-waveform-track="${trackId}"]`);
   const bars = runtime.waveforms.get(trackId);
-  if (canvas && bars) drawWaveform(canvas, trackId, bars);
+  if (bars) canvases.forEach((canvas) => drawWaveform(canvas, trackId, bars));
 }
 
 /** Cached CSS colors of the waveform (re-read only when stylesheets change). */

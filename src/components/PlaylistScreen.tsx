@@ -8,10 +8,6 @@ import { useApp } from "../services/store";
 import { goBackToPlaylists } from "../services/router";
 import { revertLastAction } from "../services/organize";
 import { analyzeAllTrackChromas } from "../services/chroma";
-import {
-  onPreviewEnded, onPreviewError, updatePreviewTime,
-} from "../services/preview";
-import { registerAudioElement } from "../services/preview-runtime";
 import { onRemoveZoneDragLeave, onRemoveZoneDragOver, onRemoveZoneDrop } from "../services/organize";
 import { OrganizeSidebar } from "./OrganizeSidebar";
 import { PlaylistHeader } from "./PlaylistHeader";
@@ -39,7 +35,8 @@ export function PlaylistScreen() {
         </aside>
 
         <div className="playlist-main">
-          <div className="toolbar">
+          <div className="playlist-content">
+            <div className="toolbar">
             <button className="button button-quiet" type="button" onClick={goBackToPlaylists}>
               ← All playlists
             </button>
@@ -62,16 +59,9 @@ export function PlaylistScreen() {
               </button>
             )}
           </div>
-          <PlaylistHeader />
-          <TrackList />
-          <audio
-            id="preview-audio"
-            hidden
-            ref={registerAudioElement}
-            onEnded={onPreviewEnded}
-            onError={onPreviewError}
-            onTimeUpdate={updatePreviewTime}
-          />
+            <PlaylistHeader />
+            <TrackList />
+          </div>
         </div>
 
         {/* Keyed by playlist id: leaving/reopening a playlist resets the

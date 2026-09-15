@@ -6,7 +6,9 @@
 /* Playlist detail: three columns — Remove panel (left), tracks (middle),
    Reorganize sidebar (right). The grid is exactly viewport-height: the page
    itself never scrolls on this screen, only the middle column scrolls, so
-   the side panels cannot move. */
+   the side panels cannot move. When the player bar is mounted it sits below
+   the grid as its own full-width strip, so the columns shrink by its height
+   instead of sliding underneath it. */
 #playlist-screen:not([hidden]) .playlist-columns {
   display: grid;
   grid-template-columns: 260px minmax(0, 1fr) 420px;
@@ -15,13 +17,29 @@
   height: calc(100vh - 59px - 32px); /* viewport minus header and margins */
 }
 
-/* The middle column is the scroller (page never scrolls here). */
+/* Player bar present anywhere in main: also subtract its height (73px) +
+   12px margin so the columns never slide underneath it. The #id selector is
+   repeated so this override wins against the base rule above. */
+main:has(.player-bar) #playlist-screen:not([hidden]) .playlist-columns {
+  height: calc(100vh - 59px - 32px - 85px);
+}
+
+/* The middle column owns its scroll area and player. Keeping the player as
+   a separate flex child means it can never cover either side panel. */
 .playlist-main {
-  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
   min-height: 0; /* let the grid item shrink below its content height */
+  overflow: hidden;
+}
+
+.playlist-content {
+  min-height: 0;
+  flex: 1;
+  overflow-y: auto;
+  padding-right: 12px; /* empty lane so the scrollbar never sits on top of rows */
   scrollbar-width: thin;
   scrollbar-color: var(--border) transparent;
-  padding-right: 12px; /* empty lane so the scrollbar never sits on top of the rows */
 }
 
 /* The playlist screen fills the viewport, so the footer is in the way:
@@ -35,7 +53,8 @@ body:has(#playlist-screen:not([hidden])) .app-footer {
     grid-template-columns: 1fr; /* panels stack under the tracks */
     height: auto; /* back to normal document scrolling */
   }
-  .playlist-main { overflow: visible; }
+  .playlist-main { display: block; overflow: visible; }
+  .playlist-content { overflow: visible; padding-right: 0; }
   .remove-zone { min-height: 96px; }
 }
 

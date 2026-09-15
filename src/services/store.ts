@@ -13,7 +13,6 @@ import type { SoundCloudApi } from "./api";
 import type {
   ChromaAnalysis, Playlist, PreviewMode, SCUser, StatusKind, Track, TrackPager,
 } from "../services/types";
-
 /** Display labels for the playlist kinds SoundCloud exposes. */
 export const TYPE_LABELS: Record<string, string> = {
   playlist: "Playlist",
@@ -54,6 +53,12 @@ export interface AppState {
   previewPlaying: boolean;
   previewLoading: boolean;
   previewMode: PreviewMode;
+  /** Snapshot of the active track, so the player bar survives navigation
+   *  to screens whose track list is empty. */
+  previewTrack: Track | null;
+  /** Current position and playable duration shown in the bottom player bar. */
+  previewPositionMs: number;
+  previewDurationMs: number;
   /** Most recent reversible organize action (toolbar Revert button). */
   undoEntry: { label: string } | null;
   /** track id → estimated key label ("Am", "C#", …) shown on the track row. */
@@ -81,6 +86,9 @@ let state: AppState = {
   previewPlaying: false,
   previewLoading: false,
   previewMode: "start",
+  previewTrack: null,
+  previewPositionMs: 0,
+  previewDurationMs: 0,
   undoEntry: null,
   chromaKeys: {},
   chromaLoadingTrackId: null,
