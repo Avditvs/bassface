@@ -3,7 +3,7 @@
  * line and the play/pause preview button.
  */
 
-import { useRef } from "react";
+import { Fragment, useRef } from "react";
 import { getState } from "../services/store";
 import { togglePreview } from "../services/preview";
 import { analyzeTrackBpm } from "../services/bpm";
@@ -42,54 +42,68 @@ function PreviewButton({ track }: { track: Track }) {
 }
 
 /**
- * Button that estimates the track's key from segments spread across the track (chroma).
- * Shows ♪ until a key is known, then the key label itself (still clickable
- * to re-analyze).
+ * Button that estimates both the track's BPM (onset autocorrelation, see
+ * services/bpm.ts) and its key (chroma, see services/chroma.ts). The results
+ * are shown under the track title; the button shows ↻ once both are known.
  */
-function ChromaButton({ track }: { track: Track }) {
+function AnalyzeButton({ track }: { track: Track }) {
   const state = getState();
-  const key = state.chromaKeys[track.id];
-  const isLoading = state.chromaLoadingTrackId === track.id;
-  const label = key
-    ? `Estimated key: ${key} — re-analyze`
-    : "Estimate the key from segments spread across the track (chroma analysis)";
+  const analyzed = Boolean(state.bpmValues[track.id] ?? state.chromaKeys[track.id]);
+  const isLoading = state.bpmLoadingTrackId === track.id
+    || state.chromaLoadingTrackId === track.id;
+  const label = analyzed
+    ? "Re-analyze BPM and key"
+    : "Estimate the BPM and the key from segments of the track";
   return (
     <button
-      className={`track-chroma${key ? " has-key" : ""}${isLoading ? " is-loading" : ""}`}
+      className={`track-analyze${analyzed ? " is-analyzed" : ""}${isLoading ? " is-loading" : ""}`}
       type="button"
-      data-chroma-track={track.id}
+      data-analyze-track={track.id}
       title={label}
       aria-label={`${label} of ${track.title ?? "track"}`}
-      onClick={() => void analyzeTrackChroma(track.id)}
+      onClick={() => void analyzeTrack(track.id)}
     >
-      {isLoading ? <span className="spinner" aria-hidden="true" /> : key ?? "♪"}
+      {isLoading ? <span className="spinner" aria-hidden="true" /> : analyzed ? "↻" : "♪"}
     </button>
   );
 }
 
+/** Estimate both the BPM and the key of a track, sequentially. */
+async function analyzeTrack(trackId: number): Promise<void> {
+  await analyzeTrackBpm(trackId);
+  await analyzeTrackChroma(trackId);
+}
+
 /**
- * Button that estimates the track's BPM from segments spread across the track
- * (onset autocorrelation, see services/bpm.ts). Shows ♩ until a tempo is
- * known, then the BPM value itself (still clickable to re-analyze).
+ * Sub line of a track row: artist name, then the BPM/key pill once known,
+ * then the like date — separated by " · ", hidden when all parts are empty.
  */
-function BpmButton({ track }: { track: Track }) {
+function TrackSub({ track, liked }: { track: Track; liked: string }) {
   const state = getState();
   const bpm = state.bpmValues[track.id];
-  const isLoading = state.bpmLoadingTrackId === track.id;
-  const label = bpm
-    ? `Estimated tempo: ${bpm} BPM — re-analyze`
-    : "Estimate the BPM from segments spread across the track (onset autocorrelation)";
+  const key = state.chromaKeys[track.id];
+  const username = track.user?.username;
+  if (!username && !bpm && !key && !liked) return null;
+  const parts = [
+    username ? <span key="artist">{username}</span> : null,
+    (bpm || key) && (
+      <span key="analysis" className="track-analysis">
+        {bpm ? <span title={`Estimated tempo: ${bpm} BPM`}>♩ {bpm} BPM</span> : null}
+        {bpm && key ? " " : ""}
+        {key ? <span title={`Estimated key: ${key}`}>♪ {key}</span> : null}
+      </span>
+    ),
+    liked ? <span key="liked">{liked}</span> : null,
+  ].filter(Boolean);
   return (
-    <button
-      className={`track-bpm${bpm ? " has-bpm" : ""}${isLoading ? " is-loading" : ""}`}
-      type="button"
-      data-bpm-track={track.id}
-      title={label}
-      aria-label={`${label} of ${track.title ?? "track"}`}
-      onClick={() => void analyzeTrackBpm(track.id)}
-    >
-      {isLoading ? <span className="spinner" aria-hidden="true" /> : bpm ?? "♩"}
-    </button>
+    <p className="muted track-sub">
+      {parts.map((part, i) => (
+        <Fragment key={i}>
+          {i > 0 && "\u00a0·\u00a0"}
+          {part}
+        </Fragment>
+      ))}
+    </p>
   );
 }
 
@@ -98,7 +112,6 @@ export function TrackRow({ track, index }: { track: Track; index: number }) {
   const liked = isLikedView() && track.created_at
     ? `♥ Liked ${formatDate(track.created_at)}`
     : "";
-  const byLine = [track.user?.username, track.genre, liked].filter(Boolean).join(" · ");
 
   return (
     <li
@@ -123,7 +136,7 @@ export function TrackRow({ track, index }: { track: Track; index: number }) {
         <a className="track-title" href={escapeUrl(track.permalink_url)} target="_blank" rel="noreferrer">
           {track.title ?? "Untitled"}
         </a>
-        {byLine && <p className="muted track-sub">{byLine}</p>}
+        <TrackSub track={track} liked={liked} />
       </div>
       <WaveformCanvas track={track} />
       <div className="track-meta">
@@ -133,8 +146,7 @@ export function TrackRow({ track, index }: { track: Track; index: number }) {
         <span>{formatCount(track.likes_count ?? track.favoritings_count)} likes</span>
       </div>
       <span className="track-preview-group">
-        <ChromaButton track={track} />
-        <BpmButton track={track} />
+        <AnalyzeButton track={track} />
         <PreviewButton track={track} />
       </span>
     </li>

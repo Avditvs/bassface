@@ -4,7 +4,7 @@
  * the drop-to-remove zone and the Reorganize sidebar.
  */
 
-import { useApp } from "../services/store";
+import { useApp, getState } from "../services/store";
 import { goBackToPlaylists } from "../services/router";
 import { revertLastAction } from "../services/organize";
 import { analyzeAllTrackBpms } from "../services/bpm";
@@ -14,6 +14,24 @@ import { onRemoveZoneDragLeave, onRemoveZoneDragOver, onRemoveZoneDrop } from ".
 import { OrganizeSidebar } from "./OrganizeSidebar";
 import { PlaylistHeader } from "./PlaylistHeader";
 import { TrackList } from "./TrackList";
+
+/**
+ * Estimate the BPM then the key of every track of the playlist. A second
+ * click while either analysis runs stops it after the current batch.
+ */
+function analyzeAllTracks(): void {
+  const state = getState();
+  if (state.chromaAllRunning || state.bpmAllRunning) {
+    // Re-invoking the entry point of a running analysis sets its stop flag.
+    if (state.chromaAllRunning) void analyzeAllTrackChromas();
+    if (state.bpmAllRunning) void analyzeAllTrackBpms();
+    return;
+  }
+  void (async () => {
+    await analyzeAllTrackBpms();
+    await analyzeAllTrackChromas();
+  })();
+}
 
 export function PlaylistScreen() {
   const state = useApp();
@@ -45,22 +63,15 @@ export function PlaylistScreen() {
               ← All playlists
             </button>
             <button
-              className={`button button-quiet${state.chromaAllRunning ? " is-loading" : ""}`}
+              className={`button button-quiet${state.chromaAllRunning || state.bpmAllRunning ? " is-loading" : ""}`}
               type="button"
-              title="Estimate the key of every track from segments spread across each one (click again to stop)"
-              onClick={() => void analyzeAllTrackChromas()}
+              title="Estimate the BPM and the key of every track (click again to stop)"
+              onClick={analyzeAllTracks}
             >
-              {state.chromaAllRunning ? <span className="spinner" aria-hidden="true" /> : "♪"}
-              {state.chromaAllRunning ? " Stop key analysis" : " Analyze all keys"}
-            </button>
-            <button
-              className={`button button-quiet${state.bpmAllRunning ? " is-loading" : ""}`}
-              type="button"
-              title="Estimate the BPM of every track from its most intense passages (click again to stop)"
-              onClick={() => void analyzeAllTrackBpms()}
-            >
-              {state.bpmAllRunning ? <span className="spinner" aria-hidden="true" /> : "♩"}
-              {state.bpmAllRunning ? " Stop BPM analysis" : " Analyze all BPMs"}
+              {state.chromaAllRunning || state.bpmAllRunning
+                ? <span className="spinner" aria-hidden="true" />
+                : "♪"}
+              {state.chromaAllRunning || state.bpmAllRunning ? " Stop analysis" : " Analyze all"}
             </button>
             {state.undoEntry && (
               <button

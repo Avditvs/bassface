@@ -74,6 +74,15 @@
 
 .track-sub { margin: 3px 0 0; }
 
+/* Small clearer pill around the BPM/key values. */
+.track-analysis {
+  background: var(--panel-alt);
+  border-radius: 4px;
+  padding: 1px 6px;
+  margin: 0 2px;
+  white-space: nowrap;
+}
+
 .track-meta {
   font-size: 0.8rem;
   color: var(--muted);
@@ -130,9 +139,9 @@
 
 .track-preview .spinner { width: 12px; height: 12px; border-width: 2px; vertical-align: middle; }
 
-/* ---------- chroma (key estimation) ---------- */
+/* ---------- bpm + key analysis ---------- */
 
-.track-chroma {
+.track-analyze {
   flex: none;
   width: 34px;
   height: 34px;
@@ -145,58 +154,19 @@
   cursor: pointer;
 }
 
-.track-chroma:hover { border-color: var(--accent); color: var(--accent); }
+.track-analyze:hover { border-color: var(--accent); color: var(--accent); }
 
-.track-chroma.is-loading { border-color: var(--accent); color: var(--accent); cursor: progress; }
+.track-analyze.is-loading { border-color: var(--accent); color: var(--accent); cursor: progress; }
 
-.track-chroma .spinner { width: 12px; height: 12px; border-width: 2px; vertical-align: middle; }
+.track-analyze .spinner { width: 12px; height: 12px; border-width: 2px; vertical-align: middle; }
 
-/* Once a key is known the button shows its label ("Am", "C#m") instead of ♪. */
-.track-chroma.has-key {
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: -0.02em;
+/* Once BPM or key is known the button shows ↻ (clickable to re-analyze). */
+.track-analyze.is-analyzed {
   color: var(--accent);
   border-color: var(--accent);
 }
 
-.track-chroma.has-key:hover {
-  background: var(--accent-soft);
-}
-
-/* ---------- bpm (tempo estimation) ---------- */
-
-.track-bpm {
-  flex: none;
-  min-width: 34px;
-  height: 34px;
-  padding: 0 6px;
-  border-radius: 17px;
-  border: 1px solid var(--border);
-  background: var(--panel-alt);
-  color: var(--text);
-  font-size: 0.82rem;
-  line-height: 1;
-  cursor: pointer;
-  box-sizing: border-box;
-}
-
-.track-bpm:hover { border-color: var(--accent); color: var(--accent); }
-
-.track-bpm.is-loading { border-color: var(--accent); color: var(--accent); cursor: progress; }
-
-.track-bpm .spinner { width: 12px; height: 12px; border-width: 2px; vertical-align: middle; }
-
-/* Once a BPM is known the button shows the value ("128") instead of ♩. */
-.track-bpm.has-bpm {
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  color: var(--accent);
-  border-color: var(--accent);
-}
-
-.track-bpm.has-bpm:hover {
+.track-analyze.is-analyzed:hover {
   background: var(--accent-soft);
 }
 
