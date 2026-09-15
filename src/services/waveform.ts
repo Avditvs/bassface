@@ -14,6 +14,11 @@ import type { Track } from "../services/types";
 /** Cap the drawn bars so very long waveforms stay cheap to paint. */
 const WAVEFORM_MAX_BARS = 220;
 
+/** Target bar count for the track-row waveforms (see drawWaveform). */
+const TRACK_BAR_TARGET = 90;
+/** Denser target for the bottom player bar: doubled vs the track rows. */
+const PLAYER_BAR_TARGET = 180;
+
 /** Raw waveform samples → normalised (0-1) max-per-bucket bars. */
 function normalizeWaveform(samples: unknown): number[] {
   if (!Array.isArray(samples) || samples.length < 2) return [];
@@ -143,11 +148,21 @@ export function drawWaveform(canvas: HTMLCanvasElement, trackId: number, bars: n
   const played = waveformProgress(trackId);
 
   // The bar count follows the canvas width: every bar gets exactly the same
-  // slot (bar + 1px gap), so no bar is wider, narrower or shifted compared
-  // to its neighbours, whatever the zoom or window size.
+  // slot, so no bar is wider, narrower or shifted compared to its
+  // neighbours, whatever the zoom or window size. The player bar uses a
+  // denser target than the track rows (the density must be decided per
+  // canvas: redrawTrackWaveform paints the same bars onto both). Track rows
+  // keep the crisp integer 2px bar + 1px gap layout; the player bar draws a
+  // fractional bar period (bars at ⅔ of the period, gap the remaining ⅓)
+  // so the doubled density holds at every width instead of saturating at
+  // the 3px integer minimum.
   const gap = 1;
-  const unit = Math.max(3, Math.round(width / 90)); // bar+gap period in px
-  const barW = unit - gap;
+  const isPlayer = canvas.classList.contains("player-waveform");
+  const barTarget = isPlayer ? PLAYER_BAR_TARGET : TRACK_BAR_TARGET;
+  const unit = isPlayer
+    ? Math.max(1.5, width / barTarget) // fractional bar+gap period in px
+    : Math.max(3, Math.round(width / barTarget));
+  const barW = isPlayer ? (unit * 2) / 3 : unit - gap;
   const barCount = Math.max(1, Math.floor((width + gap) / unit));
   // Cached bars → barCount buckets (max within each bucket), so the shape
   // is preserved at every resolution.
