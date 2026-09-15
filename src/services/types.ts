@@ -172,8 +172,25 @@ export interface ChromaAnalysis {
   segmentsUsed: number;
 }
 
-/** OAuth callback query parameters. */
-export interface OAuthCallback {
+/**
+ * BPM (tempo) analysis of one track, computed in-browser from HLS mp3 segments
+ * spread across the track (see services/bpm.ts).
+ */
+export interface BpmAnalysis {
+  /** Estimated tempo in beats per minute, folded into [FOLD_MIN, FOLD_MAX). */
+  bpm: number;
+  /** Raw tempo before octave folding — useful to spot half/double ambiguity. */
+  rawBpm: number;
+  /** Salience of the winning periodicity vs the autocorrelation median (≥ 0).
+   *  Roughly 1 = no clear beat, higher = more confident. */
+  confidence: number;
+  /** Seconds of audio actually analyzed (spread segments). */
+  analyzedSec: number;
+  /** How many HLS segments the analysis used. */
+  segmentsUsed: number;
+}
+
+/** OAuth callback query parameters. */export interface OAuthCallback {
   code: string | null;
   state: string | null;
   error: string | null;

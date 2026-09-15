@@ -6,6 +6,7 @@
 import { useRef } from "react";
 import { getState } from "../services/store";
 import { togglePreview } from "../services/preview";
+import { analyzeTrackBpm } from "../services/bpm";
 import { analyzeTrackChroma } from "../services/chroma";
 import { onTrackDragStart } from "../services/organize";
 import { isLikedView } from "../services/tracks";
@@ -66,6 +67,32 @@ function ChromaButton({ track }: { track: Track }) {
   );
 }
 
+/**
+ * Button that estimates the track's BPM from segments spread across the track
+ * (onset autocorrelation, see services/bpm.ts). Shows ♩ until a tempo is
+ * known, then the BPM value itself (still clickable to re-analyze).
+ */
+function BpmButton({ track }: { track: Track }) {
+  const state = getState();
+  const bpm = state.bpmValues[track.id];
+  const isLoading = state.bpmLoadingTrackId === track.id;
+  const label = bpm
+    ? `Estimated tempo: ${bpm} BPM — re-analyze`
+    : "Estimate the BPM from segments spread across the track (onset autocorrelation)";
+  return (
+    <button
+      className={`track-bpm${bpm ? " has-bpm" : ""}${isLoading ? " is-loading" : ""}`}
+      type="button"
+      data-bpm-track={track.id}
+      title={label}
+      aria-label={`${label} of ${track.title ?? "track"}`}
+      onClick={() => void analyzeTrackBpm(track.id)}
+    >
+      {isLoading ? <span className="spinner" aria-hidden="true" /> : bpm ?? "♩"}
+    </button>
+  );
+}
+
 export function TrackRow({ track, index }: { track: Track; index: number }) {
   const rowRef = useRef<HTMLLIElement>(null);
   const liked = isLikedView() && track.created_at
@@ -107,6 +134,7 @@ export function TrackRow({ track, index }: { track: Track; index: number }) {
       </div>
       <span className="track-preview-group">
         <ChromaButton track={track} />
+        <BpmButton track={track} />
         <PreviewButton track={track} />
       </span>
     </li>

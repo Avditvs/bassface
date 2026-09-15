@@ -11,7 +11,7 @@ import { useSyncExternalStore } from "react";
 import { AppConfig, TokenStore, UserStore } from "./config";
 import type { SoundCloudApi } from "./api";
 import type {
-  ChromaAnalysis, Playlist, PreviewMode, SCUser, StatusKind, Track, TrackPager,
+  BpmAnalysis, ChromaAnalysis, Playlist, PreviewMode, SCUser, StatusKind, Track, TrackPager,
 } from "../services/types";
 /** Display labels for the playlist kinds SoundCloud exposes. */
 export const TYPE_LABELS: Record<string, string> = {
@@ -67,6 +67,12 @@ export interface AppState {
   chromaLoadingTrackId: number | null;
   /** Whether the analyze-all batch is running (the toolbar button shows it). */
   chromaAllRunning: boolean;
+  /** track id → estimated BPM shown on the track row. */
+  bpmValues: Record<number, number>;
+  /** Track whose BPM analysis is currently running. */
+  bpmLoadingTrackId: number | null;
+  /** Whether the analyze-all BPM batch is running (the toolbar button shows it). */
+  bpmAllRunning: boolean;
 }
 
 let state: AppState = {
@@ -93,6 +99,9 @@ let state: AppState = {
   chromaKeys: {},
   chromaLoadingTrackId: null,
   chromaAllRunning: false,
+  bpmValues: {},
+  bpmLoadingTrackId: null,
+  bpmAllRunning: false,
 };
 
 const listeners = new Set<() => void>();
@@ -137,6 +146,13 @@ export const runtime = {
   /** Non-reactive analyze-all bookkeeping: running flag + stop request. */
   chromaAllRunning: false,
   chromaAllStop: false,
+  /** track id → BPM analysis (see services/bpm.ts) */
+  bpms: new Map<number, BpmAnalysis>(),
+  /** track id → in-flight BPM analysis */
+  bpmInflight: new Map<number, Promise<BpmAnalysis>>(),
+  /** Non-reactive analyze-all bookkeeping: running flag + stop request. */
+  bpmAllRunning: false,
+  bpmAllStop: false,
 };
 
 /** One-line token summary for the troubleshooting log. */

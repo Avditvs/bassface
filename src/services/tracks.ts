@@ -155,3 +155,24 @@ export async function loadMoreTracks(): Promise<void> {
     setState({ tracksLoadingMore: false });
   }
 }
+
+/**
+ * Fetch every remaining page of the playlist's track list (the infinite
+ * scroll normally does this on approach). Returns the full track list; the
+ * newly fetched pages land in the store, so the rows appear as usual. Used
+ * by the batch analyzers (chroma key, BPM).
+ */
+export async function loadAllTracks(): Promise<Track[]> {
+  let state = getState();
+  let guard = 0;
+  while (state.trackPager && !state.trackPager.done && guard < 100) {
+    await loadMoreTracks();
+    const after = getState();
+    // A page load that failed (or fetched nothing new) must not loop forever.
+    if (after.tracksLoadingMore || after.tracksError) break;
+    if (after.tracks.length === state.tracks.length) break;
+    state = after;
+    guard += 1;
+  }
+  return getState().tracks;
+}

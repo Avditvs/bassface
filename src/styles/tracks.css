@@ -164,6 +164,42 @@
   background: var(--accent-soft);
 }
 
+/* ---------- bpm (tempo estimation) ---------- */
+
+.track-bpm {
+  flex: none;
+  min-width: 34px;
+  height: 34px;
+  padding: 0 6px;
+  border-radius: 17px;
+  border: 1px solid var(--border);
+  background: var(--panel-alt);
+  color: var(--text);
+  font-size: 0.82rem;
+  line-height: 1;
+  cursor: pointer;
+  box-sizing: border-box;
+}
+
+.track-bpm:hover { border-color: var(--accent); color: var(--accent); }
+
+.track-bpm.is-loading { border-color: var(--accent); color: var(--accent); cursor: progress; }
+
+.track-bpm .spinner { width: 12px; height: 12px; border-width: 2px; vertical-align: middle; }
+
+/* Once a BPM is known the button shows the value ("128") instead of ♩. */
+.track-bpm.has-bpm {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.track-bpm.has-bpm:hover {
+  background: var(--accent-soft);
+}
+
 /* ---------- waveform ---------- */
 
 .track-waveform {

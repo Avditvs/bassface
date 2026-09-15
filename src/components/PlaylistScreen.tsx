@@ -7,6 +7,7 @@
 import { useApp } from "../services/store";
 import { goBackToPlaylists } from "../services/router";
 import { revertLastAction } from "../services/organize";
+import { analyzeAllTrackBpms } from "../services/bpm";
 import { analyzeAllTrackChromas } from "../services/chroma";
 import { isLikedView } from "../services/tracks";
 import { onRemoveZoneDragLeave, onRemoveZoneDragOver, onRemoveZoneDrop } from "../services/organize";
@@ -51,6 +52,15 @@ export function PlaylistScreen() {
             >
               {state.chromaAllRunning ? <span className="spinner" aria-hidden="true" /> : "♪"}
               {state.chromaAllRunning ? " Stop key analysis" : " Analyze all keys"}
+            </button>
+            <button
+              className={`button button-quiet${state.bpmAllRunning ? " is-loading" : ""}`}
+              type="button"
+              title="Estimate the BPM of every track from its most intense passages (click again to stop)"
+              onClick={() => void analyzeAllTrackBpms()}
+            >
+              {state.bpmAllRunning ? <span className="spinner" aria-hidden="true" /> : "♩"}
+              {state.bpmAllRunning ? " Stop BPM analysis" : " Analyze all BPMs"}
             </button>
             {state.undoEntry && (
               <button

@@ -17,7 +17,8 @@
 import { dbg } from "./debug";
 import { ChromaStore } from "./config";
 import { getState, runtime, setState, showStatus } from "./store";
-import { loadMoreTracks } from "./tracks";
+import { loadAllTracks } from "./tracks";
+import { decodeMono, fetchSegmentBlob, fftRealMag, hannWindow } from "./audio";
 import type { ChromaAnalysis, HlsSegment, Track } from "../services/types";
 
 /** FFT window length — sets the frequency resolution (~5.4 Hz @ 44.1 kHz). */
@@ -80,55 +81,8 @@ function hydrateCachedAnalyses(): void {
 }
 hydrateCachedAnalyses();
 
-/** Iterative radix-2 in-place FFT (n a power of two, |im| same length). */
-function fft(re: Float64Array, im: Float64Array): void {
-  const n = re.length;
-  for (let i = 1, j = 0; i < n; i += 1) {
-    let bit = n >> 1;
-    for (; j & bit; bit >>= 1) j ^= bit;
-    j ^= bit;
-    if (i < j) {
-      const tre = re[i]; re[i] = re[j]; re[j] = tre;
-      const tim = im[i]; im[i] = im[j]; im[j] = tim;
-    }
-  }
-  for (let len = 2; len <= n; len <<= 1) {
-    const ang = (-2 * Math.PI) / len;
-    const wRe = Math.cos(ang);
-    const wIm = Math.sin(ang);
-    const half = len >> 1;
-    for (let i = 0; i < n; i += len) {
-      let curRe = 1;
-      let curIm = 0;
-      for (let k = 0; k < half; k += 1) {
-        const aRe = re[i + k];
-        const aIm = im[i + k];
-        const bRe = re[i + k + half] * curRe - im[i + k + half] * curIm;
-        const bIm = re[i + k + half] * curIm + im[i + k + half] * curRe;
-        re[i + k] = aRe + bRe;
-        im[i + k] = aIm + bIm;
-        re[i + k + half] = aRe - bRe;
-        im[i + k + half] = aIm - bIm;
-        const nextRe = curRe * wRe - curIm * wIm;
-        curIm = curRe * wIm + curIm * wRe;
-        curRe = nextRe;
-      }
-    }
-  }
-}
-
-/** Average all channels into one mono Float32Array. */
-function monoMixdown(buffer: AudioBuffer): Float32Array {
-  const out = new Float32Array(buffer.length);
-  for (let c = 0; c < buffer.numberOfChannels; c += 1) {
-    const data = buffer.getChannelData(c);
-    for (let i = 0; i < out.length; i += 1) out[i] += data[i] / buffer.numberOfChannels;
-  }
-  return out;
-}
-
-/** Pitch-class index of every FFT bin (−1 when outside [F_MIN, F_MAX]). */
-function binPitchClasses(sampleRate: number): Int8Array {
+/** Lowest pitch frequency mapped into the chroma (~A1, bottom bin usable). */
+export function binPitchClasses(sampleRate: number): Int8Array {
   const bins = FFT_SIZE / 2;
   const classes = new Int8Array(bins).fill(-1);
   for (let bin = 1; bin < bins; bin += 1) {
@@ -137,13 +91,6 @@ function binPitchClasses(sampleRate: number): Int8Array {
     classes[bin] = ((Math.round(12 * Math.log2(freq / 440)) + 69) % 12 + 12) % 12;
   }
   return classes;
-}
-
-/** Precomputed Hann window for the analysis frames. */
-function hannWindow(): Float64Array {
-  const window = new Float64Array(FFT_SIZE);
-  for (let i = 0; i < FFT_SIZE; i += 1) window[i] = 0.5 * (1 - Math.cos((2 * Math.PI * i) / (FFT_SIZE - 1)));
-  return window;
 }
 
 /** Pearson correlation coefficient of two 12-value vectors. */
@@ -180,15 +127,6 @@ function estimateKey(chroma: number[]): { tonic: string; mode: "major" | "minor"
   return best!;
 }
 
-/** Decode every segment blob in parallel (no user gesture needed). */
-async function decodeBlobs(blobs: Blob[]): Promise<AudioBuffer[]> {
-  // OfflineAudioContext decodes + resamples to a known rate without an
-  // autoplay-policy warning; a real AudioContext would start suspended.
-  const context = new OfflineAudioContext(1, 1, 44100);
-  return Promise.all(blobs.map(async (blob) => context.decodeAudioData(await blob.arrayBuffer())));
-}
-
-/** Chroma vector of one decoded segment (frames averaged after the gate). */
 /**
  * Chroma vector of every ~CHUNK_SEC chunk of one decoded segment: frames are
  * grouped into chunks, each chunk normalised to a unit 12-vector, and chunks
@@ -196,35 +134,37 @@ async function decodeBlobs(blobs: Blob[]): Promise<AudioBuffer[]> {
  * dropped so only musically active passages feed the estimate.
  */
 function chunkChromas(
-  buffer: AudioBuffer,
+  mono: Float32Array,
+  sampleRate: number,
   classes: Int8Array,
   window: Float64Array,
 ): number[][] {
-  const mono = monoMixdown(buffer);
-  const re = new Float64Array(FFT_SIZE);
-  const im = new Float64Array(FFT_SIZE);
+  const half = FFT_SIZE / 2;
+  const re = new Float64Array(half);
+  const im = new Float64Array(half);
+  const mag = new Float64Array(half);
+  const frame = new Float64Array(FFT_SIZE);
   const energies: number[] = [];
   const perFrame: number[][] = [];
   for (let start = 0; start + FFT_SIZE <= mono.length; start += HOP_SIZE) {
     let rms = 0;
     for (let i = 0; i < FFT_SIZE; i += 1) {
       const sample = mono[start + i] * window[i];
-      re[i] = sample;
-      im[i] = 0;
+      frame[i] = sample;
       rms += sample * sample;
     }
     energies.push(Math.sqrt(rms / FFT_SIZE));
-    fft(re, im);
-    const frame = new Array<number>(12).fill(0);
-    for (let bin = 1; bin < FFT_SIZE / 2; bin += 1) {
+    fftRealMag(frame, re, im, mag);
+    const frameVec = new Array<number>(12).fill(0);
+    for (let bin = 1; bin < half; bin += 1) {
       const pc = classes[bin];
       if (pc < 0) continue;
-      const energy = re[bin] * re[bin] + im[bin] * im[bin];
-      frame[pc] += energy;
+      const energy = mag[bin] * mag[bin];
+      frameVec[pc] += energy;
     }
-    perFrame.push(frame);
+    perFrame.push(frameVec);
   }
-  const framesPerChunk = Math.max(1, Math.round((CHUNK_SEC * buffer.sampleRate) / HOP_SIZE));
+  const framesPerChunk = Math.max(1, Math.round((CHUNK_SEC * sampleRate) / HOP_SIZE));
   const maxEnergy = energies.reduce((m, e) => Math.max(m, e), 0);
   const chunks: number[][] = [];
   for (let from = 0; from < perFrame.length; from += framesPerChunk) {
@@ -253,21 +193,31 @@ function pickSegments(segments: HlsSegment[]): number[] {
   return [...new Set(indexes)];
 }
 
+/** Decode rate of the fetched segments — shared with the BPM analyzer so
+ *  both tools reuse the same cached segment blobs and decodings. */
+const DECODE_RATE = 44100;
+
 /** Chroma analysis of a track from segments spread across its whole length. */
 export async function analyzeChroma(track: Track): Promise<ChromaAnalysis> {
   const api = getState().api!;
   const segments = await api.hlsSegments(track);
   if (!segments) throw new Error("this track exposes no HLS mp3 stream to analyze");
   const chosen = pickSegments(segments);
-  const blobs = await Promise.all(chosen.map((index) => api.fetchSegment(segments[index].url)));
-  const buffers = await decodeBlobs(blobs);
-  const window = hannWindow();
-  const totalSec = buffers.reduce((sum, b) => sum + b.duration, 0);
+  // Cached across the BPM analyzer: segments the tempo tool already fetched
+  // and decoded cost no network and no decode here (and vice versa).
+  const decoded = await Promise.all(chosen.map(async (index) => {
+    const segment = segments[index];
+    const blob = await fetchSegmentBlob((url) => api.fetchSegment(url), segment.url);
+    return decodeMono(blob, segment.url, DECODE_RATE);
+  }));
+  const window = hannWindow(FFT_SIZE);
+  const totalSec = decoded.reduce((sum, d) => sum + d.duration, 0);
   // Per-chunk chroma vectors from every segment, equally weighted (a segment
   // with more kept chunks doesn't dominate the estimate).
   const chunkVectors: number[][] = [];
-  for (const buffer of buffers) {
-    chunkVectors.push(...chunkChromas(buffer, binPitchClasses(buffer.sampleRate), window));
+  const classes = binPitchClasses(DECODE_RATE);
+  for (const { samples, sampleRate } of decoded) {
+    chunkVectors.push(...chunkChromas(samples, sampleRate, classes, window));
   }
   if (chunkVectors.length === 0) throw new Error("the analyzed segments are silent");
   const chroma = new Array<number>(12).fill(0);
@@ -331,26 +281,6 @@ function recordAnalysis(trackId: number, analysis: ChromaAnalysis): void {
   runtime.chromas.set(trackId, analysis);
   ChromaStore.save(trackId, analysis);
   setState({ chromaKeys: { ...getState().chromaKeys, [trackId]: keyLabel(analysis) } });
-}
-
-/**
- * Fetch every remaining page of the playlist's track list (the infinite
- * scroll normally does this on approach). Returns the full track list; the
- * newly fetched pages land in the store, so the rows appear as usual.
- */
-async function loadAllTracks(): Promise<Track[]> {
-  let state = getState();
-  let guard = 0;
-  while (state.trackPager && !state.trackPager.done && guard < 100) {
-    await loadMoreTracks();
-    const after = getState();
-    // A page load that failed (or fetched nothing new) must not loop forever.
-    if (after.tracksLoadingMore || after.tracksError) break;
-    if (after.tracks.length === state.tracks.length) break;
-    state = after;
-    guard += 1;
-  }
-  return getState().tracks;
 }
 
 /**

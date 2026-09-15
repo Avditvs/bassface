@@ -141,6 +141,10 @@ src/
     chroma.ts           – in-browser chroma analysis: key estimation from
                           segments spread across the track (FFT → pitch
                           classes → Krumhansl–Kessler profile)
+    bpm.ts              – in-browser tempo estimation from segments spread
+                          across the track (spectral flux → autocorrelation)
+    audio.ts            – shared analysis primitives (radix-2 FFT, Hann
+                          window, mono mixdown, HLS blob decoding)
     waveform.ts         – waveform fetch/cache/draw for the track rows
     organize.ts         – drag & drop between playlists, create playlist, undo
     debug.ts            – persistent troubleshooting log (subscribable)
@@ -189,6 +193,34 @@ fed by a single store snapshot (`useSyncExternalStore`).
   whole track list (3 in parallel, click again to stop). Results persist in
   `localStorage` (`playlist_updater.chromas`), so keys are computed once per
   track, ever
+- **BPM estimation (♩ button)**: in-browser tempo analysis from the track's
+  most intense passages — segments are chosen at the loudest moments of the
+  SoundCloud waveform bars (even spread as fallback), then each is decoded to
+  an onset strength envelope (2× decimated to 22.05 kHz, 1024-sample Hann
+  FFT, hop 512 → ~43 fps spectral flux, silent frames muted), autocorrelated
+  over 60–200 BPM lags; the segments' autocorrelations are averaged per lag
+  and the winning peak (parabolically refined) is folded into the 85–180 BPM
+  window by octaves.
+  Both analyzers share a segment blob + decoded-mono cache keyed by segment
+  URL, so running BPM after keys (or re-analyzing) costs no network and no
+  decode. **Analyze all BPMs** in the playlist toolbar batches the whole
+  track list (3 in parallel, click again to stop). Results persist in
+  `localStorage` (`playlist_updater.bpms`)
+
+## Development
+
+- `npm run typecheck` — strict TypeScript, no emit
+- `npm run build` / `npm run serve` — production bundle / serve it locally
+- `tests/bpm-test/` — Node sanity checks for the BPM analyzer: bundles the
+  real `services/bpm.ts` (with small `localStorage` / `OfflineAudioContext`
+  / DOM shims), then verifies tempo estimates on synthesized click tracks
+  (`entry.ts`), the intensity-guided segment picker, and a quiet-intro /
+  loud-drop track (`intro-check.ts`):
+
+  ```sh
+  npx rolldown tests/bpm-test/entry.ts --format esm --platform node --file /tmp/bpm-test.mjs && node /tmp/bpm-test.mjs
+  npx rolldown tests/bpm-test/intro-check.ts --format esm --platform node --file /tmp/intro-check.mjs && node /tmp/intro-check.mjs
+  ```
 
 ## Next steps (roadmap)
 

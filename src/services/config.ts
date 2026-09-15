@@ -3,12 +3,13 @@
  * and OAuth tokens. Everything lives in localStorage so no backend is needed.
  */
 
-import type { ChromaAnalysis, TokenPayload, SCUser } from "../services/types";
+import type { BpmAnalysis, ChromaAnalysis, TokenPayload, SCUser } from "../services/types";
 
 const CONFIG_KEY = "playlist_updater.config";
 const TOKENS_KEY = "playlist_updater.tokens";
 const USER_KEY = "playlist_updater.user";
 const CHROMAS_KEY = "playlist_updater.chromas";
+const BPMS_KEY = "playlist_updater.bpms";
 
 const CONFIG_DEFAULTS = {
   clientId: "",
@@ -166,5 +167,21 @@ export const ChromaStore = {
     const all = readJson(CHROMAS_KEY) ?? {};
     all[trackId] = analysis;
     writeJson(CHROMAS_KEY, all);
+  },
+};
+
+/**
+ * Per-track BPM analyses (tempo estimations, see services/bpm.ts), keyed by
+ * SoundCloud track id — stable across sessions, like ChromaStore.
+ */
+export const BpmStore = {
+  load(): Record<number, BpmAnalysis> {
+    return readJson(BPMS_KEY) ?? {};
+  },
+
+  save(trackId: number, analysis: BpmAnalysis): void {
+    const all = readJson(BPMS_KEY) ?? {};
+    all[trackId] = analysis;
+    writeJson(BPMS_KEY, all);
   },
 };
