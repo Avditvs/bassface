@@ -73,6 +73,29 @@ body:has(#playlist-screen:not([hidden])) .app-footer {
      order changes). Grid auto-placement follows the `order`-modified order. */
   .remove-panel { order: -1; }
   .organize { order: 1; }
+
+  /* Pin the Reorganize panel to the viewport bottom while scrolling the
+     track list: drop targets stay reachable at all times. It lifts back to
+     its natural spot once the end of the page is reached. */
+  .organize {
+    position: sticky;
+    bottom: 0;
+    z-index: 2;
+    box-shadow: 0 -10px 24px rgba(0, 0, 0, 0.22); /* separate from rows behind */
+  }
+  /* The sticky player bar also pins at the bottom: lift the panel above it
+     (player bar ≈ 91px: 12px margin + 3px progress + 73px content + border). */
+  main:has(.player-bar) .organize { bottom: 96px; }
+
+  /* Show at most 3 playlist cards; the rest scroll inside the list
+     (3 × card min-height 76px + 2 × list gap 8px). */
+  .org-list, .org-check-list {
+    max-height: 244px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+
   .playlist-main { display: block; overflow: visible; }
   .playlist-content { overflow: visible; padding-right: 0; }
   .remove-zone { min-height: 96px; }
@@ -108,6 +131,13 @@ body:has(#playlist-screen:not([hidden])) .app-footer {
   .org-drop { min-height: 64px; padding: 10px; }
   .org-art { width: 44px; height: 44px; }
   .org-move { width: 52px; font-size: 1.3rem; }
+
+  /* Smaller sticky player bar on phones (≈ 77px): keep the pinned
+     Reorganize panel clear of it. */
+  main:has(.player-bar) .organize { bottom: 86px; }
+
+  /* 3 × card min-height (64px) + 2 × list gap (8px). */
+  .org-list, .org-check-list { max-height: 208px; }
 }
 
 /* ---------- playlist header ---------- */
