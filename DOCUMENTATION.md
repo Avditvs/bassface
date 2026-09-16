@@ -82,17 +82,15 @@ client-side:
    challenge, and a single-use `state` nonce.
 2. **Callback** — the redirect lands back on the app with `?code&state`;
    `state` is compared (and consumed) before anything else happens.
-3. **Token exchange** — `POST https://secure.soundcloud.com/oauth/token`
-   (`grant_type=authorization_code`, verifier presented). SoundCloud treats
-   registered apps as confidential clients, so the Client Secret must be
-   sent too (the client_id-only flow only works for SoundCloud's own
-   bundled public client). When a **token proxy URL** is configured
-   (see `worker/`), the request is sent to the proxy instead — a ~80-line
-   Cloudflare Worker that injects the secret from its environment — so the
-   secret never ships in the static bundle. The worker also supports the
-   **Client ID**: it serves the (public) ID via `GET <worker>` (auto-filling
-   the connect screen) and pins it into every token request. Either path
-   produces the same tokens; `tokenEndpoint()` in `oauth.ts` picks the URL.
+3. **Token exchange** — `POST` to the configured **token proxy** (a
+   ~80-line Cloudflare Worker, see `worker/`), which injects the Client
+   Secret from its environment and forwards to
+   `https://secure.soundcloud.com/oauth/token`. SoundCloud treats registered
+   apps as confidential clients, so the secret must be present — but on the
+   deployed site it lives only on the worker: it never ships in the bundle
+   or reaches the browser. Loopback origins (local development) may send
+   the secret inline instead. `tokenEndpoint()` in `oauth.ts` picks the
+   URL and enforces this.
 4. **Refresh** — access tokens expire after ~1 hour; the single-use
    refresh token is exchanged automatically (`grant_type=refresh_token`),
    including transparently on a 401 mid-session (see
@@ -253,7 +251,7 @@ a playlist survive sign-in: the callback stores the route and restores it.
 
 | Key | Store | Contents |
 |-----|-------|----------|
-| `playlist_updater.config` | localStorage | Client ID / secret / redirect URI / token proxy URL |
+| `playlist_updater.config` | localStorage | Client ID / secret (local dev only) / redirect URI / token proxy URL |
 | `playlist_updater.tokens` | localStorage | OAuth access + refresh tokens |
 | `playlist_updater.user` | localStorage | Signed-in user profile |
 | `playlist_updater.chromas` | localStorage | Per-track key analyses |
@@ -279,11 +277,13 @@ Storage failures are never fatal (`config.ts` warns and continues).
 - **Log redaction** — `redactSecrets()` (`util.ts`) strips token query
   params, secrets and signed URL fragments before anything reaches the
   debug log.
-- **Optional token proxy** (`worker/`) — a Cloudflare Worker that injects
-  the client secret server-side, so the secret never appears in the bundle
-  or the browser. When configured, only the authorization-code and
-  refresh-token grants are accepted, the `client_id` is pinned to the
-  owner's app, and CORS is limited to the configured origin(s).
+- **Token proxy** (`worker/`) — a Cloudflare Worker that injects the client
+  secret server-side and serves the (public) Client ID via `GET`; the
+  deployed app always goes through it, so the secret never appears in the
+  bundle or the browser. Only the authorization-code and refresh-token
+  grants are accepted, the `client_id` is pinned to the owner's app, and
+  CORS is limited to the configured origin(s). A loopback origin
+  (local development) may instead connect with credentials entered directly.
 
 ### Debug log
 

@@ -1,17 +1,25 @@
 /**
  * Connect screen: configuration form, validation and the redirect to
  * SoundCloud (OAuth 2.1 + PKCE).
+ *
+ * - Served remotely (GitHub Pages): proxy-only. The token proxy (worker/)
+ *   serves the Client ID and holds the Client Secret server-side.
+ * - Served from a loopback origin (local development): the Client ID and
+ *   Client Secret can be entered directly (the secret is only ever sent to
+ *   SoundCloud's own token endpoint).
  */
 
 import { useState } from "react";
-import { buildAuthUrl, fetchClientIdFromProxy } from "../services/oauth";
+import { buildAuthUrl, fetchClientIdFromProxy, isLocalOrigin } from "../services/oauth";
 import { runtime } from "../services/store";
 import { showStatus } from "../services/store";
 import { DebugPanel } from "./DebugPanel";
 
+type ConnectValues = { clientId: string; clientSecret: string; redirectUri: string; tokenProxyUrl: string };
+
 /** Validate the form, persist it, then send the user to SoundCloud. */
 async function onConnectSubmit(
-  values: { clientId: string; clientSecret: string; redirectUri: string; tokenProxyUrl: string },
+  values: ConnectValues,
   { onRedirecting, onClientId }: { onRedirecting: () => void; onClientId: (clientId: string) => void },
 ): Promise<void> {
   runtime.config.clientId = values.clientId.trim();
@@ -26,13 +34,8 @@ async function onConnectSubmit(
     return;
   }
 
-  // The Client ID may also live on the proxy: when the field is left empty
-  // and a proxy is configured, ask the worker for it (GET <worker>).
-  if (!runtime.config.clientId) {
-    if (!viaProxy) {
-      showStatus("A Client ID is required. Register an app on SoundCloud first.", "error");
-      return;
-    }
+  if (viaProxy && !runtime.config.clientId) {
+    // The Client ID may also live on the proxy: ask the worker for it.
     showStatus("Fetching the Client ID from your token proxy…");
     const clientId = await fetchClientIdFromProxy(runtime.config.tokenProxyUrl);
     if (!clientId) {
@@ -44,8 +47,16 @@ async function onConnectSubmit(
     onClientId(clientId);
   }
 
-  if (!viaProxy && !runtime.config.clientSecret) {
-    showStatus("Heads up: SoundCloud treats apps as confidential clients — if the next step fails with \"invalid_client\", add your Client Secret (or deploy the token proxy in worker/) and retry.", "info");
+  if (!viaProxy && !runtime.config.clientId) {
+    showStatus("A Client ID is required. Register an app on SoundCloud first.", "error");
+    return;
+  }
+  if (!viaProxy && !runtime.config.clientSecret && !isLocalOrigin()) {
+    showStatus("SoundCloud treats apps as confidential clients — without a proxy or a Client Secret the token exchange will fail with \"invalid_client\".", "error");
+    return;
+  }
+  if (!viaProxy && !runtime.config.clientSecret && isLocalOrigin()) {
+    showStatus("Heads up: SoundCloud treats apps as confidential clients — if the next step fails with \"invalid_client\", add your Client Secret.", "info");
   }
   const redirectUri = runtime.config.resolveRedirectUri();
   if (!redirectUri) {
@@ -72,6 +83,7 @@ async function onConnectSubmit(
 }
 
 export function ConnectScreen() {
+  const local = isLocalOrigin();
   const [clientId, setClientId] = useState(runtime.config.clientId);
   const [clientSecret, setClientSecret] = useState(runtime.config.clientSecret);
   const [redirectUri, setRedirectUri] = useState(runtime.config.redirectUri);
@@ -89,14 +101,22 @@ export function ConnectScreen() {
   return (
     <section id="connect-screen" className="panel">
       <h2>Connect to SoundCloud</h2>
-      <p className="muted">
-        This app runs entirely in your browser. Register an application on{" "}
-        <a href="https://developers.soundcloud.com/docs/api/register-app" target="_blank" rel="noreferrer">SoundCloud</a>
-        {" "}(Artist Pro required), then paste your credentials below.
-        To keep the Client Secret out of the browser entirely, deploy the
-        tiny token proxy in <code>worker/</code> and fill in its URL below
-        instead of the secret.
-      </p>
+      {local ? (
+        <p className="muted">
+          Local development mode (loopback origin): enter your app's
+          credentials directly — the Client Secret is only ever sent to
+          SoundCloud's own token endpoint. When served remotely (GitHub
+          Pages), this screen only asks for the token proxy URL.
+        </p>
+      ) : (
+        <p className="muted">
+          This app connects to SoundCloud through a token proxy — a tiny
+          Cloudflare Worker in <code>worker/</code> that holds your Client
+          Secret server-side and hands out your (public) Client ID. Deploy it
+          once (see the <a href="https://github.com/Avditvs/bassface/tree/main/worker" target="_blank" rel="noreferrer">worker README</a>),
+          then paste its URL below — that is the only thing to configure.
+        </p>
+      )}
 
       <form
         className="form-stack"
@@ -111,36 +131,55 @@ export function ConnectScreen() {
           );
         }}
       >
-        <label>
-          <span>Client ID</span>
-          <input
-            type="text"
-            autoComplete="off"
-            placeholder={tokenProxyUrl.trim() ? "e.g. AbC123xYz… — or leave empty to fetch it from the proxy" : "e.g. AbC123xYz…"}
-            value={clientId}
-            onChange={(event) => setClientId(event.target.value)}
-          />
-        </label>
-        <label>
-          <span>Client secret</span>
-          <input
-            type="password"
-            autoComplete="off"
-            placeholder={tokenProxyUrl.trim() ? "Not needed — your proxy injects it server-side" : "Required for the token exchange (or use the token proxy below)"}
-            value={clientSecret}
-            onChange={(event) => setClientSecret(event.target.value)}
-          />
-        </label>
-        <label>
-          <span>Token proxy URL (optional)</span>
-          <input
-            type="url"
-            autoComplete="off"
-            placeholder="e.g. https://soundcloud-token-proxy.your-account.workers.dev — see worker/"
-            value={tokenProxyUrl}
-            onChange={(event) => setTokenProxyUrl(event.target.value)}
-          />
-        </label>
+        {local ? (
+          <>
+            <label>
+              <span>Client ID</span>
+              <input
+                type="text"
+                autoComplete="off"
+                placeholder="e.g. AbC123xYz…"
+                required
+                value={clientId}
+                onChange={(event) => setClientId(event.target.value)}
+              />
+            </label>
+            <label>
+              <span>Client secret</span>
+              <input
+                type="password"
+                autoComplete="off"
+                placeholder="Required for the token exchange (confidential client)"
+                value={clientSecret}
+                onChange={(event) => setClientSecret(event.target.value)}
+              />
+            </label>
+          </>
+        ) : (
+          <>
+            <label>
+              <span>Token proxy URL</span>
+              <input
+                type="url"
+                autoComplete="off"
+                placeholder="e.g. https://soundcloud-token-proxy.your-account.workers.dev"
+                required
+                value={tokenProxyUrl}
+                onChange={(event) => setTokenProxyUrl(event.target.value)}
+              />
+            </label>
+            <label>
+              <span>Client ID (optional — fetched from the proxy when empty)</span>
+              <input
+                type="text"
+                autoComplete="off"
+                placeholder="Only needed if the worker has no SOUNDCLOUD_CLIENT_ID"
+                value={clientId}
+                onChange={(event) => setClientId(event.target.value)}
+              />
+            </label>
+          </>
+        )}
         <label>
           <span>Redirect URI</span>
           <input

@@ -7,10 +7,9 @@ injects `SOUNDCLOUD_CLIENT_SECRET` from its environment and forwards the
 request to `https://secure.soundcloud.com/oauth/token`.
 
 The secret is never in the repo, never in the Pages bundle, and never in
-the browser. The worker can also **serve the Client ID** (public value):
-`GET <worker>` returns `{ "client_id": "…" }` so the connect screen can
-auto-fill it — with both values configured, the browser only needs the
-worker URL.
+the browser. The worker also **serves the Client ID** (public value):
+`GET <worker>` returns `{ "client_id": "…" }`, which the connect screen
+fetches automatically — the browser only ever needs the worker URL.
 
 ```
 browser ──▶ <worker>.workers.dev        (grant params, no secret)
@@ -53,10 +52,10 @@ browser ◀── tokens
    `https://soundcloud-token-proxy.<your-subdomain>.workers.dev`.
 
 5. **Point the app at it**: in Bassface's connect screen, paste the worker
-   URL into the **Token proxy URL** field. With `SOUNDCLOUD_CLIENT_ID` set
-   on the worker you can leave **Client ID** and **Client secret** empty —
-   the ID is fetched from the proxy, the secret is injected by it. Token
-   exchange and refresh now go through the proxy.
+   URL into the **Token proxy URL** field — that is the only thing to
+   configure. The Client ID is fetched from the proxy at connect time
+   (requires `SOUNDCLOUD_CLIENT_ID` on the worker), and the secret is
+   injected by it. Token exchange and refresh now go through the proxy.
 
 ## Local development
 

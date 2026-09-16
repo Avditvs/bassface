@@ -1,5 +1,5 @@
 /**
- * Persistence for app configuration (client credentials / redirect URI)
+ * Persistence for app configuration (token proxy URL / redirect URI)
  * and OAuth tokens. Everything lives in localStorage so no backend is needed.
  */
 
@@ -36,17 +36,16 @@ function writeJson(key: string, value: unknown): void {
 }
 
 /**
- * App settings: SoundCloud client credentials and the registered redirect URI.
- * The redirect URI field is left empty when it matches the serving origin
- * (i.e. the app is opened via http(s), which is OAuth-compatible).
+ * App settings: the token proxy URL (see worker/ — it serves the Client ID
+ * and holds the Client Secret server-side) and the registered redirect URI.
+ * For local development only, credentials can be entered directly instead
+ * of going through the proxy.
  */
 export class AppConfig {
   clientId = CONFIG_DEFAULTS.clientId;
   clientSecret = CONFIG_DEFAULTS.clientSecret;
   redirectUri = CONFIG_DEFAULTS.redirectUri;
-  /** Token proxy (see worker/): when set, token requests are routed through
-   * it so the client secret is injected server-side and never reaches the
-   * browser. Empty = talk to SoundCloud directly (secret sent inline). */
+  /** Token proxy every token request goes through (see worker/). */
   tokenProxyUrl = CONFIG_DEFAULTS.tokenProxyUrl;
 
   static load(): AppConfig {

@@ -14,21 +14,17 @@ there is no server to deploy.
 ```
 browser ──▶ secure.soundcloud.com/authorize   (login + consent, PKCE S256)
 browser ◀── redirect ?code&state
-browser ──▶ secure.soundcloud.com/oauth/token (code ⇄ access/refresh tokens)
+browser ──▶ token proxy (Cloudflare Worker)    (code ⇄ tokens, no secret sent)
+worker  ──▶ secure.soundcloud.com/oauth/token  (Client Secret added from env)
 browser ──▶ api.soundcloud.com/me/playlists   (list playlists, paginated)
 browser ──▶ api.soundcloud.com/playlists/:id  (open one, list its tracks)
 ```
 
-SoundCloud supports [CORS for browser JavaScript](https://developers.soundcloud.com/docs/api/guide#crossdomain),
-including the token endpoint, so the whole flow is client-side. Access tokens
-expire after ~1 hour; the app refreshes them automatically with the
-(single-use) refresh token.
-
-> The token exchange normally needs your **Client Secret** (SoundCloud treats
-> registered apps as confidential clients). To avoid pasting it into a web
-> page, you can deploy the tiny token proxy in [`worker/`](worker/) — the
-> secret then lives only in the worker's environment. See
-> [Token proxy](#token-proxy-keeping-the-client-secret-server-side) below.
+Access tokens expire after ~1 hour; the app refreshes them automatically
+with the (single-use) refresh token. The token exchange needs your **Client
+Secret** (SoundCloud treats registered apps as confidential clients) — it
+is held by the token proxy in [`worker/`](worker/), never in the browser.
+See [Token proxy](#token-proxy-keeping-the-client-secret-server-side).
 
 ## Requirements
 
@@ -36,20 +32,17 @@ expire after ~1 hour; the app refreshes them automatically with the
    SoundCloud to create API apps).
 2. Register an app at the
    [SoundCloud developer portal](https://developers.soundcloud.com/docs/api/register-app)
-   to get a **Client ID** (and optionally a **Client Secret**).
+   to get a **Client ID** and **Client Secret**.
 
    For the redirect URI, register the address you will serve the app from,
    for example `http://127.0.0.1:8080/` (trailing slash matters — it must
    match what the app sends).
 
-   > **Enter both the Client ID and Client Secret, from the same app,**
-   > copied exactly with no trailing spaces. SoundCloud treats registered
-   > apps as confidential clients and rejects the token exchange with
-   > `invalid_client` when the secret is missing or wrong. (The client_id-
-   > only flow that SoundCloud's own CLI uses only works for their bundled
-   > public client.) Alternatively, deploy the
-   > [token proxy](#token-proxy-keeping-the-client-secret-server-side) and
-   > the secret never has to be entered in the browser at all.
+3. Deploy the **token proxy** (see [worker/](worker/), ~5 minutes on the
+   Cloudflare free tier): it serves the (public) Client ID and injects the
+   Client Secret server-side. **The Client Secret never goes into the
+   app, the browser, or this repo** — only into the worker via
+   `npx wrangler secret put SOUNDCLOUD_CLIENT_SECRET`.
 
 ## Run it
 
@@ -66,8 +59,9 @@ Or serve `dist/` over http(s) with any static server. For a fast edit loop,
 use `npm run dev` (Vite dev server with hot reload). Other useful scripts:
 `npm run typecheck` (tsc --noEmit, strict).
 
-Then open <http://127.0.0.1:8080/>, paste your Client ID (and secret if you
-registered one) and click **Connect with SoundCloud**. After authorizing you
+Then open <http://127.0.0.1:8080/>, paste your **token proxy URL** (the
+worker must be deployed first, see the previous section) and click
+**Connect with SoundCloud**. After authorizing you
 are redirected back and your playlists are listed with search / type filter /
 sorting. Click a card (or its **View tracks** button) to open the playlist and
 browse the sounds it contains — each row has a **▶** button that plays the
@@ -87,7 +81,7 @@ playlist). A **+ New** button in the sidebar creates an empty playlist.
 ## Token proxy (keeping the Client Secret server-side)
 
 GitHub Pages only serves static files, so anything entered in the browser —
-including the Client Secret — is inherently visible to the page. The optional
+including a Client Secret — is inherently visible to the page. The
 [`worker/`](worker/) directory contains a ~80-line **Cloudflare Worker**
 (free tier, no cold starts) that holds the secret in its environment instead:
 
@@ -102,12 +96,14 @@ Deploy once (`cd worker && npm install && npx wrangler login`, set the secret
 with `npx wrangler secret put SOUNDCLOUD_CLIENT_SECRET`, fill in
 `SOUNDCLOUD_CLIENT_ID` + `ALLOWED_ORIGINS` in `wrangler.toml`, then `npm run
 deploy` — full steps in [worker/README.md](worker/README.md)), then paste the
-worker URL into the **Token proxy URL** field of the connect screen. With the
-worker fully configured you can leave **Client ID** and **Client Secret**
-empty: the proxy serves the (public) Client ID to the app and injects the
-secret server-side. Code exchange and token refresh now flow through the
-proxy; the secret never reaches the browser, the bundle, or the repo.
-Everything else stays purely static.
+worker URL into the **Token proxy URL** field of the connect screen — it is
+the only thing to configure there. The proxy serves the (public) Client ID
+to the app and injects the secret server-side. Code exchange and token
+refresh now flow through the proxy; the secret never reaches the browser,
+the bundle, or the repo. Everything else stays purely static. (Exception:
+when served from a loopback origin — `localhost`/`127.0.0.1` — the connect
+screen offers a local development mode where credentials can be entered
+directly.)
 
 ## Security
 
@@ -129,15 +125,15 @@ Everything else stays purely static.
 - **Redirect URIs must be https** (loopback http allowed, RFC 8252 §8.3);
   `npm run serve` binds `127.0.0.1` only.
 - Credentials and tokens are stored in `localStorage` of your own browser —
-  they never leave your machine, but anything embedded in a frontend cannot
-  be kept secret: only run this app from a trusted origin, and sign out when
-  done on a shared machine.
+  they never leave your machine. The **Client Secret is never stored or
+  sent by the app**: it lives only in the token proxy's environment.
+  Only run this app from a trusted origin, and sign out when done on a
+  shared machine.
 
-> **Bassface** stores your credentials and OAuth tokens in
-> `localStorage` of your own browser. They never leave your machine. This is a
-> personal tool — the Client Secret (if provided) is only sent to
-> SoundCloud's token endpoint, but be aware that anything embedded in a
-> frontend cannot be kept secret.
+> **Bassface** stores the token proxy URL and OAuth tokens in
+> `localStorage` of your own browser. They never leave your machine. The
+> Client Secret is held server-side by the token proxy (see `worker/`) and
+> never enters the browser, the bundle, or the repo.
 >
 > See the **Security** section below for the protections built into the app.
 
@@ -166,7 +162,7 @@ src/
   services/             – framework-agnostic logic (no React imports except
                           the store hook, no DOM beyond canvas + audio)
     store.ts            – central state snapshot + `useApp()` (useSyncExternalStore)
-    config.ts           – localStorage persistence (credentials, tokens, user)
+    config.ts           – localStorage persistence (proxy URL, tokens, user)
     oauth.ts            – OAuth 2.1 + PKCE: authorize URL, token exchange, refresh
     api.ts              – SoundCloud API client (401 auto-refresh, pagination,
                           read-modify-write helpers)

@@ -4,9 +4,10 @@
  * Flow: build authorize URL -> user approves on SoundCloud ->
  * redirect back with ?code&state -> exchange for tokens ->
  * keep tokens fresh with the (single-use) refresh token.
- * Token requests go to SoundCloud directly, or — when a token proxy URL
- * is configured (see worker/) — through the proxy, which injects the
- * client secret server-side so it never ships in the bundle.
+ * Token requests go through the configured token proxy (see worker/),
+ * which serves the Client ID and injects the Client Secret server-side.
+ * Only for local development (loopback origin) may credentials be
+ * entered directly and the secret sent inline to SoundCloud.
  * @see https://developers.soundcloud.com/docs/api/guide#authentication
  */
 
@@ -17,6 +18,11 @@ import type { AppConfig } from "./config";
 export const AUTHORIZE_URL = "https://secure.soundcloud.com/authorize";
 export const TOKEN_URL = "https://secure.soundcloud.com/oauth/token";
 export const API_BASE_URL = "https://api.soundcloud.com";
+
+/** True when the app is served from a loopback origin (local development). */
+export function isLocalOrigin(): boolean {
+  return ["localhost", "127.0.0.1", "[::1]"].includes(window.location.hostname);
+}
 
 const VERIFIER_KEY = "playlist_updater.code_verifier";
 const STATE_KEY = "playlist_updater.state";
@@ -54,10 +60,13 @@ function tokenBody(params: Record<string, string>): string {
 
 /**
  * Where a token request goes: the configured proxy (which injects the
- * client secret server-side, see worker/) or SoundCloud's endpoint directly.
+ * client secret server-side, see worker/) or — for local development on a
+ * loopback origin — SoundCloud's endpoint directly.
  */
 function tokenEndpoint(config: AppConfig): string {
-  return config.tokenProxyUrl || TOKEN_URL;
+  if (config.tokenProxyUrl) return config.tokenProxyUrl;
+  if (isLocalOrigin()) return TOKEN_URL;
+  throw new Error("No token proxy configured — the Client Secret lives on the worker (see worker/). Connect again and enter its URL.");
 }
 
 /**
@@ -77,7 +86,6 @@ export async function fetchClientIdFromProxy(proxyUrl: string): Promise<string> 
 
 /** Exchange the authorization `code` for an access token. */
 export async function exchangeCode({ code, config }: { code: string; config: AppConfig }): Promise<TokenPayload> {
-  const viaProxy = Boolean(config.tokenProxyUrl);
   const params: Record<string, string> = {
     grant_type: "authorization_code",
     client_id: config.clientId,
@@ -85,9 +93,9 @@ export async function exchangeCode({ code, config }: { code: string; config: App
     code_verifier: sessionStorage.getItem(VERIFIER_KEY) ?? "",
     code,
   };
-  // Direct requests carry the secret inline (confidential client); through
-  // the proxy it is injected worker-side and never sent from the browser.
-  if (!viaProxy && config.clientSecret) params.client_secret = config.clientSecret;
+  // Only direct local requests carry the secret inline; through the proxy
+  // it is injected worker-side and never sent from the browser.
+  if (!config.tokenProxyUrl && config.clientSecret) params.client_secret = config.clientSecret;
 
   const response = await fetch(tokenEndpoint(config), {
     method: "POST",
@@ -108,13 +116,12 @@ export async function exchangeCode({ code, config }: { code: string; config: App
 
 /** Obtain a new access token from the (single-use) refresh token. */
 export async function refreshAccessToken({ refreshToken, config }: { refreshToken: string; config: AppConfig }): Promise<TokenPayload> {
-  const viaProxy = Boolean(config.tokenProxyUrl);
   const params: Record<string, string> = {
     grant_type: "refresh_token",
     client_id: config.clientId,
     refresh_token: refreshToken,
   };
-  if (!viaProxy && config.clientSecret) params.client_secret = config.clientSecret;
+  if (!config.tokenProxyUrl && config.clientSecret) params.client_secret = config.clientSecret;
 
   const response = await fetch(tokenEndpoint(config), {
     method: "POST",
