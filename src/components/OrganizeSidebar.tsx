@@ -15,6 +15,7 @@
 import { useState } from "react";
 import { useApp } from "../services/store";
 import { escapeUrl, formatCount } from "../services/util";
+import { isTouchDevice } from "./TrackRow";
 import {
   candidatePlaylists, createPlaylistFromSidebar, getSelection,
   moveTrack, onOrganizeDragLeave, onOrganizeDragOver, onOrganizeDrop,
@@ -22,8 +23,7 @@ import {
 } from "../services/organize";
 import type { Playlist } from "../services/types";
 
-/** One sidebar entry: the card is the "add" drop zone, the strip is "move". */
-function OrganizationEntry({ playlist }: { playlist: Playlist }) {
+/** One sidebar entry: the card is the "add" drop zone, the strip is "move". */function OrganizationEntry({ playlist }: { playlist: Playlist }) {
   const letter = (playlist.title ?? "?").trim().charAt(0).toUpperCase() || "♪";
   const privateBadge = playlist.sharing === "private"
     ? <span className="badge type-private">Private</span>
@@ -55,11 +55,41 @@ function OrganizationEntry({ playlist }: { playlist: Playlist }) {
   );
 }
 
+/**
+ * Collapsed state of the panel's search bar + description (persisted).
+ * Touch devices start collapsed: the panel is pinned to the screen bottom
+ * there, so every pixel of pinned space counts.
+ */
+const EXPANDED_KEY = "pu.organize.expanded";
+
+function loadExpanded(): boolean {
+  try {
+    const raw = localStorage.getItem(EXPANDED_KEY);
+    if (raw !== null) return JSON.parse(raw) === true;
+  } catch {
+    // Corrupted or unavailable storage: fall through to the default.
+  }
+  return !isTouchDevice();
+}
+
 export function OrganizeSidebar() {
   useApp(); // re-render when playlists/track counts change
   const [filter, setFilter] = useState("");
   const [selectionMode, setSelectionMode] = useState(false);
+  const [expanded, setExpanded] = useState(loadExpanded);
   const [, setSelectionCopy] = useState<Set<string> | null>(getSelection());
+
+  /** Toggle the search bar + description and remember the choice. */
+  function toggleExpanded(): void {
+    setExpanded((value) => {
+      try {
+        localStorage.setItem(EXPANDED_KEY, JSON.stringify(!value));
+      } catch {
+        // Storage unavailable: the toggle still works for this session.
+      }
+      return !value;
+    });
+  }
 
   const candidates = candidatePlaylists();
   const playlists = visiblePlaylists(filter);
@@ -76,6 +106,15 @@ export function OrganizeSidebar() {
       <div className="org-head">
         <h2 className="org-title">Reorganize</h2>
         <div className="org-head-actions">
+          <button
+            className="button button-quiet org-toggle"
+            type="button"
+            aria-expanded={expanded}
+            title={expanded ? "Hide the search bar and description" : "Show the search bar and description"}
+            onClick={toggleExpanded}
+          >
+            {expanded ? "▾" : "▸"}
+          </button>
           <button
             className="button button-quiet"
             type="button"
@@ -96,7 +135,7 @@ export function OrganizeSidebar() {
 
       {selectionMode ? (
         <>
-          <p className="muted org-help">Tick the playlists you want as drop targets in the sidebar.</p>
+          {expanded && <p className="muted org-help">Tick the playlists you want as drop targets in the sidebar.</p>}
           <div className="org-actions">
             <button
               className="button button-quiet"
@@ -135,23 +174,29 @@ export function OrganizeSidebar() {
         </>
       ) : (
         <>
-          <p className="muted org-help">
-            Drag a sound onto a playlist to add it, or onto the ⇥ strip to move it there.
-          </p>
-          <input
-            className="search org-filter"
-            type="search"
-            placeholder="Filter playlists…"
-            value={filter}
-            onChange={(event) => setFilter(event.target.value)}
-          />
+          {expanded && (
+            <p className="muted org-help">
+              Drag a sound onto a playlist to add it, or onto the ⇥ strip to move it there.
+            </p>
+          )}
+          {expanded && (
+            <input
+              className="search org-filter"
+              type="search"
+              placeholder="Filter playlists…"
+              value={filter}
+              onChange={(event) => setFilter(event.target.value)}
+            />
+          )}
           <ul id="organize-list" className="org-list">
             {playlists.length === 0 && <li className="empty-state">No playlists match.</li>}
             {playlists.map((playlist) => (
               <OrganizationEntry key={playlist.id} playlist={playlist} />
             ))}
           </ul>
-          <p className="muted org-shown">{playlists.length} of {candidates.length} playlists shown</p>
+          {expanded && (
+            <p className="muted org-shown">{playlists.length} of {candidates.length} playlists shown</p>
+          )}
         </>
       )}
     </aside>

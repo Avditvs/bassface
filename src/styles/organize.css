@@ -35,6 +35,10 @@
   gap: 6px;
 }
 
+/* Reduce/expand chevron: collapses the search bar + description to keep
+   the pinned panel compact. */
+.org-toggle { padding: 2px 8px; }
+
 .org-shown { margin: 10px 0 0; }
 
 .org-check-list {
