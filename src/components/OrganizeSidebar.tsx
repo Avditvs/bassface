@@ -15,7 +15,6 @@
 import { useState } from "react";
 import { useApp } from "../services/store";
 import { escapeUrl, formatCount } from "../services/util";
-import { isTouchDevice } from "./TrackRow";
 import {
   candidatePlaylists, createPlaylistFromSidebar, getSelection,
   moveTrack, onOrganizeDragLeave, onOrganizeDragOver, onOrganizeDrop,
@@ -57,8 +56,7 @@ import type { Playlist } from "../services/types";
 
 /**
  * Collapsed state of the panel's search bar + description (persisted).
- * Touch devices start collapsed: the panel is pinned to the screen bottom
- * there, so every pixel of pinned space counts.
+ * Expanded by default; the toggle saves the pinned-panel space on demand.
  */
 const EXPANDED_KEY = "pu.organize.expanded";
 
@@ -69,7 +67,7 @@ function loadExpanded(): boolean {
   } catch {
     // Corrupted or unavailable storage: fall through to the default.
   }
-  return !isTouchDevice();
+  return true;
 }
 
 export function OrganizeSidebar() {
@@ -113,7 +111,7 @@ export function OrganizeSidebar() {
             title={expanded ? "Hide the search bar and description" : "Show the search bar and description"}
             onClick={toggleExpanded}
           >
-            {expanded ? "▾" : "▸"}
+            {expanded ? "▾ Retract" : "▸ Expand"}
           </button>
           <button
             className="button button-quiet"

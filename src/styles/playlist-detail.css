@@ -78,11 +78,11 @@ body:has(#playlist-screen:not([hidden])) .app-footer {
     padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
     box-shadow: 0 -10px 24px rgba(0, 0, 0, 0.22); /* separate from rows behind */
   }
-  /* With the player bar: dock the panel flush on top of it — its real
-     height is measured into --player-bar-h (see PlayerBar), so the stack
-     is seamless whatever the bar actually renders to. */
+  /* With the player bar: sit 12px above it (bar floats 8px + safe area).
+     The gap is filled by main's solid backdrop — see player-bar.css — so
+     the scrolling list can never show through. */
   main:has(.player-bar) .organize {
-    bottom: calc(var(--player-bar-h, 75px) + env(safe-area-inset-bottom, 0px));
+    bottom: calc(var(--player-bar-h, 75px) + 20px + env(safe-area-inset-bottom, 0px));
   }
 
   /* Show at most 3 playlist cards; the rest scroll inside the list

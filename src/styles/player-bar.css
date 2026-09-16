@@ -160,9 +160,9 @@ body:has(.player-bar) .app-footer { display: none; }
     position: fixed;
     left: 24px; /* same insets as main's side padding */
     right: 24px;
-    bottom: 0; /* docked to the screen edge: nothing scrolls underneath */
+    bottom: calc(8px + env(safe-area-inset-bottom, 0px)); /* floats above the screen edge */
     margin-top: 0;
-    border-radius: 12px 12px 0 0;
+    border-radius: 12px;
     z-index: 3; /* above the pinned Reorganize panel */
   }
   /* Home-indicator clearance lives inside the bar, so no content can
@@ -170,11 +170,24 @@ body:has(.player-bar) .app-footer { display: none; }
   main:has(#playlist-screen:not([hidden])) .player-bar__content {
     padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
   }
+  /* Solid backdrop behind the pinned bottom stack: fills the 8px strip
+     under the bar and the 12px gap between bar and panel with the page
+     background, so scrolling rows can never show through the padding. */
+  main:has(#playlist-screen:not([hidden])):has(.player-bar)::after {
+    content: "";
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: calc(var(--player-bar-h, 75px) + 20px + env(safe-area-inset-bottom, 0px));
+    background: var(--bg);
+    z-index: 1; /* behind the pinned panel (2) and bar (3), over the rows */
+  }
   main:has(#playlist-screen:not([hidden])):has(.player-bar) {
-    /* Reserve exactly the bar's measured height (--player-bar-h, see
-       PlayerBar) so the resting Reorganize panel docks flush onto the bar
-       at the page end. */
-    padding-bottom: calc(var(--player-bar-h, 75px) + env(safe-area-inset-bottom, 0px));
+    /* Reserve the stack's exact height (bar + 12px gap, measured via
+       --player-bar-h, see PlayerBar) so the resting Reorganize panel docks
+       flush onto the pinned stack at the page end. */
+    padding-bottom: calc(var(--player-bar-h, 75px) + 20px + env(safe-area-inset-bottom, 0px));
   }
 }
 
