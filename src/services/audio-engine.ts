@@ -16,7 +16,7 @@ import { getState } from "./store";
 import {
   getAudio, previewRuntime, revokePreviewObjectUrl,
 } from "./preview-runtime";
-import type { HlsSegment, PreviewSource, Track } from "../services/types";
+import type { HlsSegment, HlsStream, PreviewSource, Track } from "../services/types";
 
 /** Cap how much audio one waveform jump may download in total (~10 min). */
 const JUMP_MAX_SEGMENTS = 60;
@@ -31,13 +31,10 @@ const JUMP_START_SEGMENTS = 2;
 /** Start extending the jump window when less audio remains than this. */
 const EXTEND_AHEAD_SEC = 30;
 
-/** MIME handed to the MediaSource for streamed jump previews. */
-const MSE_MIME = "audio/mpeg";
-
-/** Whether this browser can stream mp3 through MediaSource extensions. */
-export function mseSupported(): boolean {
+/** Whether this browser can stream `mime` through MediaSource extensions. */
+export function mseSupported(mime = "audio/mpeg"): boolean {
   try {
-    return typeof MediaSource !== "undefined" && MediaSource.isTypeSupported(MSE_MIME);
+    return typeof MediaSource !== "undefined" && MediaSource.isTypeSupported(mime);
   } catch {
     return false;
   }
@@ -159,6 +156,7 @@ async function loadStreamedJumpSource(
   last: number,
   targetSec: number,
   streamTotalSec: number,
+  mime: string,
 ): Promise<PreviewSource | null> {
   const firstEnd = Math.min(last, at.index + JUMP_START_SEGMENTS - 1);
   const { blobs, firstOk } = await fetchSegmentWindow(at.index, firstEnd, segments);
@@ -167,7 +165,7 @@ async function loadStreamedJumpSource(
   const url = URL.createObjectURL(mediaSource);
   try {
     audio.src = url;
-    const sourceBuffer = await openSourceBuffer(audio, mediaSource, MSE_MIME);
+    const sourceBuffer = await openSourceBuffer(audio, mediaSource, mime);
     // Local timeline of the streamed window: 0 = start of the first segment
     // whose content really got appended (failed ones leave a hole).
     const originSec = starts[at.index + firstOk];
@@ -228,14 +226,15 @@ export async function loadJumpSource(
     return source;
   };
 
-  let segments: HlsSegment[] | null;
+  let stream: HlsStream | null;
   try {
-    segments = await getState().api!.hlsSegments(track, { onRaw, onError });
+    stream = await getState().api!.hlsStream(track, { onRaw, onError });
   } catch (err) {
     onError?.(err);
     return fallback();
   }
-  if (!segments) return fallback();
+  if (!stream) return fallback();
+  const { segments, mime } = stream;
   const starts = segmentStarts(segments);
   // The waveform, the clicks and `track.duration` live on the track's
   // metadata timeline; the HLS stream may run slightly longer or shorter
@@ -254,8 +253,8 @@ export async function loadJumpSource(
   const last = Math.min(segments.length - 1, at.index + JUMP_MAX_SEGMENTS - 1);
 
   // Preferred path: stream the segments through a MediaSource (gapless).
-  if (mseSupported()) {
-    const streamed = await loadStreamedJumpSource(audio, segments, starts, at, last, streamSec, streamTotalSec);
+  if (mseSupported(mime)) {
+    const streamed = await loadStreamedJumpSource(audio, segments, starts, at, last, streamSec, streamTotalSec, mime);
     if (streamed) {
       dbg(`[preview] jump: streaming via MediaSource — ${JUMP_START_SEGMENTS} segments from ${(streamed.originSec ?? 0).toFixed(1)} s`);
       return streamed;
@@ -270,7 +269,7 @@ export async function loadJumpSource(
   const originSec = starts[at.index + firstOk];
   dbg(`[preview] jump: ${parts.length} segments from ${originSec.toFixed(1)} s`);
   return {
-    blob: new Blob(parts, { type: "audio/mpeg" }),
+    blob: new Blob(parts, { type: mime }),
     url: segments[at.index].url,
     kind: "full",
     seekOffset: Math.max(0, targetSec - originSec),
@@ -278,7 +277,7 @@ export async function loadJumpSource(
     streamDurationSec: streamTotalSec,
     // Bookkeeping for extendJumpWindow(): more segments stream in as the
     // playhead approaches the end of the downloaded audio.
-    jump: { segments, parts, nextIndex: windowEnd + 1, lastIndex: last },
+    jump: { segments, parts, nextIndex: windowEnd + 1, lastIndex: last, mime },
   };
 }
 
@@ -332,7 +331,7 @@ export async function extendJumpWindow(): Promise<void> {
     const resumeAt = audio.currentTime;
     const wasPlaying = getState().previewPlaying && !audio.paused;
     revokePreviewObjectUrl();
-    p.objectUrl = URL.createObjectURL(new Blob(jump.parts, { type: "audio/mpeg" }));
+    p.objectUrl = URL.createObjectURL(new Blob(jump.parts, { type: jump.mime ?? "audio/mpeg" }));
     audio.src = p.objectUrl;
     await waitForMetadata(audio);
     if (p.jump !== jump) return; // switched away during the swap

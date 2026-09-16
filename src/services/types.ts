@@ -77,6 +77,13 @@ export interface HlsSegment {
   duration: number;
 }
 
+/** A resolved HLS playlist: its segments and the codec they encode
+ *  ("audio/mpeg" for mp3 transcodes, "audio/aac" for ADTS AAC ones). */
+export interface HlsStream {
+  mime: string;
+  segments: HlsSegment[];
+}
+
 /** How a preview source was obtained. */
 export type PreviewKind = "full" | "legacy";
 
@@ -92,6 +99,9 @@ export interface JumpState {
   lastIndex: number;
   /** True when segments stream into a MediaSource (no blob hot-swap). */
   streamed?: boolean;
+  /** Codec MIME of the segments (audio/mpeg, audio/aac) — used when the
+   *  Blob path rebuilds the concatenation on extension. */
+  mime?: string;
   /** Live SourceBuffer/MediaSource of the streamed preview (null on the Blob path). */
   sourceBuffer?: SourceBuffer | null;
   mediaSource?: MediaSource | null;

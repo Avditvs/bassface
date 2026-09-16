@@ -8,12 +8,55 @@
 import { API_BASE_URL, refreshAccessToken } from "./oauth";
 import { redactSecrets } from "./util";
 import type {
-  ApiContext, HlsSegment, Playlist, PreviewKind, PreviewSource, SCUser,
+  ApiContext, HlsSegment, HlsStream, Playlist, PreviewKind, PreviewSource, SCUser,
   Streams, Track,
 } from "../services/types";
 
 /** Upper bound on HLS segments concatenated into one preview blob (~10–20 min). */
 const HLS_MAX_SEGMENTS = 120;
+
+/** A playable audio source offered by `/tracks/:id/streams` or the track's
+ *  transcodings: an HLS playlist or a direct progressive file, with the
+ *  codec its bytes encode (only mp3/aac are playable AND decodable in every
+ *  supported browser — opus/webm variants are skipped). */
+interface StreamCandidate {
+  url: string;
+  mime: string;
+  /** True when the URL is a progressive file (one request, whole track);
+   *  false when it is an HLS playlist to fetch segment by segment. */
+  direct: boolean;
+}
+
+/** Codec MIME for a transcode name/mime-type, or "" when unsupported. */
+function codecMime(name: string): string {
+  if (name.includes("mp3") || name.includes("mpeg")) return "audio/mpeg";
+  if (name.includes("aac")) return "audio/aac";
+  return ""; // opus/webm variants: skip (no reliable element/MSE playback)
+}
+
+/**
+ * Playable audio sources of a `/streams` response, mp3 before aac and HLS
+ * before direct within a codec (mp3 HLS, mp3 direct, aac HLS, aac direct).
+ * Scanned generically over all `*_url` fields: SoundCloud adds transcode
+ * tiers (e.g. `hls_aac_160_url`) without notice, and some tracks expose
+ * only the AAC ones.
+ */
+function streamCandidates(streams: Streams): StreamCandidate[] {
+  return Object.entries(streams)
+    .filter(([key, value]) => typeof value === "string" && value.trim()
+      && /^(hls|http)_(mp3|aac)_/.test(key) && key.endsWith("_url"))
+    .map(([key, value]) => ({
+      key,
+      url: (value as string).trim(),
+      mime: codecMime(key),
+      direct: key.startsWith("http_"),
+    }))
+    // HLS before direct (bounded download), mp3 before aac (universally
+    // playable/decodable).
+    .sort((a, b) => (a.direct ? 1 : 0) - (b.direct ? 1 : 0)
+      || (a.key.includes("_mp3") ? 0 : 1) - (b.key.includes("_mp3") ? 0 : 1))
+    .map(({ url, mime, direct }) => ({ url, mime, direct }));
+}
 
 /**
  * Whether a failed response is SoundCloud's rate limit (HTTP 429, or the
@@ -210,12 +253,17 @@ export class SoundCloudApi {
 
   /**
    * Resolve + download a playable preview source for a track, always the
-   * full-length audio (the ~30 s `preview_mp3_128_url` snippet is never
-   * used, whatever the preview mode):
-   *   1. full-length mp3 via the HLS playlist (`hls_mp3_128_url`) — segments
-   *      are fetched with auth and concatenated into one Blob,
-   *   2. full-length mp3 from `/tracks/:id/streams` (`http_mp3_128_url`),
-   *   3. legacy `stream_url` / first progressive transcoding URL (no Blob —
+   * full-length audio when one exists:
+   *   1. full-length sources from `/tracks/:id/streams` — scanned generically
+   *      over all `hls_*` / `http_*` mp3 & aac fields (mp3 preferred, then
+   *      aac: newer tracks sometimes only expose AAC HLS),
+   *   2. full-length audio via the track's HLS transcodings (`media
+   *      .transcodings` with `protocol: "hls"` — what the SoundCloud web
+   *      player resolves itself; some tracks expose no `/streams` fields at
+   *      all),
+   *   3. the ~30 s `preview_mp3_128_url` snippet — last resort for tracks
+   *      that expose no full-length source at all (`complete: false`),
+   *   4. legacy `stream_url` / first progressive transcoding URL (no Blob —
    *      played directly, may fail when it still requires auth).
    *
    * Every `/streams` URL lives on api.soundcloud.com and still requires the
@@ -223,7 +271,7 @@ export class SoundCloudApi {
    * `<audio src>` — hence the Blob downloads.
    *
    * Returns `{ blob, url, kind }` (`kind`: "full" | "legacy") or null when
-   * no progressive stream is exposed (e.g. HLS-AAC-only tracks).
+   * no playable source is exposed.
    */
   async previewSource(
     track: Track,
@@ -235,29 +283,42 @@ export class SoundCloudApi {
     try {
       const streams: Streams = await this.request(`/tracks/${encodeURIComponent(track.id)}/streams`);
       if (onRaw) onRaw(streams);
-      // Full-length sources only, HLS preferred over the direct mp3.
-      const candidates: [keyof Streams, boolean][] = [
-        ["hls_mp3_128_url", false],
-        ["http_mp3_128_url", true],
-      ];
-      for (const [key, direct] of candidates) {
-        const value = streams[key];
-        if (typeof value !== "string" || !value.trim()) continue;
-        const url = value.trim();
+      for (const candidate of streamCandidates(streams)) {
         try {
-          if (direct) {
-            const blob = await this.fetchAudioBlob(url);
-            // A direct mp3 (or the untruncated HLS playlist, below) is the
-            // whole track, so a jump preview can simply seek inside the Blob.
-            return { blob, url, kind: "full", complete: true };
+          if (candidate.direct) {
+            const blob = await this.fetchAudioBlob(candidate.url);
+            // A direct file is the whole track, so a jump preview can simply
+            // seek inside the Blob.
+            return { blob, url: candidate.url, kind: "full", complete: true };
           }
-          const { blob, complete } = await this.fetchHls(url);
-          return { blob, url, kind: "full", complete };
+          const { blob, complete } = await this.fetchHls(candidate.url, candidate.mime);
+          return { blob, url: candidate.url, kind: "full", complete };
         } catch (err) {
-          SoundCloudApi.logger?.(`[api] ${String(key)} download failed: ${err.message}`);
+          SoundCloudApi.logger?.(`[api] stream candidate failed: ${err.message}`);
         }
       }
-      return null; // no progressive variant offered (incl. HLS-AAC-only tracks)
+      // No usable /streams entry: resolve the track's own HLS transcodings.
+      for (const resolved of await this.resolveHlsTranscodings(track)) {
+        try {
+          const { blob, complete } = await this.fetchHls(resolved.m3u8, resolved.mime);
+          return { blob, url: resolved.m3u8, kind: "full", complete };
+        } catch (err) {
+          SoundCloudApi.logger?.(`[api] hls transcoding download failed: ${err.message}`);
+        }
+      }
+      // Last resort: the ~30 s preview snippet — the only thing some tracks
+      // expose. complete:false marks it as not covering the whole track.
+      const previewUrl = typeof streams.preview_mp3_128_url === "string" ? streams.preview_mp3_128_url.trim() : "";
+      if (previewUrl) {
+        try {
+          const blob = await this.fetchAudioBlob(previewUrl);
+          SoundCloudApi.logger?.(`[api] no full-length source — falling back to the ~30 s preview snippet`);
+          return { blob, url: previewUrl, kind: "full", complete: false };
+        } catch (err) {
+          SoundCloudApi.logger?.(`[api] preview snippet download failed: ${err.message}`);
+        }
+      }
+      return null; // no playable source exposed
     } catch (err) {
       if (onError) onError(err);
       /* fall through to the embedded stream_url / transcoding approach */
@@ -321,12 +382,12 @@ export class SoundCloudApi {
   }
 
   /**
-   * Download an HLS mp3 playlist and return its audio as one playable Blob.
+   * Download an HLS playlist and return its audio as one playable Blob.
    * Playlists longer than {@link HLS_MAX_SEGMENTS} are truncated to segments
    * taken from the middle, keeping the download bounded — `complete` reports
    * whether the Blob covers the whole track from position 0.
    */
-  async fetchHls(m3u8Url: string): Promise<{ blob: Blob; complete: boolean }> {
+  async fetchHls(m3u8Url: string, mime = "audio/mpeg"): Promise<{ blob: Blob; complete: boolean }> {
     const response = await this.fetchAuthed(m3u8Url);
     if (!response.ok) {
       throw new Error(`SoundCloud HLS error (${response.status})`);
@@ -351,37 +412,83 @@ export class SoundCloudApi {
     for (const segment of chosen) {
       parts.push(await this.fetchAudioBlob(new URL(segment, base).toString()));
     }
-    return { blob: new Blob(parts, { type: "audio/mpeg" }), complete };
+    return { blob: new Blob(parts, { type: mime }), complete };
   }
 
   /**
-   * Segment list of the track's HLS mp3 playlist: `[{url, duration}]`, in
-   * order (cumulative start times follow from the durations). Returns null
-   * when the track exposes no `hls_mp3_128_url` — callers fall back to the
+   * The track's HLS transcodings (the URLs the SoundCloud web player itself
+   * resolves), resolved to actual m3u8 playlists, mp3 preferred over aac.
+   * Each transcoding URL is an api.soundcloud.com endpoint returning
+   * `{ url: "<m3u8>" }`. Unusable codecs (opus/webm) are skipped.
+   */
+  private async resolveHlsTranscodings(track: Track): Promise<{ m3u8: string; mime: string }[]> {
+    const ordered = (track.media?.transcodings ?? [])
+      .filter((t) => t.format?.protocol === "hls" && typeof t.url === "string" && t.url.trim())
+      .map((t) => ({ url: t.url!.trim(), mime: codecMime(t.format?.mime_type ?? "") }))
+      .filter((t) => t.mime)
+      .sort((a, b) => (a.mime === "audio/mpeg" ? 0 : 1) - (b.mime === "audio/mpeg" ? 0 : 1));
+    const resolved: { m3u8: string; mime: string }[] = [];
+    for (const transcoding of ordered) {
+      try {
+        const json = await this.request(transcoding.url);
+        if (typeof json?.url === "string" && json.url.trim()) {
+          resolved.push({ m3u8: json.url.trim(), mime: transcoding.mime });
+        }
+      } catch (err) {
+        SoundCloudApi.logger?.(`[api] hls transcoding resolve failed: ${err.message}`);
+      }
+    }
+    return resolved;
+  }
+
+  /**
+   * Segment list of the track's best HLS audio playlist: the mp3 transcode
+   * when offered, the AAC one otherwise, and finally the track's HLS
+   * transcodings when `/streams` exposes no playlist at all. Returns null
+   * when no playable HLS playlist exists — callers fall back to the
    * progressive sources.
    */
-  async hlsSegments(
+  async hlsStream(
     track: Track,
     { onRaw = null, onError = null }: {
       onRaw?: ((streams: Streams) => void) | null;
       onError?: ((err: unknown) => void) | null;
     } = {},
-  ): Promise<HlsSegment[] | null> {
-    let streams: Streams;
+  ): Promise<HlsStream | null> {
     try {
-      streams = await this.request(`/tracks/${encodeURIComponent(track.id)}/streams`);
+      const streams: Streams = await this.request(`/tracks/${encodeURIComponent(track.id)}/streams`);
       if (onRaw) onRaw(streams);
+      for (const candidate of streamCandidates(streams).filter((c) => !c.direct)) {
+        try {
+          const stream = await this.fetchM3u8(candidate.url, candidate.mime);
+          if (stream) return stream;
+        } catch (err) {
+          SoundCloudApi.logger?.(`[api] hls playlist ${candidate.url} failed: ${err.message}`);
+        }
+      }
     } catch (err) {
       if (onError) onError(err);
-      return null;
+      /* fall through to the transcodings */
     }
-    const m3u8 = streams.hls_mp3_128_url;
-    if (typeof m3u8 !== "string" || !m3u8.trim()) return null;
-    const response = await this.fetchAuthed(m3u8.trim());
+    for (const resolved of await this.resolveHlsTranscodings(track)) {
+      try {
+        const stream = await this.fetchM3u8(resolved.m3u8, resolved.mime);
+        if (stream) return stream;
+      } catch (err) {
+        SoundCloudApi.logger?.(`[api] hls transcoding playlist failed: ${err.message}`);
+      }
+    }
+    return null;
+  }
+
+  /** Fetch an HLS playlist and parse its segments with their durations.
+   *  Returns null when the playlist contains no segments. */
+  private async fetchM3u8(m3u8Url: string, mime: string): Promise<HlsStream | null> {
+    const response = await this.fetchAuthed(m3u8Url);
     if (!response.ok) {
       throw new Error(`SoundCloud HLS error (${response.status})`);
     }
-    const base = new URL(response.url || m3u8);
+    const base = new URL(response.url || m3u8Url);
     const segments: HlsSegment[] = [];
     let duration: number | null = null;
     for (const line of (await response.text()).split("\n")) {
@@ -393,7 +500,7 @@ export class SoundCloudApi {
         duration = null;
       }
     }
-    return segments.length > 0 ? segments : null;
+    return segments.length > 0 ? { mime, segments } : null;
   }
 
   /** One HLS segment, authenticated, as a Blob. */

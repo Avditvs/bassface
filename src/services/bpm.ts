@@ -13,6 +13,9 @@
  * segment's envelope is computed over lags of 60–200 BPM and the segments'
  * autocorrelations averaged (segments are not contiguous, so their envelopes
  * are never concatenated — that would fake periodicities at the seams).
+ * Tracks without an HLS mp3 stream are analyzed the same way from evenly
+ * spread windows of the whole-track source playback falls back to (see
+ * services/analysis-source.ts).
  *
  * The lag with the strongest autocorrelation wins, refined by parabolic
  * interpolation for sub-frame precision, then folded into the DJ-friendly
@@ -25,18 +28,15 @@ import { dbg } from "./debug";
 import { BpmStore } from "./config";
 import { getState, runtime, setState, showStatus } from "./store";
 import { loadAllTracks } from "./tracks";
-import { decodeMono, decimate2, fetchSegmentBlob, fftRealMag, hannWindow } from "./audio";
+import { decimate2, fftRealMag, hannWindow } from "./audio";
+import { ANALYSIS_DECODE_RATE, loadHlsStream, segmentMono, wholeTrackWindows } from "./analysis-source";
 import { ensureWaveformBars } from "./waveform";
 import type { BpmAnalysis, HlsSegment, Track } from "../services/types";
-
-/** Decode rate of the fetched segments — the same rate the chroma analyzer
- *  uses, so both tools share the cached segment blobs and decodings. */
-const DECODE_RATE = 44100;
 
 /** Tempo analysis runs on a 2× decimated signal: FFT 1024 at 22.05 kHz gives
  *  the same ~43 fps frame rate librosa defaults to, at a quarter of the
  *  44.1 kHz FFT cost — periodicity needs no wide bandwidth. */
-const ANALYSIS_RATE = DECODE_RATE / 2;
+const ANALYSIS_RATE = ANALYSIS_DECODE_RATE / 2;
 
 /** FFT window length — sets the time resolution of the onset frames. */
 const FFT_SIZE = 1024;
@@ -257,25 +257,34 @@ function yieldToUi(): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, 0));
 }
 
-/** BPM analysis of a track, sampling its most intense passages. */
+/** BPM analysis of a track, sampling its most intense passages (whole-track
+ *  source windows when no HLS mp3 stream exists, picked with the same
+ *  intensity logic). */
 export async function analyzeBpm(track: Track): Promise<BpmAnalysis> {
-  const api = getState().api!;
-  const segments = await api.hlsSegments(track);
-  if (!segments) throw new Error("this track exposes no HLS mp3 stream to analyze");
-  const chosen = await pickIntenseSegments(track, segments);
-  // Cached across the chroma analyzer: segments the key tool already fetched
-  // and decoded cost no network and no decode here (and vice versa).
-  const decoded = await Promise.all(chosen.map(async (index) => {
-    const segment = segments[index];
-    const blob = await fetchSegmentBlob((url) => api.fetchSegment(url), segment.url);
-    return decodeMono(blob, segment.url, DECODE_RATE);
-  }));
+  const stream = await loadHlsStream(track);
+  let decoded;
+  let chosen: number[];
+  if (stream) {
+    chosen = await pickIntenseSegments(track, stream.segments);
+    // Cached across the chroma analyzer: segments the key tool already fetched
+    // and decoded cost no network and no decode here (and vice versa).
+    decoded = await Promise.all(chosen.map((index) => segmentMono(stream.segments, index)));
+  } else {
+    dbg(`[bpm] track ${track.id}: no HLS mp3 stream — falling back to whole-track windows`);
+    const windows = await wholeTrackWindows(track);
+    // The same intensity picker over the spread windows (pseudo-segments:
+    // url is only a cache key, duration drives the waveform mapping).
+    const pseudo: HlsSegment[] = windows.map((w, i) => ({ url: `window-${i}`, duration: w.duration }));
+    chosen = await pickIntenseSegments(track, pseudo);
+    decoded = chosen.map((index) => windows[index]);
+  }
   const totalSec = decoded.reduce((sum, d) => sum + d.duration, 0);
 
   // One normalized autocorrelation per segment, then per-lag weighted
   // average — a segment where the beat drops out contributes nothing instead
   // of injecting a fake period. All decoded buffers share the same sample
-  // rate (decodeMono resamples to DECODE_RATE), so integer lags align.
+  // rate (the shared decodeMono resamples to ANALYSIS_DECODE_RATE), so
+  // integer lags align.
   const { minLag, maxLag } = lagRange(FRAME_RATE);
   const scores = new Float64Array(maxLag + 1);
   const weights = new Float64Array(maxLag + 1);

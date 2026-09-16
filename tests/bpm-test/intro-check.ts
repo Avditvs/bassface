@@ -42,7 +42,7 @@ for (let b = 60; b < 100; b += 1) bars[b] = 1.0;
 
 const segments = Array.from({ length: 10 }, (_, i) => ({ url: `intro-${i}`, duration: 3 }));
 (getState() as any).api = {
-  async hlsSegments() { return segments; },
+  async hlsStream() { return { mime: "audio/mpeg", segments }; },
   async fetchSegment() { return new Blob([makeIntroTrackWav(128)], { type: "audio/wav" }); },
   async waveformSamples() { return bars; },
 };

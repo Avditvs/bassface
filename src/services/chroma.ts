@@ -7,7 +7,9 @@
  * into ~4 s chunks, and every chunk into overlapping 8192-sample Hann
  * windows mapped onto the 12 pitch classes (chroma vectors). Silent chunks
  * are dropped, the chunk vectors averaged, and the best Krumhansl–Kessler
- * major/minor profile correlation names the key.
+ * major/minor profile correlation names the key. Tracks without an HLS mp3
+ * stream are analyzed from evenly spread windows of the whole-track source
+ * playback falls back to (see services/analysis-source.ts).
  *
  * 8192 samples at 44.1 kHz give ~5.4 Hz frequency resolution — enough to
  * separate neighbouring semitones down to ~C2, which shorter windows cannot
@@ -18,7 +20,8 @@ import { dbg } from "./debug";
 import { ChromaStore } from "./config";
 import { getState, runtime, setState, showStatus } from "./store";
 import { loadAllTracks } from "./tracks";
-import { decodeMono, fetchSegmentBlob, fftRealMag, hannWindow } from "./audio";
+import { fftRealMag, hannWindow } from "./audio";
+import { ANALYSIS_DECODE_RATE, loadHlsStream, segmentMono, wholeTrackWindows } from "./analysis-source";
 import type { ChromaAnalysis, HlsSegment, Track } from "../services/types";
 
 /** FFT window length — sets the frequency resolution (~5.4 Hz @ 44.1 kHz). */
@@ -193,29 +196,29 @@ function pickSegments(segments: HlsSegment[]): number[] {
   return [...new Set(indexes)];
 }
 
-/** Decode rate of the fetched segments — shared with the BPM analyzer so
- *  both tools reuse the same cached segment blobs and decodings. */
-const DECODE_RATE = 44100;
-
-/** Chroma analysis of a track from segments spread across its whole length. */
+/** Chroma analysis of a track from segments spread across its whole length
+ *  (whole-track source windows when no HLS mp3 stream exists). */
 export async function analyzeChroma(track: Track): Promise<ChromaAnalysis> {
-  const api = getState().api!;
-  const segments = await api.hlsSegments(track);
-  if (!segments) throw new Error("this track exposes no HLS mp3 stream to analyze");
-  const chosen = pickSegments(segments);
-  // Cached across the BPM analyzer: segments the tempo tool already fetched
-  // and decoded cost no network and no decode here (and vice versa).
-  const decoded = await Promise.all(chosen.map(async (index) => {
-    const segment = segments[index];
-    const blob = await fetchSegmentBlob((url) => api.fetchSegment(url), segment.url);
-    return decodeMono(blob, segment.url, DECODE_RATE);
-  }));
+  const stream = await loadHlsStream(track);
+  let decoded;
+  let usedSegments: number;
+  if (stream) {
+    const chosen = pickSegments(stream.segments);
+    usedSegments = chosen.length;
+    // Cached across the BPM analyzer: segments the tempo tool already fetched
+    // and decoded cost no network and no decode here (and vice versa).
+    decoded = await Promise.all(chosen.map((index) => segmentMono(stream.segments, index)));
+  } else {
+    dbg(`[chroma] track ${track.id}: no HLS mp3 stream — falling back to whole-track windows`);
+    decoded = await wholeTrackWindows(track);
+    usedSegments = decoded.length;
+  }
   const window = hannWindow(FFT_SIZE);
   const totalSec = decoded.reduce((sum, d) => sum + d.duration, 0);
   // Per-chunk chroma vectors from every segment, equally weighted (a segment
   // with more kept chunks doesn't dominate the estimate).
   const chunkVectors: number[][] = [];
-  const classes = binPitchClasses(DECODE_RATE);
+  const classes = binPitchClasses(ANALYSIS_DECODE_RATE);
   for (const { samples, sampleRate } of decoded) {
     chunkVectors.push(...chunkChromas(samples, sampleRate, classes, window));
   }
@@ -227,12 +230,12 @@ export async function analyzeChroma(track: Track): Promise<ChromaAnalysis> {
   const norm = Math.hypot(...chroma) || 1;
   const normalized = chroma.map((v) => v / norm);
   const key = estimateKey(normalized);
-  dbg(`[chroma] track ${track.id}: ${chosen.length} segment(s), ${chunkVectors.length} chunk(s), `
+  dbg(`[chroma] track ${track.id}: ${usedSegments} source window(s), ${chunkVectors.length} chunk(s), `
     + `${totalSec.toFixed(1)} s — chroma ` + normalized.map((v) => v.toFixed(3)).join(","));
   return {
     chroma: normalized, ...key,
     chunks: chunkVectors.length,
-    analyzedSec: totalSec, segmentsUsed: chosen.length,
+    analyzedSec: totalSec, segmentsUsed: usedSegments,
   };
 }
 

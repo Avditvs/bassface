@@ -119,8 +119,10 @@ export function fftRealMag(
   }
 }
 
-/** Decode every blob in parallel to an AudioBuffer at `sampleRate`
- *  (no user gesture needed). */
+/**
+ * Decode every blob in parallel to an AudioBuffer at `sampleRate`
+ * (no user gesture needed).
+ */
 async function decodeBlobs(blobs: Blob[], sampleRate = 44100): Promise<AudioBuffer[]> {
   // OfflineAudioContext decodes + resamples to a known rate without an
   // autoplay-policy warning; a real AudioContext would start suspended.
@@ -182,6 +184,60 @@ export async function decodeMono(blob: Blob, url: string, sampleRate: number): P
   evictOldest(monoCache, MONO_CACHE_MAX);
   monoCache.set(key, decoded);
   return decoded;
+}
+
+/** Floor for short sources split into equal analysis windows (seconds). */
+const MIN_WINDOW_SEC = 5;
+
+/**
+ * Slice a whole-track mono buffer into `count` analysis windows. Long tracks
+ * get `count` windows of `windowSec` seconds spread evenly (centres at
+ * (i+1)/(count+1) of the timeline, so the quiet lead-in/outro stay clear).
+ * Shorter sources (e.g. the ~30 s preview snippet) are split into
+ * non-overlapping equal windows covering them entirely, keeping each window
+ * at least MIN_WINDOW_SEC long. Windows are copies, so the decoded parent
+ * can be released once the slices are cached.
+ */
+export function sliceAnalysisWindows(mono: DecodedMono, count: number, windowSec: number): DecodedMono[] {
+  const maxWindowLen = Math.round(windowSec * mono.sampleRate);
+  if (mono.samples.length <= maxWindowLen) return [mono];
+  if (mono.samples.length <= count * maxWindowLen) {
+    const minLen = Math.round(MIN_WINDOW_SEC * mono.sampleRate);
+    const n = Math.max(1, Math.min(count, Math.floor(mono.samples.length / minLen)));
+    const len = Math.floor(mono.samples.length / n);
+    const windows: DecodedMono[] = [];
+    for (let i = 0; i < n; i += 1) {
+      windows.push({
+        samples: mono.samples.slice(i * len, (i + 1) * len),
+        sampleRate: mono.sampleRate,
+        duration: len / mono.sampleRate,
+      });
+    }
+    return windows;
+  }
+  const windowLen = maxWindowLen;
+  const windows: DecodedMono[] = [];
+  for (let i = 0; i < count; i += 1) {
+    const center = ((i + 1) / (count + 1)) * mono.samples.length;
+    const start = Math.max(0, Math.min(mono.samples.length - windowLen, Math.round(center - windowLen / 2)));
+    windows.push({
+      samples: mono.samples.slice(start, start + windowLen),
+      sampleRate: mono.sampleRate,
+      duration: windowLen / mono.sampleRate,
+    });
+  }
+  return windows;
+}
+
+/** Decode a single blob to an AudioBuffer at `sampleRate` (no caching —
+ *  callers decide what to keep; used for whole-track fallback decodes). */
+export async function decodeBlobMono(blob: Blob, sampleRate = 44100): Promise<DecodedMono> {
+  const buffer = (await decodeBlobs([blob], sampleRate))[0];
+  return {
+    samples: monoMixdown(buffer),
+    sampleRate: buffer.sampleRate,
+    duration: buffer.duration,
+  };
 }
 
 /** Halve the sample rate by averaging adjacent samples (cheap anti-aliasing
