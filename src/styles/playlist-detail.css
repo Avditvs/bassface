@@ -125,8 +125,10 @@ body:has(#playlist-screen:not([hidden])) .app-footer {
   .playlist-header-art { width: 120px; height: 120px; }
 
   /* Phones: the remove drop zone is out of reach (HTML5 drag & drop does
-     not work from a touch screen) — the swipe-left gesture replaces it. */
-  .remove-panel { display: none; }
+     not work from a touch screen) — the swipe-left gesture replaces it.
+     The #id prefix outranks the base .remove-panel rule that follows this
+     query in the file. */
+  #playlist-screen .remove-panel { display: none; }
 
   .organize { padding: 12px; }
   .org-drop { min-height: 64px; padding: 10px; }
