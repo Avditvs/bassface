@@ -144,10 +144,8 @@ audio element:
 
 - **▶ (from the start)** — resolves `previewSource()`; a Blob plays via an
   object URL, a legacy URL plays directly.
-- **⏫ (jump to the loudest part)** — the SoundCloud waveform
-  (miniature PNG, parsed in `waveform.ts` into bars) is scanned for the
-  RMS-peak bar, mapped onto the HLS timeline; playback streams from that
-  segment:
+- **Waveform click** — jumps into the track at the clicked position,
+  streaming from that segment:
   - **MediaSource path** (preferred when the codec is supported): the first
     2 segments are appended to a `SourceBuffer`, playback starts
     immediately, and `extendJumpWindow()` keeps appending ahead of the
@@ -155,7 +153,6 @@ audio element:
   - **Blob path** (Safari/older browsers): the window's segments are
     concatenated into a Blob; on extension the object URL is hot-swapped
     under a paused, resumed playhead.
-- **Waveform click** — seeks inside the same machinery.
 
 The codec MIME (`audio/mpeg` for mp3 transcodes, `audio/aac` for ADTS AAC)
 flows from the source resolution into MediaSource, Blob types and the

@@ -62,9 +62,10 @@ Then open <http://127.0.0.1:8080/>, paste your Client ID (and secret if you
 registered one) and click **Connect with SoundCloud**. After authorizing you
 are redirected back and your playlists are listed with search / type filter /
 sorting. Click a card (or its **View tracks** button) to open the playlist and
-browse the sounds it contains — each row has two buttons: **▶** plays the
-track from the start and **⏫** jumps straight to its loudest part (computed
-in-browser with an RMS scan). When SoundCloud exposes a full-length source
+browse the sounds it contains — each row has a **▶** button that plays the
+track from the start, a **♪** button that analyzes its BPM and key in the
+browser (see Features below), and a **waveform you can click** to jump
+into the track at any position. When SoundCloud exposes a full-length source
 (an mp3 **or AAC** HLS playlist or direct file — HLS playlists are reassembled
 in the browser, and tracks whose `/streams` response has no entries are
 resolved through their HLS transcodings), the whole track plays; tracks that
@@ -141,8 +142,8 @@ src/
     tracks.ts           – open playlist, track pagination (infinite scroll)
     preview.ts          – preview playback controller (buttons, audio element)
     preview-runtime.ts  – shared <audio> element + non-reactive preview fields
-    audio-engine.ts     – audio source resolution: waveform-guided peak seek,
-                          HLS reassembly + MediaSource streaming (mp3 & AAC)
+    audio-engine.ts     – audio source resolution for previews and waveform
+                          jumps: HLS reassembly + MediaSource streaming (mp3 & AAC)
     analysis-source.ts  – shared audio loader for the in-browser analyzers:
                           HLS segments, or windows sliced from the whole-track
                           source when the track exposes no HLS playlist
@@ -188,7 +189,7 @@ fed by a single store snapshot (`useSyncExternalStore`).
   full track when SoundCloud exposes one (mp3 or AAC HLS — reassembled —
   or a direct progressive file; tracks with empty `/streams` are resolved
   through their HLS transcodings), ~30 s snippet as last resort; ▶ plays
-  from the start, ⏫ jumps to the loudest part, and the waveform is clickable
+  from the start and the waveform is clickable to jump into the track
 - **Reorganize** mode: drag & drop tracks onto your other playlists to copy
   them there (drop on a card) or move them (drop on the far-right ⇥ strip,
   which also removes them from the open playlist) — all via read-modify-write
