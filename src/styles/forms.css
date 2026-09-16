@@ -50,6 +50,19 @@ input:focus, select:focus { border-color: var(--accent); }
 
 .button-quiet { font-size: 0.82rem; padding: 6px 12px; color: var(--muted); }
 
+/* Touch devices: iOS Safari auto-zooms the page when focusing a control
+   whose font-size is under 16px, leaving it zoomed until the user pinches
+   out. 16px keeps inputs legible and the layout at its natural scale.
+   Mouse users (laptops) keep the smaller sizes above. */
+@media (pointer: coarse) {
+  input[type="text"],
+  input[type="password"],
+  input[type="search"],
+  select {
+    font-size: 16px;
+  }
+}
+
 /* Toolbar analyze-all button while the batch runs (spinner + stop label). */
 .button.is-loading {
   color: var(--accent);
