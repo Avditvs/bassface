@@ -115,15 +115,15 @@ body:has(#playlist-screen:not([hidden])) .app-footer {
   /* Stacked panels sit closer together than the desktop columns. */
   #playlist-screen:not([hidden]) .playlist-columns { gap: 14px; }
 
-  /* Playlist header stacks: art above the text instead of side by side. */
+  /* Playlist header stays side by side on phones: the artwork shrinks so
+     the title/description have room on its right. */
   .playlist-header {
-    flex-direction: column;
-    align-items: stretch;
+    align-items: center;
     gap: 14px;
     padding: 16px;
     margin-top: 10px;
   }
-  .playlist-header-art { width: 120px; height: 120px; }
+  .playlist-header-art { width: 96px; height: 96px; }
 
   /* Phones: the remove drop zone is out of reach (HTML5 drag & drop does
      not work from a touch screen) — the swipe-left gesture replaces it.
