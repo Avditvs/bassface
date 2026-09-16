@@ -95,11 +95,12 @@ browser ◀── tokens
 Deploy once (`cd worker && npm install && npx wrangler login`, set the secret
 with `npx wrangler secret put SOUNDCLOUD_CLIENT_SECRET`, fill in
 `SOUNDCLOUD_CLIENT_ID` + `ALLOWED_ORIGINS` in `wrangler.toml`, then `npm run
-deploy` — full steps in [worker/README.md](worker/README.md)), then paste the
-worker URL into the **Token proxy URL** field of the connect screen — it is
-the only thing to configure there. The proxy serves the (public) Client ID
-to the app and injects the secret server-side. Code exchange and token
-refresh now flow through the proxy; the secret never reaches the browser,
+deploy` — full steps in [worker/README.md](worker/README.md)). The worker
+URL is already built into the app (`CONFIG_DEFAULTS.tokenProxyUrl` in
+`src/services/config.ts`), so the connect screen has nothing to configure:
+just click **Connect with SoundCloud**. The proxy serves the (public)
+Client ID to the app and injects the secret server-side. Code exchange and
+token refresh flow through the proxy; the secret never reaches the browser,
 the bundle, or the repo. Everything else stays purely static. (Exception:
 when served from a loopback origin — `localhost`/`127.0.0.1` — the connect
 screen offers a local development mode where credentials can be entered

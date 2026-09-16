@@ -51,11 +51,11 @@ browser ◀── tokens
    The worker URL looks like
    `https://soundcloud-token-proxy.<your-subdomain>.workers.dev`.
 
-5. **Point the app at it**: in Bassface's connect screen, paste the worker
-   URL into the **Token proxy URL** field — that is the only thing to
-   configure. The Client ID is fetched from the proxy at connect time
-   (requires `SOUNDCLOUD_CLIENT_ID` on the worker), and the secret is
-   injected by it. Token exchange and refresh now go through the proxy.
+5. **Point the app at it**: the Bassface build already contains the worker
+   URL (`CONFIG_DEFAULTS.tokenProxyUrl` in `src/services/config.ts`) — on
+   the deployed site, just click **Connect with SoundCloud**. The Client ID
+   is fetched from the proxy at connect time (requires
+   `SOUNDCLOUD_CLIENT_ID` on the worker), and the secret is injected by it.
 
 ## Local development
 

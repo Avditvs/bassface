@@ -15,7 +15,9 @@ const CONFIG_DEFAULTS = {
   clientId: "",
   clientSecret: "",
   redirectUri: "",
-  tokenProxyUrl: "",
+  /** Static token proxy (Cloudflare Worker, see worker/). Same for every
+   * deployment — not configurable in the UI. */
+  tokenProxyUrl: "https://soundcloud-token-proxy.louis-germain.fr",
 };
 
 function readJson(key: string): any {
@@ -54,7 +56,7 @@ export class AppConfig {
     config.clientId = stored.clientId ?? CONFIG_DEFAULTS.clientId;
     config.clientSecret = stored.clientSecret ?? CONFIG_DEFAULTS.clientSecret;
     config.redirectUri = stored.redirectUri ?? CONFIG_DEFAULTS.redirectUri;
-    config.tokenProxyUrl = stored.tokenProxyUrl ?? CONFIG_DEFAULTS.tokenProxyUrl;
+    config.tokenProxyUrl = stored.tokenProxyUrl || CONFIG_DEFAULTS.tokenProxyUrl;
     return config;
   }
 
