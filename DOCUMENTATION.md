@@ -1,6 +1,6 @@
-# BassFace / Playlist Updater — Technical Documentation
+# Bassface — Technical Documentation
 
-Full technical reference for the Playlist Updater frontend: a backend-free
+Full technical reference for the Bassface frontend: a backend-free
 web app (TypeScript + React + Vite) that connects to the SoundCloud API
 entirely from the browser, lists your playlists, plays full-length previews
 and estimates the **musical key** and **BPM** of each track in-browser.

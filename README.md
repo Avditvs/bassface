@@ -1,4 +1,4 @@
-# Playlist Updater (frontend)
+# Bassface (frontend)
 
 A small, backend-free web app that connects to **SoundCloud** through the
 [official API](https://developers.soundcloud.com/docs/api/guide), lists your
@@ -99,7 +99,7 @@ playlist). A **+ New** button in the sidebar creates an empty playlist.
   be kept secret: only run this app from a trusted origin, and sign out when
   done on a shared machine.
 
-> **Playlist Updater** stores your credentials and OAuth tokens in
+> **Bassface** stores your credentials and OAuth tokens in
 > `localStorage` of your own browser. They never leave your machine. This is a
 > personal tool — the Client Secret (if provided) is only sent to
 > SoundCloud's token endpoint, but be aware that anything embedded in a

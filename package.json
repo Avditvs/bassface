@@ -1,12 +1,12 @@
 {
-  "name": "playlist-updater",
+  "name": "bassface",
   "version": "2.0.0",
   "private": true,
   "type": "module",
   "engines": {
     "node": ">=24"
   },
-  "description": "Backend-free SoundCloud playlist manager (OAuth 2.1 + PKCE, React client)",
+  "description": "Bassface — backend-free SoundCloud playlist manager (OAuth 2.1 + PKCE, React client)",
   "scripts": {
     "typecheck": "tsc --noEmit",
     "build": "vite build",

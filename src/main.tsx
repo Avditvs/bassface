@@ -1,5 +1,5 @@
 /**
- * Playlist Updater — entry point.
+ * Bassface — entry point.
  * Connects to SoundCloud (OAuth 2.1 + PKCE, all client-side) and lists
  * the authenticated user's playlists.
  *
