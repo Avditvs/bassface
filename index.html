@@ -4,9 +4,10 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <!-- Restrict what the page may load/execute: contains the blast radius of
-       any future injection bug. soundcloud hosts + blob: (audio blobs) only. -->
+       any future injection bug. soundcloud hosts + blob: (audio blobs) only,
+       plus workers.dev and our token proxy domain (see worker/). -->
   <meta http-equiv="Content-Security-Policy"
-        content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' https://*.soundcloud.com https://*.sndcdn.com data:; media-src 'self' blob:; connect-src 'self' https://*.soundcloud.com https://*.sndcdn.com; frame-ancestors 'none'; base-uri 'none'; form-action 'none'" />
+        content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' https://*.soundcloud.com https://*.sndcdn.com data:; media-src 'self' blob:; connect-src 'self' https://*.soundcloud.com https://*.sndcdn.com https://*.workers.dev https://soundcloud-token-proxy.louis-germain.fr; frame-ancestors 'none'; base-uri 'none'; form-action 'none'" />
   <title>Bassface — SoundCloud</title>
 </head>
 <body>

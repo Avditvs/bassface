@@ -3,3 +3,5 @@ node_modules/
 dist/
 *.log
 __pycache__/
+worker/.dev.vars
+.wrangler/

@@ -15,6 +15,7 @@ const CONFIG_DEFAULTS = {
   clientId: "",
   clientSecret: "",
   redirectUri: "",
+  tokenProxyUrl: "",
 };
 
 function readJson(key: string): any {
@@ -43,6 +44,10 @@ export class AppConfig {
   clientId = CONFIG_DEFAULTS.clientId;
   clientSecret = CONFIG_DEFAULTS.clientSecret;
   redirectUri = CONFIG_DEFAULTS.redirectUri;
+  /** Token proxy (see worker/): when set, token requests are routed through
+   * it so the client secret is injected server-side and never reaches the
+   * browser. Empty = talk to SoundCloud directly (secret sent inline). */
+  tokenProxyUrl = CONFIG_DEFAULTS.tokenProxyUrl;
 
   static load(): AppConfig {
     const stored = (readJson(CONFIG_KEY) ?? {}) as Partial<AppConfig>;
@@ -50,6 +55,7 @@ export class AppConfig {
     config.clientId = stored.clientId ?? CONFIG_DEFAULTS.clientId;
     config.clientSecret = stored.clientSecret ?? CONFIG_DEFAULTS.clientSecret;
     config.redirectUri = stored.redirectUri ?? CONFIG_DEFAULTS.redirectUri;
+    config.tokenProxyUrl = stored.tokenProxyUrl ?? CONFIG_DEFAULTS.tokenProxyUrl;
     return config;
   }
 

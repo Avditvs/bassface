@@ -1,0 +1,7 @@
+name = "soundcloud-token-proxy"
+main = "index.js"
+compatibility_date = "2025-09-01"
+
+[vars]
+ALLOWED_ORIGINS = "https://avditvs.github.io"
+

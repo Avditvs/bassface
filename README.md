@@ -24,6 +24,12 @@ including the token endpoint, so the whole flow is client-side. Access tokens
 expire after ~1 hour; the app refreshes them automatically with the
 (single-use) refresh token.
 
+> The token exchange normally needs your **Client Secret** (SoundCloud treats
+> registered apps as confidential clients). To avoid pasting it into a web
+> page, you can deploy the tiny token proxy in [`worker/`](worker/) — the
+> secret then lives only in the worker's environment. See
+> [Token proxy](#token-proxy-keeping-the-client-secret-server-side) below.
+
 ## Requirements
 
 1. A SoundCloud account with an **Artist Pro** subscription (required by
@@ -41,7 +47,9 @@ expire after ~1 hour; the app refreshes them automatically with the
    > apps as confidential clients and rejects the token exchange with
    > `invalid_client` when the secret is missing or wrong. (The client_id-
    > only flow that SoundCloud's own CLI uses only works for their bundled
-   > public client.)
+   > public client.) Alternatively, deploy the
+   > [token proxy](#token-proxy-keeping-the-client-secret-server-side) and
+   > the secret never has to be entered in the browser at all.
 
 ## Run it
 
@@ -75,6 +83,31 @@ The **Reorganize** button on a playlist opens a sidebar listing your other
 playlists: drag a track row onto a card to copy it there, or onto the
 far-right **⇥** strip to move it (copied there and removed from the open
 playlist). A **+ New** button in the sidebar creates an empty playlist.
+
+## Token proxy (keeping the Client Secret server-side)
+
+GitHub Pages only serves static files, so anything entered in the browser —
+including the Client Secret — is inherently visible to the page. The optional
+[`worker/`](worker/) directory contains a ~80-line **Cloudflare Worker**
+(free tier, no cold starts) that holds the secret in its environment instead:
+
+```
+browser ──▶ <worker>.workers.dev        (grant params, no secret)
+worker  ──▶ secure.soundcloud.com/oauth/token   (secret added from env)
+worker  ◀── tokens
+browser ◀── tokens
+```
+
+Deploy once (`cd worker && npm install && npx wrangler login`, set the secret
+with `npx wrangler secret put SOUNDCLOUD_CLIENT_SECRET`, fill in
+`SOUNDCLOUD_CLIENT_ID` + `ALLOWED_ORIGINS` in `wrangler.toml`, then `npm run
+deploy` — full steps in [worker/README.md](worker/README.md)), then paste the
+worker URL into the **Token proxy URL** field of the connect screen. With the
+worker fully configured you can leave **Client ID** and **Client Secret**
+empty: the proxy serves the (public) Client ID to the app and injects the
+secret server-side. Code exchange and token refresh now flow through the
+proxy; the secret never reaches the browser, the bundle, or the repo.
+Everything else stays purely static.
 
 ## Security
 

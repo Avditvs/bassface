@@ -1,9 +1,12 @@
 /**
- * SoundCloud OAuth 2.1 (authorization code + PKCE) — all client-side.
+ * SoundCloud OAuth 2.1 (authorization code + PKCE) — no backend required.
  *
  * Flow: build authorize URL -> user approves on SoundCloud ->
  * redirect back with ?code&state -> exchange for tokens ->
  * keep tokens fresh with the (single-use) refresh token.
+ * Token requests go to SoundCloud directly, or — when a token proxy URL
+ * is configured (see worker/) — through the proxy, which injects the
+ * client secret server-side so it never ships in the bundle.
  * @see https://developers.soundcloud.com/docs/api/guide#authentication
  */
 
@@ -49,8 +52,32 @@ function tokenBody(params: Record<string, string>): string {
   return new URLSearchParams(params).toString();
 }
 
+/**
+ * Where a token request goes: the configured proxy (which injects the
+ * client secret server-side, see worker/) or SoundCloud's endpoint directly.
+ */
+function tokenEndpoint(config: AppConfig): string {
+  return config.tokenProxyUrl || TOKEN_URL;
+}
+
+/**
+ * Fetch the Client ID configured on the token proxy (GET <worker>).
+ * Returns "" when the proxy is unreachable or has no SOUNDCLOUD_CLIENT_ID.
+ */
+export async function fetchClientIdFromProxy(proxyUrl: string): Promise<string> {
+  try {
+    const response = await fetch(proxyUrl, { headers: { accept: "application/json; charset=utf-8" } });
+    if (!response.ok) return "";
+    const body = (await response.json()) as { client_id?: string };
+    return typeof body.client_id === "string" ? body.client_id : "";
+  } catch {
+    return "";
+  }
+}
+
 /** Exchange the authorization `code` for an access token. */
 export async function exchangeCode({ code, config }: { code: string; config: AppConfig }): Promise<TokenPayload> {
+  const viaProxy = Boolean(config.tokenProxyUrl);
   const params: Record<string, string> = {
     grant_type: "authorization_code",
     client_id: config.clientId,
@@ -58,9 +85,11 @@ export async function exchangeCode({ code, config }: { code: string; config: App
     code_verifier: sessionStorage.getItem(VERIFIER_KEY) ?? "",
     code,
   };
-  if (config.clientSecret) params.client_secret = config.clientSecret;
+  // Direct requests carry the secret inline (confidential client); through
+  // the proxy it is injected worker-side and never sent from the browser.
+  if (!viaProxy && config.clientSecret) params.client_secret = config.clientSecret;
 
-  const response = await fetch(TOKEN_URL, {
+  const response = await fetch(tokenEndpoint(config), {
     method: "POST",
     headers: {
       accept: "application/json; charset=utf-8",
@@ -79,14 +108,15 @@ export async function exchangeCode({ code, config }: { code: string; config: App
 
 /** Obtain a new access token from the (single-use) refresh token. */
 export async function refreshAccessToken({ refreshToken, config }: { refreshToken: string; config: AppConfig }): Promise<TokenPayload> {
+  const viaProxy = Boolean(config.tokenProxyUrl);
   const params: Record<string, string> = {
     grant_type: "refresh_token",
     client_id: config.clientId,
     refresh_token: refreshToken,
   };
-  if (config.clientSecret) params.client_secret = config.clientSecret;
+  if (!viaProxy && config.clientSecret) params.client_secret = config.clientSecret;
 
-  const response = await fetch(TOKEN_URL, {
+  const response = await fetch(tokenEndpoint(config), {
     method: "POST",
     headers: {
       accept: "application/json; charset=utf-8",
