@@ -6,6 +6,9 @@ playlists and lets you open one to browse the sounds inside it. OAuth 2.1
 (authorization code + PKCE) runs entirely in the browser —
 there is no server to deploy.
 
+> See [DOCUMENTATION.md](DOCUMENTATION.md) for the full technical reference
+> (architecture, audio pipeline, analysis algorithms, storage, security).
+
 ## How it works
 
 ```
@@ -61,9 +64,11 @@ are redirected back and your playlists are listed with search / type filter /
 sorting. Click a card (or its **View tracks** button) to open the playlist and
 browse the sounds it contains — each row has two buttons: **▶** plays the
 track from the start and **⏫** jumps straight to its loudest part (computed
-in-browser with an RMS scan). When SoundCloud exposes a full-length
-progressive mp3 (directly or via HLS, which the app reassembles), the whole
-track plays; otherwise it falls back to SoundCloud's ~30 s snippet.
+in-browser with an RMS scan). When SoundCloud exposes a full-length source
+(an mp3 **or AAC** HLS playlist or direct file — HLS playlists are reassembled
+in the browser, and tracks whose `/streams` response has no entries are
+resolved through their HLS transcodings), the whole track plays; tracks that
+expose nothing else fall back to SoundCloud's ~30 s snippet.
 
 The **Reorganize** button on a playlist opens a sidebar listing your other
 playlists: drag a track row onto a card to copy it there, or onto the
@@ -137,7 +142,10 @@ src/
     preview.ts          – preview playback controller (buttons, audio element)
     preview-runtime.ts  – shared <audio> element + non-reactive preview fields
     audio-engine.ts     – audio source resolution: waveform-guided peak seek,
-                          HLS reassembly
+                          HLS reassembly + MediaSource streaming (mp3 & AAC)
+    analysis-source.ts  – shared audio loader for the in-browser analyzers:
+                          HLS segments, or windows sliced from the whole-track
+                          source when the track exposes no HLS playlist
     chroma.ts           – in-browser chroma analysis: key estimation from
                           segments spread across the track (FFT → pitch
                           classes → Krumhansl–Kessler profile)
@@ -177,16 +185,19 @@ fed by a single store snapshot (`useSyncExternalStore`).
 - Open a playlist and page through its tracks with infinite scroll
   (`GET /playlists/{id}?show_tracks=true`)
 - In-browser audio previews (`/tracks/:id/streams`, played in `<audio>`):
-  full track when SoundCloud exposes a progressive mp3 (directly or via HLS,
-  which the app reassembles), ~30 s snippet otherwise; ▶ plays from the start,
-  ⏫ jumps to the loudest part, and the waveform is clickable
+  full track when SoundCloud exposes one (mp3 or AAC HLS — reassembled —
+  or a direct progressive file; tracks with empty `/streams` are resolved
+  through their HLS transcodings), ~30 s snippet as last resort; ▶ plays
+  from the start, ⏫ jumps to the loudest part, and the waveform is clickable
 - **Reorganize** mode: drag & drop tracks onto your other playlists to copy
   them there (drop on a card) or move them (drop on the far-right ⇥ strip,
   which also removes them from the open playlist) — all via read-modify-write
   `PUT /playlists/:id`
 - Create a new, empty playlist (`POST /playlists`)
-- **Key estimation (♪ button)**: in-browser chroma analysis from 4 HLS mp3
-  segments spread across the track, each split into ~4 s chunks (FFT
+- **Key estimation (♪ button)**: in-browser chroma analysis from 4 source
+  windows spread across the track (HLS segments, or 25 s windows sliced
+  from the whole-track source when no HLS playlist exists — so every track
+  that can play can be analyzed), each split into ~4 s chunks (FFT
   pitch-class energy → per-chunk chroma vectors, silent chunks dropped →
   average → best Krumhansl–Kessler major/minor match), shown on the row with
   its correlation. **Analyze all keys** in the playlist toolbar batches the
@@ -194,8 +205,9 @@ fed by a single store snapshot (`useSyncExternalStore`).
   `localStorage` (`playlist_updater.chromas`), so keys are computed once per
   track, ever
 - **BPM estimation (♩ button)**: in-browser tempo analysis from the track's
-  most intense passages — segments are chosen at the loudest moments of the
-  SoundCloud waveform bars (even spread as fallback), then each is decoded to
+  most intense passages (HLS segments — or whole-track windows, same
+  fallback as keys — chosen at the loudest moments of the SoundCloud
+  waveform bars, even spread as fallback), then each is decoded to
   an onset strength envelope (2× decimated to 22.05 kHz, 1024-sample Hann
   FFT, hop 512 → ~43 fps spectral flux, silent frames muted), autocorrelated
   over 60–200 BPM lags; the segments' autocorrelations are averaged per lag
@@ -211,15 +223,19 @@ fed by a single store snapshot (`useSyncExternalStore`).
 
 - `npm run typecheck` — strict TypeScript, no emit
 - `npm run build` / `npm run serve` — production bundle / serve it locally
-- `tests/bpm-test/` — Node sanity checks for the BPM analyzer: bundles the
-  real `services/bpm.ts` (with small `localStorage` / `OfflineAudioContext`
-  / DOM shims), then verifies tempo estimates on synthesized click tracks
-  (`entry.ts`), the intensity-guided segment picker, and a quiet-intro /
-  loud-drop track (`intro-check.ts`):
+- `tests/bpm-test/` — Node sanity checks that bundle the real `services/`
+  code (with small `localStorage` / `OfflineAudioContext` / DOM shims):
+  tempo estimates on synthesized click tracks (`entry.ts`, helpers in
+  `entry-helpers.ts`), the intensity-guided segment picker, a quiet-intro /
+  loud-drop track (`intro-check.ts`), the analyzers' whole-track fallback
+  when no HLS playlist exists (`fallback-check.ts`), and the FFT against a
+  reference implementation (`rfft-check.ts`):
 
   ```sh
   npx rolldown tests/bpm-test/entry.ts --format esm --platform node --file /tmp/bpm-test.mjs && node /tmp/bpm-test.mjs
   npx rolldown tests/bpm-test/intro-check.ts --format esm --platform node --file /tmp/intro-check.mjs && node /tmp/intro-check.mjs
+  npx rolldown tests/bpm-test/fallback-check.ts --format esm --platform node --file /tmp/fallback-check.mjs && node /tmp/fallback-check.mjs
+  npx rolldown tests/bpm-test/rfft-check.ts --format esm --platform node --file /tmp/rfft-check.mjs && node /tmp/rfft-check.mjs
   ```
 
 ## Next steps (roadmap)
