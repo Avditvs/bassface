@@ -107,12 +107,15 @@ body:has(#playlist-screen:not([hidden])) .app-footer {
   .app-header { padding: 10px 14px; gap: 10px; }
   .user-name { display: none; } /* avatar + sign out stay visible */
 
-  main { padding: 0 12px; }
+  main { padding: 0 12px; margin: 20px auto; } /* 32px is too airy on a phone */
   main:has(#playlist-screen:not([hidden])) {
     max-width: calc(100vw - 24px);
     margin-top: 10px;
     margin-bottom: 10px;
   }
+
+  /* Stacked panels sit closer together than the desktop columns. */
+  #playlist-screen:not([hidden]) .playlist-columns { gap: 14px; }
 
   /* Playlist header stacks: art above the text instead of side by side. */
   .playlist-header {
@@ -136,8 +139,12 @@ body:has(#playlist-screen:not([hidden])) .app-footer {
   .org-move { width: 52px; font-size: 1.3rem; }
 
   /* Smaller sticky player bar on phones (≈ 77px): keep the pinned
-     Reorganize panel clear of it. */
-  main:has(.player-bar) .organize { bottom: 86px; }
+     Reorganize panel clear of it. env() keeps the panel above the iPhone
+     home indicator instead of touching the very bottom edge. */
+  .organize { bottom: env(safe-area-inset-bottom, 0px); }
+  main:has(.player-bar) .organize {
+    bottom: calc(86px + env(safe-area-inset-bottom, 0px));
+  }
 
   /* 3 × card min-height (64px) + 2 × list gap (8px). */
   .org-list, .org-check-list { max-height: 208px; }
