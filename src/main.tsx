@@ -9,6 +9,8 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "./components/App";
+import { loadLocalConfig } from "./services/local-config";
+import { runtime } from "./services/store";
 import "./styles/base.css";
 import "./styles/layout.css";
 import "./styles/forms.css";
@@ -19,9 +21,14 @@ import "./styles/organize.css";
 import "./styles/tracks.css";
 import "./styles/player-bar.css";
 import "./styles/debug.css";
+import "./styles/home.css";
 
 const container = document.getElementById("root");
 if (!container) throw new Error("Missing #root element");
+
+// The local dev config file must be applied before any OAuth/session logic
+// reads runtime.config (fetch is a no-op off a loopback origin).
+await loadLocalConfig(runtime.config);
 
 createRoot(container).render(
   <StrictMode>

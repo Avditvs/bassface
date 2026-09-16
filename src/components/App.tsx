@@ -11,7 +11,7 @@ import { handleOAuthCallback, enterApp } from "../services/session";
 import { runtime, showStatus, tokenSummary, useApp } from "../services/store";
 import { SoundCloudApi } from "../services/api";
 import { Header } from "./Header";
-import { ConnectScreen } from "./ConnectScreen";
+import { HomeScreen } from "./HomeScreen";
 import { PlaylistsScreen } from "./PlaylistsScreen";
 import { PlaylistScreen } from "./PlaylistScreen";
 import { PlayerBar } from "./PlayerBar";
@@ -84,7 +84,7 @@ export function App() {
     <>
       <Header />
       <main>
-        {screen === "connect" && <ConnectScreen />}
+        {screen === "connect" && <HomeScreen />}
         {screen === "playlists" && <PlaylistsScreen />}
         {screen === "playlist" && <PlaylistScreen />}
         {/* Sticky on every screen; only renders while a preview is active. */}

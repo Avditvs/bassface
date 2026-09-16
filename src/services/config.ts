@@ -20,6 +20,11 @@ const CONFIG_DEFAULTS = {
   tokenProxyUrl: "https://soundcloud-token-proxy.louis-germain.fr",
 };
 
+/** True when the app is served from a loopback origin (local development). */
+export function isLocalOrigin(): boolean {
+  return ["localhost", "127.0.0.1", "[::1]"].includes(window.location.hostname);
+}
+
 function readJson(key: string): any {
   try {
     return JSON.parse(localStorage.getItem(key) ?? "null");
@@ -49,6 +54,13 @@ export class AppConfig {
   redirectUri = CONFIG_DEFAULTS.redirectUri;
   /** Token proxy every token request goes through (see worker/). */
   tokenProxyUrl = CONFIG_DEFAULTS.tokenProxyUrl;
+  /**
+   * Explicit mode chosen by the local dev config file (see
+   * services/local-config.ts): "credentials" forces direct token requests
+   * with the app's own Client ID/Secret, "proxy" forces the token proxy.
+   * "" = nothing forced; not persisted (re-applied on every local load).
+   */
+  localMode: "" | "credentials" | "proxy" = "";
 
   static load(): AppConfig {
     const stored = (readJson(CONFIG_KEY) ?? {}) as Partial<AppConfig>;
@@ -69,12 +81,33 @@ export class AppConfig {
     return "";
   }
 
+  /**
+   * The token proxy to use, or "" to talk to SoundCloud's token endpoint
+   * directly. Order of precedence:
+   * 1. The local dev config file's explicit mode (see local-config.ts).
+   * 2. Local development (loopback origin) or credentials entered directly
+   *    — the secret is then sent inline to SoundCloud.
+   * 3. Otherwise the proxy, which keeps the secret server-side (see worker/).
+   */
+  resolveTokenProxyUrl(): string {
+    if (this.localMode === "proxy") return this.tokenProxyUrl;
+    if (this.localMode === "credentials") return "";
+    if (isLocalOrigin() || this.clientSecret) return "";
+    return this.tokenProxyUrl;
+  }
+
   isComplete(): boolean {
     return Boolean(this.clientId && this.resolveRedirectUri());
   }
 
   save(): void {
-    writeJson(CONFIG_KEY, { ...this });
+    // localMode is file-driven, not user state: never persist it.
+    writeJson(CONFIG_KEY, {
+      clientId: this.clientId,
+      clientSecret: this.clientSecret,
+      redirectUri: this.redirectUri,
+      tokenProxyUrl: this.tokenProxyUrl,
+    });
   }
 
   clear(): void {

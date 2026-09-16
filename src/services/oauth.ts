@@ -13,16 +13,13 @@
 
 import { base64UrlEncode, randomBytes, randomState, sha256Of } from "./util";
 import type { TokenPayload } from "../services/types";
-import type { AppConfig } from "./config";
+import { isLocalOrigin, type AppConfig } from "./config";
+
+export { isLocalOrigin };
 
 export const AUTHORIZE_URL = "https://secure.soundcloud.com/authorize";
 export const TOKEN_URL = "https://secure.soundcloud.com/oauth/token";
 export const API_BASE_URL = "https://api.soundcloud.com";
-
-/** True when the app is served from a loopback origin (local development). */
-export function isLocalOrigin(): boolean {
-  return ["localhost", "127.0.0.1", "[::1]"].includes(window.location.hostname);
-}
 
 const VERIFIER_KEY = "playlist_updater.code_verifier";
 const STATE_KEY = "playlist_updater.state";
@@ -60,12 +57,14 @@ function tokenBody(params: Record<string, string>): string {
 
 /**
  * Where a token request goes: the configured proxy (which injects the
- * client secret server-side, see worker/) or — for local development on a
- * loopback origin — SoundCloud's endpoint directly.
+ * client secret server-side, see worker/), or — when the proxy is bypassed
+ * (local loopback origin, or credentials entered directly) — SoundCloud's
+ * endpoint directly with the secret inline.
  */
 function tokenEndpoint(config: AppConfig): string {
-  if (config.tokenProxyUrl) return config.tokenProxyUrl;
-  if (isLocalOrigin()) return TOKEN_URL;
+  const proxyUrl = config.resolveTokenProxyUrl();
+  if (proxyUrl) return proxyUrl;
+  if (isLocalOrigin() || config.clientSecret) return TOKEN_URL;
   throw new Error("No token proxy configured — the Client Secret lives on the worker (see worker/). Connect again and enter its URL.");
 }
 
@@ -93,9 +92,10 @@ export async function exchangeCode({ code, config }: { code: string; config: App
     code_verifier: sessionStorage.getItem(VERIFIER_KEY) ?? "",
     code,
   };
-  // Only direct local requests carry the secret inline; through the proxy
-  // it is injected worker-side and never sent from the browser.
-  if (!config.tokenProxyUrl && config.clientSecret) params.client_secret = config.clientSecret;
+  // Without the proxy the secret goes inline to SoundCloud (local dev or
+  // credentials entered directly); through the proxy it is injected
+  // worker-side and never sent from the browser.
+  if (!config.resolveTokenProxyUrl() && config.clientSecret) params.client_secret = config.clientSecret;
 
   const response = await fetch(tokenEndpoint(config), {
     method: "POST",
@@ -121,7 +121,7 @@ export async function refreshAccessToken({ refreshToken, config }: { refreshToke
     client_id: config.clientId,
     refresh_token: refreshToken,
   };
-  if (!config.tokenProxyUrl && config.clientSecret) params.client_secret = config.clientSecret;
+  if (!config.resolveTokenProxyUrl() && config.clientSecret) params.client_secret = config.clientSecret;
 
   const response = await fetch(tokenEndpoint(config), {
     method: "POST",
