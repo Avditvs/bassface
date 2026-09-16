@@ -15,6 +15,8 @@
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+  margin-bottom: 10px; /* keep the first playlist card clear of the header,
+                           also when the search bar + description are retracted */
 }
 
 .org-title {

@@ -132,8 +132,8 @@ body:has(#playlist-screen:not([hidden])) .app-footer {
   #playlist-screen .remove-panel { display: none; }
 
   .organize {
-    padding: 12px;
-    padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+    padding: 14px;
+    padding-bottom: calc(14px + env(safe-area-inset-bottom, 0px));
   }
   .org-drop { min-height: 64px; padding: 10px; }
   .org-art { width: 44px; height: 44px; }
