@@ -191,6 +191,46 @@
   .track-waveform { display: none; } /* not enough room next to the meta */
 }
 
+/* ---------- touch: swipe left to remove ---------- */
+
+/* Touch devices get a swipe-to-remove gesture on track rows (the HTML5
+   drag & drop of the desktop cannot fire from a touch screen). */
+@media (pointer: coarse) {
+  /* pan-y: vertical scrolling stays native, horizontal moves belong to the
+     swipe gesture — no preventDefault needed in the touchmove handler. */
+  .track-row {
+    position: relative;
+    touch-action: pan-y;
+    transition: transform 0.18s ease;
+  }
+
+  /* While the finger follows the row there must be no transition lag. */
+  .track-row.is-swiping { transition: none; }
+
+  /* Trash hint revealed behind the swipe, pinned to the right edge. */
+  .swipe-hint {
+    position: absolute;
+    right: 16px;
+    top: 50%;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--danger);
+    opacity: 0; /* JS fades it in proportionally to the swipe distance */
+    pointer-events: none;
+  }
+
+  /* Past the removal threshold the hint solidifies: commit is visible. */
+  .track-row.is-beyond .swipe-hint {
+    color: #fff;
+    background: var(--danger);
+  }
+}
+
 /* ---------- infinite-scroll sentinel ---------- */
 
 .track-sentinel {
