@@ -83,9 +83,9 @@ body:has(#playlist-screen:not([hidden])) .app-footer {
     z-index: 2;
     box-shadow: 0 -10px 24px rgba(0, 0, 0, 0.22); /* separate from rows behind */
   }
-  /* The sticky player bar also pins at the bottom: lift the panel above it
-     (player bar ≈ 91px: 12px margin + 3px progress + 73px content + border). */
-  main:has(.player-bar) .organize { bottom: 96px; }
+  /* The fixed player bar's top edge sits at ≈ 81px (8px offset + 73px
+     height): keep a 16px padding between it and the pinned panel. */
+  main:has(.player-bar) .organize { bottom: calc(97px + env(safe-area-inset-bottom, 0px)); }
 
   /* Show at most 3 playlist cards; the rest scroll inside the list
      (3 × card min-height 76px + 2 × list gap 8px). */
@@ -138,12 +138,11 @@ body:has(#playlist-screen:not([hidden])) .app-footer {
   .org-art { width: 44px; height: 44px; }
   .org-move { width: 52px; font-size: 1.3rem; }
 
-  /* Smaller sticky player bar on phones (≈ 77px): keep the pinned
-     Reorganize panel clear of it. env() keeps the panel above the iPhone
-     home indicator instead of touching the very bottom edge. */
+  /* Without the player bar the panel still clears the iPhone home
+     indicator; with the bar (≈ 67px, top edge ≈ 75px) it keeps a 16px gap. */
   .organize { bottom: env(safe-area-inset-bottom, 0px); }
   main:has(.player-bar) .organize {
-    bottom: calc(86px + env(safe-area-inset-bottom, 0px));
+    bottom: calc(91px + env(safe-area-inset-bottom, 0px));
   }
 
   /* 3 × card min-height (64px) + 2 × list gap (8px). */

@@ -165,9 +165,9 @@ body:has(.player-bar) .app-footer { display: none; }
     z-index: 3; /* above the pinned Reorganize panel */
   }
   main:has(#playlist-screen:not([hidden])):has(.player-bar) {
-    /* bar ≈ 73px + 8px gap + margin: keep the last rows and the pinned
-       Reorganize panel clear of it. */
-    padding-bottom: calc(100px + env(safe-area-inset-bottom, 0px));
+    /* bar top edge ≈ 81px + 16px gap: keep the last rows and the resting
+       Reorganize panel clear of the fixed bar. */
+    padding-bottom: calc(97px + env(safe-area-inset-bottom, 0px));
   }
 }
 
