@@ -113,7 +113,7 @@ const SWIPE_THRESHOLD = 96;
 const SWIPE_MAX = 140;
 
 /** True on touch-driven devices, where HTML5 drag & drop is unavailable. */
-function isTouchDevice(): boolean {
+export function isTouchDevice(): boolean {
   return typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches;
 }
 

@@ -231,6 +231,22 @@
   }
 }
 
+/* ---------- swipe-to-remove tip ---------- */
+
+/* Rendered on touch devices only (see PlaylistScreen); shown on phones,
+   where the remove drop zone is hidden and the swipe is the only removal
+   path. Larger touch screens keep the drop zone, so no tip. */
+.swipe-tip {
+  display: none;
+  margin: 14px 0 0;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+@media (max-width: 640px) {
+  .swipe-tip { display: block; }
+}
+
 /* ---------- infinite-scroll sentinel ---------- */
 
 .track-sentinel {

@@ -124,8 +124,9 @@ body:has(#playlist-screen:not([hidden])) .app-footer {
   }
   .playlist-header-art { width: 120px; height: 120px; }
 
-  .remove-panel { padding: 12px; }
-  .remove-zone { min-height: 88px; padding: 14px; font-size: 0.88rem; }
+  /* Phones: the remove drop zone is out of reach (HTML5 drag & drop does
+     not work from a touch screen) — the swipe-left gesture replaces it. */
+  .remove-panel { display: none; }
 
   .organize { padding: 12px; }
   .org-drop { min-height: 64px; padding: 10px; }

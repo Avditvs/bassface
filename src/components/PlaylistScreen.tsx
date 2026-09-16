@@ -11,6 +11,7 @@ import { analyzeAllTrackBpms } from "../services/bpm";
 import { analyzeAllTrackChromas } from "../services/chroma";
 import { isLikedView } from "../services/tracks";
 import { onRemoveZoneDragLeave, onRemoveZoneDragOver, onRemoveZoneDrop } from "../services/organize";
+import { isTouchDevice } from "./TrackRow";
 import { OrganizeSidebar } from "./OrganizeSidebar";
 import { PlaylistHeader } from "./PlaylistHeader";
 import { TrackList } from "./TrackList";
@@ -84,6 +85,12 @@ export function PlaylistScreen() {
             )}
           </div>
             <PlaylistHeader />
+            {/* Touch devices cannot use the drag & drop remove zone: on
+                phones the panel is hidden and the swipe gesture is the only
+                removal path, so point to it. Hidden by CSS on large screens. */}
+            {!isLikedView() && isTouchDevice() && (
+              <p className="swipe-tip">← Swipe a track left to remove it from this playlist</p>
+            )}
             <TrackList />
           </div>
         </div>
