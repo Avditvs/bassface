@@ -64,7 +64,7 @@ main:has(#playlist-screen:not([hidden])) {
 .panel {
   background: var(--panel);
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: 6px;
   padding: 28px;
   max-width: 640px;
   margin: 0 auto;

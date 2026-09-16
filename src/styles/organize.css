@@ -4,7 +4,7 @@
 .organize {
   background: var(--panel);
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: 6px;
   padding: 16px;
   overflow: auto;
   min-height: 0;
@@ -57,7 +57,7 @@
   align-items: center;
   gap: 8px;
   padding: 4px 6px;
-  border-radius: 6px;
+  border-radius: 3px;
   cursor: pointer;
 }
 
@@ -101,7 +101,7 @@
   gap: 12px;
   background: var(--panel-alt);
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: 5px;
   padding: 14px 12px;
   min-height: 76px;
   cursor: pointer;
@@ -116,7 +116,7 @@
   width: 56px;
   height: 56px;
   flex: none;
-  border-radius: 8px;
+  border-radius: 4px;
   object-fit: cover;
   background: var(--panel-alt);
 }
@@ -143,7 +143,7 @@
   color: var(--muted);
   background: var(--panel-alt);
   border: 1px dashed var(--border);
-  border-radius: 10px;
+  border-radius: 5px;
   cursor: grab;
   user-select: none;
 }

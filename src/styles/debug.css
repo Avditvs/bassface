@@ -16,7 +16,7 @@
 .debug pre {
   background: var(--panel-alt);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 4px;
   padding: 10px 12px;
   font-size: 0.72rem;
   line-height: 1.5;

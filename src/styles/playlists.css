@@ -14,7 +14,7 @@
 .playlist-grid li {
   background: var(--panel);
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: 6px;
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -90,7 +90,7 @@
 
 .page-number {
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 4px;
   background: var(--panel);
   color: var(--text);
   font-size: 0.85rem;

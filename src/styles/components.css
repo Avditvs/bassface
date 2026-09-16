@@ -11,7 +11,7 @@
   max-width: min(560px, 45vw);
   padding: 5px 10px;
   border: 1px solid var(--border);
-  border-radius: 999px;
+  border-radius: 6px;
   background: var(--panel-alt);
   color: var(--muted);
   overflow: hidden;
@@ -65,7 +65,7 @@
 .badge {
   font-size: 0.72rem;
   padding: 2px 8px;
-  border-radius: 999px;
+  border-radius: 6px;
   background: var(--panel-alt);
   color: var(--muted);
 }
@@ -81,5 +81,5 @@
   padding: 32px 0;
   text-align: center;
   border: 1px dashed var(--border);
-  border-radius: 12px;
+  border-radius: 6px;
 }
