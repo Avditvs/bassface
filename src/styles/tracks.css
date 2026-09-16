@@ -204,3 +204,34 @@
   border: 1px dashed var(--border);
   border-radius: 10px;
 }
+
+/* ---------- phones: stacked row layout ---------- */
+
+/* The fixed-width right cluster (meta 84px + buttons 74px + art + gaps)
+   does not fit a ~390px viewport: it overflows and clips at the right edge.
+   On phones the row wraps instead: index + artwork + title/buttons on the
+   first line, time/plays/likes on a full-width second line. */
+@media (max-width: 640px) {
+  .track-row {
+    flex-wrap: wrap;
+    height: auto; /* rows grow with the wrapped second line */
+    row-gap: 6px;
+    padding: 10px 12px;
+  }
+
+  .track-body { flex: 1 1 0; } /* title column takes the remaining room */
+
+  /* Meta moves below the title as one full-width horizontal line. */
+  .track-meta {
+    order: 1; /* after the buttons: the wrap starts a second line */
+    flex: 1 1 100%;
+    width: auto;
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-start;
+    text-align: left;
+    gap: 12px;
+    padding-top: 6px;
+    border-top: 1px dashed var(--border); /* subtle split from the title */
+  }
+}
