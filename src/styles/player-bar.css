@@ -171,19 +171,15 @@ body:has(.player-bar) .app-footer { display: none; }
     padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
   }
   main:has(#playlist-screen:not([hidden])):has(.player-bar) {
-    /* Reserve exactly the bar's height (3px progress + 70px content +
-       borders ≈ 75px + safe area) so the resting Reorganize panel docks
-       flush onto the bar at the page end. */
-    padding-bottom: calc(75px + env(safe-area-inset-bottom, 0px));
+    /* Reserve exactly the bar's measured height (--player-bar-h, see
+       PlayerBar) so the resting Reorganize panel docks flush onto the bar
+       at the page end. */
+    padding-bottom: calc(var(--player-bar-h, 75px) + env(safe-area-inset-bottom, 0px));
   }
 }
 
 @media (max-width: 640px) {
   main:has(#playlist-screen:not([hidden])) .player-bar { left: 12px; right: 12px; }
-  /* Shorter bar on phones: 3px progress + 64px content + borders ≈ 69px. */
-  main:has(#playlist-screen:not([hidden])):has(.player-bar) {
-    padding-bottom: calc(69px + env(safe-area-inset-bottom, 0px));
-  }
 }
 
 @media (max-width: 620px) {

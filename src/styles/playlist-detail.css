@@ -55,24 +55,16 @@ body:has(#playlist-screen:not([hidden])) .app-footer {
 }
 
 @media (max-width: 1100px) {
+  /* Block layout: the panels stack in DOM order AND the sticky panel's
+     containing block becomes the whole column (a grid item would be
+     constrained to its own row and could never travel with the scroll). */
   #playlist-screen:not([hidden]) .playlist-columns {
-    grid-template-columns: 1fr; /* panels stack under the tracks */
+    display: block;
     height: auto; /* back to normal document scrolling */
   }
-  /* Player bar variant: the desktop rule above uses a #id-prefixed selector
-     that also wins inside this query, so it must be overridden with the same
-     specificity or the stacked column gets a fixed, too-small height. */
-  main:has(.player-bar) #playlist-screen:not([hidden]) .playlist-columns {
-    height: auto;
-  }
-  #playlist-screen:not([hidden]) .playlist-columns.is-liked {
-    grid-template-columns: 1fr; /* same stacking in the liked view */
-  }
-  /* Stacked order: Remove zone at the top, then the tracks, then the
-     Reorganize sidebar at the bottom (explicit so it holds even if the DOM
-     order changes). Grid auto-placement follows the `order`-modified order. */
-  .remove-panel { order: -1; }
-  .organize { order: 1; }
+  /* Panel spacing that the desktop grid's `gap` provided. */
+  .remove-panel { margin-bottom: 14px; }
+  .organize { margin-top: 14px; }
 
   /* Pin the Reorganize panel to the viewport bottom while scrolling the
      track list: drop targets stay reachable at all times. Flat bottom +
@@ -86,10 +78,11 @@ body:has(#playlist-screen:not([hidden])) .app-footer {
     padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
     box-shadow: 0 -10px 24px rgba(0, 0, 0, 0.22); /* separate from rows behind */
   }
-  /* With the fixed player bar (top edge ≈ 75px): dock the panel flush on
-     top of it — no gap, so the scrolling list can never show between them. */
+  /* With the player bar: dock the panel flush on top of it — its real
+     height is measured into --player-bar-h (see PlayerBar), so the stack
+     is seamless whatever the bar actually renders to. */
   main:has(.player-bar) .organize {
-    bottom: calc(75px + env(safe-area-inset-bottom, 0px));
+    bottom: calc(var(--player-bar-h, 75px) + env(safe-area-inset-bottom, 0px));
   }
 
   /* Show at most 3 playlist cards; the rest scroll inside the list
@@ -145,11 +138,6 @@ body:has(#playlist-screen:not([hidden])) .app-footer {
   .org-drop { min-height: 64px; padding: 10px; }
   .org-art { width: 44px; height: 44px; }
   .org-move { width: 52px; font-size: 1.3rem; }
-
-  /* Shorter player bar on phones (top edge ≈ 69px): keep the flush dock. */
-  main:has(.player-bar) .organize {
-    bottom: calc(69px + env(safe-area-inset-bottom, 0px));
-  }
 
   /* 3 × card min-height (64px) + 2 × list gap (8px). */
   .org-list, .org-check-list { max-height: 208px; }

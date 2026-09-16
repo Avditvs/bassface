@@ -3,6 +3,7 @@
  * while a preview is loading, playing, or paused.
  */
 
+import { useEffect, useRef, useState } from "react";
 import { getState, useApp } from "../services/store";
 import { stopPreview, togglePreview } from "../services/preview";
 import { formatDuration } from "../services/util";
@@ -10,6 +11,32 @@ import { WaveformCanvas } from "./WaveformCanvas";
 
 export function PlayerBar() {
   const state = useApp();
+  const barRef = useRef<HTMLElement>(null);
+  const [, setHeightTick] = useState(0);
+
+  // Expose the bar's real height as a CSS variable: the mobile playlist
+  // screen docks the pinned Reorganize panel exactly on top of the bar and
+  // reserves the same room at the page end. Measuring (instead of guessing
+  // pixels) keeps the stack seamless with any font size or content wrap.
+  useEffect(() => {
+    const bar = barRef.current;
+    if (!bar) return;
+    const update = () => {
+      document.documentElement.style.setProperty(
+        "--player-bar-h",
+        `${Math.ceil(bar.getBoundingClientRect().height)}px`,
+      );
+      setHeightTick((tick) => tick + 1); // re-render consumers after resize
+    };
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(bar);
+    return () => {
+      observer.disconnect();
+      document.documentElement.style.removeProperty("--player-bar-h");
+    };
+  }, [Boolean(state.previewTrackId)]); // re-attach when the bar mounts/unmounts
+
   const track = state.previewTrack ?? (state.previewTrackId === null
     ? null
     : state.tracks.find((item) => item.id === state.previewTrackId) ?? null);
@@ -25,7 +52,7 @@ export function PlayerBar() {
   const artist = track.user?.username ?? "Unknown artist";
 
   return (
-    <aside className="player-bar" aria-label="Current preview">
+    <aside ref={barRef} className="player-bar" aria-label="Current preview">
       <div className="player-progress" aria-hidden="true">
         <span style={{ width: `${progress}%` }} />
       </div>
