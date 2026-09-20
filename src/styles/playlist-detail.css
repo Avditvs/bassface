@@ -175,6 +175,18 @@ body:has(#playlist-screen:not([hidden])) .app-footer {
 
 .playlist-desc { margin: 8px 0; }
 
+/* Duration + BPM range under the meta line (see services/playlist-stats.ts). */
+.playlist-stats {
+  flex-direction: row;
+  gap: 14px;
+  margin-top: 4px;
+  font-size: 0.85rem;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.playlist-stats span { overflow: hidden; text-overflow: ellipsis; }
+
 .playlist-link { margin: 10px 0 0; }
 
 .card-open {

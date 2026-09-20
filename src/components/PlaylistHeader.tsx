@@ -3,13 +3,14 @@
  * liked-tracks view (virtual playlist) gets a simpler header instead.
  */
 import { useApp } from "../services/store";
-import { Badges, CardMeta } from "./shared";
-import { Artwork } from "./shared";
+import { Artwork, Badges, CardMeta, StatsLine, usePlaylistStats } from "./shared";
 import { formatCount } from "../services/util";
 
 export function PlaylistHeader() {
   const state = useApp();
   const playlist = state.currentPlaylist;
+  // Same hook order in every branch (the liked view simply has no stats).
+  const stats = usePlaylistStats(playlist, state.bpmValues);
   if (!playlist) return null;
 
   if (state.route.name === "liked") {
@@ -39,6 +40,7 @@ export function PlaylistHeader() {
         <Badges playlist={playlist} />
         {playlist.description && <p className="muted playlist-desc">{playlist.description}</p>}
         <CardMeta playlist={playlist} />
+        <StatsLine stats={stats} className="meta playlist-stats" />
         <p className="playlist-link">
           <a href={playlist.permalink_url} target="_blank" rel="noreferrer">Open on SoundCloud →</a>
         </p>

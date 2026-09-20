@@ -12,42 +12,18 @@
  * organize service.
  */
 
-import { useEffect, useMemo, useState } from "react";
+import { useState } from "react";
 import { useApp } from "../services/store";
 import {
-  cachedStats, fetchPlaylistStats,
-} from "../services/playlist-stats";
-import type { PlaylistStats } from "../services/playlist-stats";
-import {
-  escapeUrl, formatCount, formatDate, formatTotalDuration,
+  escapeUrl, formatCount, formatDate,
 } from "../services/util";
+import { StatsLine, usePlaylistStats } from "./shared";
 import {
   candidatePlaylists, createPlaylistFromSidebar, getSelection,
   moveTrack, onOrganizeDragLeave, onOrganizeDragOver, onOrganizeDrop,
   openSidebarPlaylist, setSelectionAll, toggleSelection, visiblePlaylists,
 } from "../services/organize";
 import type { Playlist } from "../services/types";
-
-/**
- * Statistics of one sidebar playlist: cached durations + a BPM range
- * recomputed from the analyzed BPMs (null until the first background fetch
- * succeeds). Refetches when the playlist's track count changes.
- */
-function usePlaylistStats(playlist: Playlist, bpmValues: Record<number, number>): PlaylistStats | null {
-  const [version, setVersion] = useState(0);
-  const stats = useMemo(
-    () => cachedStats(playlist, bpmValues),
-    [playlist, bpmValues, version],
-  );
-  useEffect(() => {
-    let cancelled = false;
-    void fetchPlaylistStats(playlist).then((available) => {
-      if (!cancelled && available) setVersion((value) => value + 1);
-    });
-    return () => { cancelled = true; };
-  }, [playlist, playlist.track_count]);
-  return stats;
-}
 
 /** One sidebar entry: the card is the "add" drop zone, the strip is "move". */
 function OrganizationEntry({ playlist, bpmValues }: {
@@ -78,23 +54,7 @@ function OrganizationEntry({ playlist, bpmValues }: {
             <span title="Likes">♥ {formatCount(playlist.likes_count)}</span>
             {updatedAt ? <span title="Last update">Updated {formatDate(updatedAt)}</span> : null}
           </span>
-          <span className="org-stats muted">
-            {stats
-              ? <>
-                  <span title="Total duration">⏱ {formatTotalDuration(stats.durationMs)}</span>
-                  <span
-                    title={stats.bpmAnalyzed > 0
-                      ? `${stats.bpmAnalyzed} of ${stats.trackCount} tracks analyzed`
-                      : "No BPM analysis yet — use the toolbar button"}
-                  >
-                    BPM {stats.bpmMin !== null ? `${stats.bpmMin}–${stats.bpmMax}` : "—"}
-                    {stats.bpmAnalyzed > 0 && stats.bpmAnalyzed < stats.trackCount
-                      ? ` (${stats.bpmAnalyzed}/${stats.trackCount})`
-                      : ""}
-                  </span>
-                </>
-              : <span title="Loading the playlist statistics…">⏱ …</span>}
-          </span>
+          <StatsLine stats={stats} className="org-stats muted" />
         </span>
       </div>
       <div
