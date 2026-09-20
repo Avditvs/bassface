@@ -114,15 +114,15 @@ export function HomeScreen() {
     <section id="home-screen" className="home">
       <div className="hero">
         <div className="hero-badge" aria-hidden="true">
-          <span className="hero-badge-dot" /> OAuth 2.1 + PKCE · Runs entirely in your browser
+          <span className="hero-badge-dot" /> Nothing to install · Runs in your browser
         </div>
         <h2>
           Manage your SoundCloud<br />
           <span className="hero-title-accent">playlists</span> like a pro
         </h2>
         <p className="hero-tagline">
-          A fast, backend-free client for the SoundCloud API: browse, preview,
-          analyze and reorganize your playlists — all in your browser.
+          Browse, preview and reorganize your playlists — fast, safe and
+          all in your browser.
         </p>
         {local && (
           <p className="muted">
@@ -224,9 +224,8 @@ export function HomeScreen() {
         </form>
         {!local && (
           <p className="muted">
-            Signing in happens on SoundCloud (OAuth 2.1 + PKCE) — tokens never
-            leave your browser, and the Client Secret stays server-side in the
-            token proxy.
+            You sign in securely on SoundCloud itself — we never see your
+            password, and nothing is stored on any server.
           </p>
         )}
       </div>
@@ -234,27 +233,25 @@ export function HomeScreen() {
       <h2 className="features-title">What you can do</h2>
       <div className="features-rule" aria-hidden="true" />
       <div className="features-grid">
-        <Feature icon="📚" title="Browse & search playlists">
-          List all your playlists with live search, type filter, sorting and
-          pagination — each one has a shareable deep link.
+        <Feature icon="📚" title="All your playlists in one place">
+          Instantly search, sort and flip through every playlist — and share
+          any of them with its own direct link.
         </Feature>
-        <Feature icon="▶" title="Full-track previews">
-          Play any sound from a clickable loudness waveform: full-length audio
-          when SoundCloud exposes one (HLS reassembled in-browser), otherwise
-          the ~30 s snippet.
+        <Feature icon="▶" title="Listen before you decide">
+          Play any track right on the page, with a sound wave you can click
+          through — no switching tabs needed.
         </Feature>
-        <Feature icon="♪" title="Key & BPM analysis">
-          Estimate musical key (chroma + Krumhansl–Kessler) and tempo
-          (spectral-flux autocorrelation) entirely in the browser — batch
-          analyze a whole playlist in one click.
+        <Feature icon="♪" title="Match tracks by key & tempo">
+          One click finds the key and BPM of every track in a playlist —
+          perfect for planning a smooth DJ set.
         </Feature>
-        <Feature icon="↔" title="Drag & drop reorganize">
-          Copy or move tracks between playlists by dragging them onto playlist
-          cards, and create new empty playlists on the fly.
+        <Feature icon="↔" title="Rearrange by drag & drop">
+          Move or copy tracks between playlists with a simple drag, and spin
+          up brand-new playlists in one click.
         </Feature>
-        <Feature icon="🔒" title="No backend, no tracking">
-          A static page plus a tiny token proxy: your OAuth tokens live in your
-          browser's storage and are only ever sent to SoundCloud.
+        <Feature icon="🔒" title="Private by design">
+          Everything happens in your browser. Your sign-in stays between you
+          and SoundCloud — nobody else ever sees it.
         </Feature>
       </div>
 
