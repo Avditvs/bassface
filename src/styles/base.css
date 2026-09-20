@@ -14,20 +14,21 @@
   --shadow: rgba(0, 0, 0, 0.38);
 }
 
-/* Light theme: same tokens, flipped. The accent is darkened for contrast on
-   the light background; shadows soften so panels still read as floating. */
+/* Light theme: same tokens, flipped but kept soft — text is a warm dark
+   grey (not near-black) and borders stay faint, so the page reads as gentle
+   rather than high-contrast. Accent is darkened slightly for legibility. */
 :root[data-theme="light"] {
   color-scheme: light;
-  --bg: #f6f5f3;
-  --panel: #ffffff;
-  --panel-alt: #eceae7;
-  --text: #211e1b;
-  --muted: #6d6862;
-  --accent: #d84b00;
-  --accent-soft: rgba(216, 75, 0, 0.12);
-  --border: #dcd9d4;
-  --danger: #c93a3f;
-  --shadow: rgba(0, 0, 0, 0.14);
+  --bg: #f4f2ef;
+  --panel: #fbfaf8;
+  --panel-alt: #edebe7;
+  --text: #524c45;
+  --muted: #948e85;
+  --accent: #e56520;
+  --accent-soft: rgba(229, 101, 32, 0.09);
+  --border: #e6e2dc;
+  --danger: #d96a6e;
+  --shadow: rgba(0, 0, 0, 0.1);
 }
 
 * { box-sizing: border-box; }
