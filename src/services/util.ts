@@ -47,6 +47,14 @@ export function formatDuration(ms?: number | null): string {
   return `${minutes}:${seconds}`;
 }
 
+/** Format a playlist total duration as `1h 02m` / `12m` (e.g. 4320000 → "1h 12m"). */
+export function formatTotalDuration(ms?: number | null): string {
+  const totalMinutes = Math.max(0, Math.round((ms ?? 0) / 60000));
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  return hours > 0 ? `${hours}h ${String(minutes).padStart(2, "0")}m` : `${minutes}m`;
+}
+
 /** Classify a playlist `kind`/`playlist_type` in one of the displayed buckets. */
 export function playlistBucket(playlist: Playlist): string {
   return playlist.playlist_type ?? playlist.kind ?? "playlist";
