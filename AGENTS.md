@@ -21,8 +21,14 @@ npm run build       # vite build → dist/
 npm run serve       # build + serve dist/ on http://127.0.0.1:8080
 ```
 
-CI (`.github/workflows/ci.yml`) runs `npm ci`, typecheck, and build on every
-push/PR to `main`. `npm run deploy` publishes to Cloudflare — never run it
+CI/CD (`.github/workflows/`):
+- `ci.yml` runs `npm ci`, typecheck, and build on every push/PR to `main`.
+- `deploy.yml` typechecks, builds, and deploys the frontend to Cloudflare
+  (via `wrangler deploy`, using `CLOUDFLARE_API_TOKEN` / `CLOUDFLARE_ACCOUNT_ID`
+  secrets) on every push to `main` — it updates the live pages automatically.
+  It does not deploy the token proxy in `worker/`; that is still manual.
+
+`npm run deploy` publishes to Cloudflare manually — never run it
 unless explicitly asked.
 
 ## Architecture
