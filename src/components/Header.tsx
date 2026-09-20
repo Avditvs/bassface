@@ -2,9 +2,36 @@
  * App header: brand + user badge (avatar, name, sign out).
  */
 
+import { useState } from "react";
 import { useApp } from "../services/store";
 import { signOut } from "../services/session";
+import { currentTheme, toggleTheme } from "../services/theme";
 import { StatusBar } from "./StatusBar";
+
+/** Small icon button that flips dark ↔ light (moon = switch to dark,
+    sun = switch to light). Kept in sync via local state; the document
+    attribute itself is managed by services/theme.ts. */
+function ThemeToggle() {
+  const [dark, setDark] = useState(currentTheme() === "dark");
+  return (
+    <button
+      className="button button-quiet theme-toggle"
+      type="button"
+      aria-label={dark ? "Switch to light mode" : "Switch to dark mode"}
+      onClick={() => { toggleTheme(); setDark(currentTheme() === "dark"); }}
+    >
+      {dark ? (
+        <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+          <path fill="currentColor" d="M12 3a9 9 0 1 0 9 9c0-.46-.04-.92-.1-1.36a5.39 5.39 0 0 1-4.4 2.26 5.4 5.4 0 0 1-3.14-9.8c-.45-.06-.9-.1-1.36-.1Z" />
+        </svg>
+      ) : (
+        <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+          <path fill="currentColor" d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8Zm0-5a1 1 0 0 1 1 1v2a1 1 0 1 1-2 0V4a1 1 0 0 1 1-1Zm0 16a1 1 0 0 1 1 1v2a1 1 0 1 1-2 0v-2a1 1 0 0 1 1-1ZM3 11h2a1 1 0 1 1 0 2H3a1 1 0 1 1 0-2Zm16 0h2a1 1 0 1 1 0 2h-2a1 1 0 1 1 0-2ZM5.64 4.22 7.05 5.64a1 1 0 1 1-1.41 1.41L4.22 5.64a1 1 0 0 1 1.42-1.42Zm11.31 11.31 1.42 1.42a1 1 0 0 1-1.42 1.42l-1.41-1.42a1 1 0 0 1 1.41-1.42Zm1.42-9.89a1 1 0 0 1 0 1.41l-1.42 1.42a1 1 0 0 1-1.41-1.42l1.41-1.41a1 1 0 0 1 1.42 0ZM6.34 15.53a1 1 0 0 1 0 1.42L4.93 18.36A1 1 0 0 1 3.51 17l1.42-1.41a1 1 0 0 1 1.41-.06Z" />
+        </svg>
+      )}
+    </button>
+  );
+}
 
 export function Header() {
   const user = useApp().user;
@@ -17,6 +44,7 @@ export function Header() {
         <h1>Bassface</h1>
       </div>
       <StatusBar />
+      <ThemeToggle />
       {user && (
         <div className="user-area">
           {user.avatar_url && <img className="avatar" src={user.avatar_url} alt="" />}

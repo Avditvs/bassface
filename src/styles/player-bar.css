@@ -14,7 +14,7 @@
      frame, which makes the bar flicker while scrolling (Chromium bug with
      sticky/backdrop-filter elements). Keep it opaque, blur-free. */
   background: var(--panel);
-  box-shadow: 0 12px 34px rgba(0, 0, 0, 0.38);
+  box-shadow: 0 12px 34px var(--shadow);
   will-change: transform;
 }
 

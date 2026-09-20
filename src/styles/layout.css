@@ -32,9 +32,22 @@
   margin-left: auto;
 }
 
-.status-bar + .user-area {
+.status-bar ~ .user-area {
   margin-left: 0;
 }
+
+.theme-toggle {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  color: var(--muted);
+}
+
+.theme-toggle:hover { color: var(--text); }
 
 .avatar {
   width: 30px;

@@ -107,6 +107,10 @@ document.addEventListener("DOMContentLoaded", () => {
   document.querySelectorAll("style, link[rel='stylesheet']").forEach((el) => {
     el.addEventListener("load", () => { cachedColors = null; });
   });
+  // The theme switch (services/theme.ts) flips the tokens by rewriting the
+  // `data-theme` attribute on <html> — no stylesheet loads, so watch it.
+  new MutationObserver(() => { cachedColors = null; })
+    .observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
 });
 
 /** Draw (or redraw) the cached waveform into the track's canvas. */

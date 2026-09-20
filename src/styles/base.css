@@ -11,6 +11,23 @@
   --accent-soft: rgba(255, 85, 0, 0.14);
   --border: #3a3a3a;
   --danger: #e5484d;
+  --shadow: rgba(0, 0, 0, 0.38);
+}
+
+/* Light theme: same tokens, flipped. The accent is darkened for contrast on
+   the light background; shadows soften so panels still read as floating. */
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg: #f6f5f3;
+  --panel: #ffffff;
+  --panel-alt: #eceae7;
+  --text: #211e1b;
+  --muted: #6d6862;
+  --accent: #d84b00;
+  --accent-soft: rgba(216, 75, 0, 0.12);
+  --border: #dcd9d4;
+  --danger: #c93a3f;
+  --shadow: rgba(0, 0, 0, 0.14);
 }
 
 * { box-sizing: border-box; }

@@ -11,6 +11,7 @@ import { createRoot } from "react-dom/client";
 import { App } from "./components/App";
 import { loadLocalConfig } from "./services/local-config";
 import { runtime } from "./services/store";
+import { initTheme } from "./services/theme";
 import "./styles/base.css";
 import "./styles/layout.css";
 import "./styles/forms.css";
@@ -25,6 +26,9 @@ import "./styles/home.css";
 
 const container = document.getElementById("root");
 if (!container) throw new Error("Missing #root element");
+
+// Pick dark/light before first paint to avoid a theme flash on load.
+initTheme();
 
 // The local dev config file must be applied before any OAuth/session logic
 // reads runtime.config (fetch is a no-op off a loopback origin).
