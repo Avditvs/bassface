@@ -3,5 +3,6 @@ main = "index.js"
 compatibility_date = "2025-09-01"
 
 [vars]
-ALLOWED_ORIGINS = "https://avditvs.github.io"
+# Frontend origins (workers.dev + custom domain) + loopback for local dev.
+ALLOWED_ORIGINS = "https://bassface.louis-germain.fr,https://bassface.germain-louis-80.workers.dev,http://127.0.0.1:8080"
 

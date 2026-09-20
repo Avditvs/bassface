@@ -2,7 +2,7 @@
  * Home screen: landing page shown before signing in — hero, feature
  * overview and the redirect to SoundCloud (OAuth 2.1 + PKCE).
  *
- * - Served remotely (GitHub Pages): proxy-only. The token proxy (worker/)
+ * - Served remotely (Cloudflare static-assets Worker): proxy-only. The token proxy (worker/)
  *   serves the Client ID and holds the Client Secret server-side.
  * - Served from a loopback origin (local development): the Client ID and
  *   Client Secret can be entered directly (the secret is only ever sent to

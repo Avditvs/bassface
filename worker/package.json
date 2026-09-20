@@ -5,9 +5,9 @@
   "type": "module",
   "description": "Cloudflare Worker that injects the SoundCloud client secret server-side",
   "scripts": {
-    "dev": "wrangler dev",
-    "deploy": "wrangler deploy",
-    "tail": "wrangler tail"
+    "dev": "wrangler dev --config wrangler.toml",
+    "deploy": "wrangler deploy --config wrangler.toml",
+    "tail": "wrangler tail --config wrangler.toml"
   },
   "devDependencies": {
     "wrangler": "^4.0.0"

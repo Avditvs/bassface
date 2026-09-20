@@ -20,7 +20,7 @@
  *     then only ever mint tokens for your own app, and nothing but the
  *     proxy URL needs to be configured in the browser.
  *   ALLOWED_ORIGINS (var): comma-separated origins allowed via CORS, e.g.
- *     "https://<user>.github.io,http://127.0.0.1:8080". Empty = any origin
+ *     "https://bassface.pages.dev,http://127.0.0.1:8080". Empty = any origin
  *     (fine for local development; set it in production).
  */
 

@@ -80,7 +80,7 @@ playlist). A **+ New** button in the sidebar creates an empty playlist.
 
 ## Token proxy (keeping the Client Secret server-side)
 
-GitHub Pages only serves static files, so anything entered in the browser —
+Cloudflare (static-assets Worker) only serves static files, so anything entered in the browser —
 including a Client Secret — is inherently visible to the page. The
 [`worker/`](worker/) directory contains a ~80-line **Cloudflare Worker**
 (free tier, no cold starts) that holds the secret in its environment instead:

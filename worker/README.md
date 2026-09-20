@@ -1,7 +1,7 @@
 # SoundCloud token proxy (Cloudflare Worker)
 
 A ~80-line fetch forwarder that keeps your SoundCloud **client secret
-server-side**. The GitHub Pages frontend sends its token requests (code
+server-side**. The Cloudflare-hosted frontend sends its token requests (code
 exchange and refresh) to this worker *without* the secret; the worker
 injects `SOUNDCLOUD_CLIENT_SECRET` from its environment and forwards the
 request to `https://secure.soundcloud.com/oauth/token`.
@@ -29,8 +29,8 @@ browser ◀── tokens
    ```
 
 2. **Configure** in `wrangler.toml`:
-   - `ALLOWED_ORIGINS` — your GitHub Pages origin(s), e.g.
-     `"https://<user>.github.io,http://127.0.0.1:8080"`.
+   - `ALLOWED_ORIGINS` — your frontend origin(s), e.g.
+     `"https://bassface.germain-louis-80.workers.dev,http://127.0.0.1:8080"`.
    - `SOUNDCLOUD_CLIENT_ID` — your app's Client ID (public value). When set,
      the worker serves it to the browser via `GET` and injects it into every
      token request.
