@@ -124,9 +124,7 @@
 .org-art-placeholder {
   display: grid;
   place-items: center;
-  font-weight: 800;
   color: var(--muted);
-  font-size: 0.9rem;
 }
 
 .org-body { display: flex; flex-direction: column; min-width: 0; }

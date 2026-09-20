@@ -16,19 +16,47 @@ import {
 } from "../services/util";
 import type { Playlist } from "../services/types";
 
-/** Artwork image or a letter placeholder. */
-export function Artwork({ artworkUrl, title, className }: {
+/** Minimal music-note glyph used as the artwork fallback. */
+export function TrackIcon({ size }: { size?: number }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      aria-hidden="true"
+    >
+      <path d="M12 3v10.55A4 4 0 1 0 14 17V7h4V3h-6z" />
+    </svg>
+  );
+}
+
+/** Artwork image, or a music-note fallback (letter) when there is none. */
+export function Artwork({ artworkUrl, className, fallback }: {
   artworkUrl?: string | null;
-  title?: string;
   className?: string;
+  /** Optional letter fallback (e.g. ♥) instead of the default track icon. */
+  fallback?: string;
 }) {
-  const letter = (title ?? "?").trim().charAt(0).toUpperCase() || "♪";
-  return artworkUrl ? (
+  const [failed, setFailed] = useState(false);
+  if (!artworkUrl || failed) {
+    return (
+      <div className={className ?? "artwork-placeholder"}>
+        {fallback
+          ? <span className="artwork-letter">{fallback}</span>
+          : <TrackIcon />}
+      </div>
+    );
+  }
+  return (
     <div className={className ?? "artwork"}>
-      <img src={escapeUrl(artworkUrl) || undefined} alt="" loading="lazy" />
+      <img
+        src={escapeUrl(artworkUrl) || undefined}
+        alt=""
+        loading="lazy"
+        onError={() => setFailed(true)}
+      />
     </div>
-  ) : (
-    <div className={className ?? "artwork-placeholder"}>{letter}</div>
   );
 }
 

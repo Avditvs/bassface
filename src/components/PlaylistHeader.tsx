@@ -17,7 +17,7 @@ export function PlaylistHeader() {
     return (
       <div id="playlist-header" className="playlist-header">
         <div className="playlist-header-art">
-          <Artwork artworkUrl={playlist.artwork_url} title="♥" />
+          <Artwork artworkUrl={playlist.artwork_url} fallback="♥" />
         </div>
         <div className="playlist-header-body">
           <h2 className="playlist-title">Liked tracks</h2>
@@ -33,7 +33,7 @@ export function PlaylistHeader() {
   return (
     <div id="playlist-header" className="playlist-header">
       <div className="playlist-header-art">
-        <Artwork artworkUrl={playlist.artwork_url} title={playlist.title} />
+        <Artwork artworkUrl={playlist.artwork_url} />
       </div>
       <div className="playlist-header-body">
         <h2 className="playlist-title">{playlist.title ?? ""}</h2>

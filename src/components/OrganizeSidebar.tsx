@@ -17,7 +17,7 @@ import { useApp } from "../services/store";
 import {
   escapeUrl, formatCount, formatDate,
 } from "../services/util";
-import { StatsLine, usePlaylistStats } from "./shared";
+import { StatsLine, TrackIcon, usePlaylistStats } from "./shared";
 import {
   candidatePlaylists, createPlaylistFromSidebar, getSelection,
   moveTrack, onOrganizeDragLeave, onOrganizeDragOver, onOrganizeDrop,
@@ -30,7 +30,6 @@ function OrganizationEntry({ playlist, bpmValues }: {
   playlist: Playlist;
   bpmValues: Record<number, number>;
 }) {
-  const letter = (playlist.title ?? "?").trim().charAt(0).toUpperCase() || "♪";
   const updatedAt = playlist.last_modified ?? playlist.created_at;
   const stats = usePlaylistStats(playlist, bpmValues);
   const privateBadge = playlist.sharing === "private"
@@ -46,7 +45,7 @@ function OrganizationEntry({ playlist, bpmValues }: {
       >
         {playlist.artwork_url
           ? <img className="org-art" src={escapeUrl(playlist.artwork_url) || undefined} alt="" loading="lazy" />
-          : <span className="org-art org-art-placeholder">{letter}</span>}
+          : <span className="org-art org-art-placeholder"><TrackIcon size={24} /></span>}
         <span className="org-body">
           <span className="org-title" title={playlist.title ?? ""}>{playlist.title ?? ""}</span>
           <span className="org-count muted">{formatCount(playlist.track_count ?? 0)} tracks {privateBadge}</span>

@@ -31,7 +31,7 @@ function PlaylistCard({ playlist }: { playlist: Playlist }) {
         navigateToPlaylist(playlist.id);
       }}
     >
-      <Artwork artworkUrl={playlist.artwork_url} title={playlist.title} />
+      <Artwork artworkUrl={playlist.artwork_url} />
       <div className="card-body">
         <h3 className="card-title" title={playlist.title ?? ""}>{playlist.title ?? ""}</h3>
         <Badges playlist={playlist} />
