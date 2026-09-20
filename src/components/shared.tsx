@@ -10,6 +10,9 @@ import { TYPE_LABELS } from "../services/store";
 import {
   cachedStats, fetchPlaylistStats,
 } from "../services/playlist-stats";
+import {
+  cachedTrackArtwork, fetchTrackArtwork,
+} from "../services/playlist-art";
 import type { PlaylistStats } from "../services/playlist-stats";
 import {
   escapeUrl, formatCount, formatDate, formatTotalDuration, playlistBucket,
@@ -29,6 +32,27 @@ export function TrackIcon({ size }: { size?: number }) {
       <path d="M12 3v10.55A4 4 0 1 0 14 17V7h4V3h-6z" />
     </svg>
   );
+}
+
+/**
+ * Artwork URL of a playlist: its own when present, else the first track's
+ * artwork — fetched lazily (one cached 1-track page per playlist) and
+ * re-read when it arrives. The liked-tracks view (no permalink behind it)
+ * resolves to its own (absent) artwork without any fetch.
+ */
+export function usePlaylistArtwork(playlist: Playlist | null): string | null {
+  const [version, setVersion] = useState(0);
+  const artworkUrl = playlist?.artwork_url ?? (version && playlist ? cachedTrackArtwork(playlist) : null);
+  useEffect(() => {
+    if (!playlist || playlist.artwork_url || version) return undefined;
+    const target = playlist;
+    let cancelled = false;
+    void fetchTrackArtwork(target).then((fetched) => {
+      if (!cancelled && fetched) setVersion((value) => value + 1);
+    });
+    return () => { cancelled = true; };
+  }, [playlist, playlist?.track_count]);
+  return artworkUrl;
 }
 
 /** Artwork image, or a music-note fallback (letter) when there is none. */

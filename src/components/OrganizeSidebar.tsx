@@ -17,7 +17,7 @@ import { useApp } from "../services/store";
 import {
   escapeUrl, formatCount, formatDate,
 } from "../services/util";
-import { StatsLine, TrackIcon, usePlaylistStats } from "./shared";
+import { StatsLine, TrackIcon, usePlaylistArtwork, usePlaylistStats } from "./shared";
 import {
   candidatePlaylists, createPlaylistFromSidebar, getSelection,
   moveTrack, onOrganizeDragLeave, onOrganizeDragOver, onOrganizeDrop,
@@ -32,6 +32,7 @@ function OrganizationEntry({ playlist, bpmValues }: {
 }) {
   const updatedAt = playlist.last_modified ?? playlist.created_at;
   const stats = usePlaylistStats(playlist, bpmValues);
+  const artworkUrl = usePlaylistArtwork(playlist);
   const privateBadge = playlist.sharing === "private"
     ? <span className="badge type-private">Private</span>
     : null;
@@ -43,8 +44,8 @@ function OrganizationEntry({ playlist, bpmValues }: {
         title="Drop to add the dragged sound to this playlist"
         onClick={() => openSidebarPlaylist(String(playlist.id))}
       >
-        {playlist.artwork_url
-          ? <img className="org-art" src={escapeUrl(playlist.artwork_url) || undefined} alt="" loading="lazy" />
+        {artworkUrl
+          ? <img className="org-art" src={escapeUrl(artworkUrl) || undefined} alt="" loading="lazy" />
           : <span className="org-art org-art-placeholder"><TrackIcon size={24} /></span>}
         <span className="org-body">
           <span className="org-title" title={playlist.title ?? ""}>{playlist.title ?? ""}</span>

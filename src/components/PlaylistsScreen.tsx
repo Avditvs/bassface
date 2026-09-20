@@ -8,7 +8,7 @@ import { useMemo, useState } from "react";
 import { TYPE_LABELS, useApp } from "../services/store";
 import { navigateToLiked, navigateToPlaylist } from "../services/router";
 import { escapeUrl, playlistBucket } from "../services/util";
-import { Artwork, Badges, CardMeta } from "./shared";
+import { Artwork, Badges, CardMeta, usePlaylistArtwork } from "./shared";
 import type { Playlist, SortKey } from "../services/types";
 
 const SORTERS: Record<SortKey, (a: Playlist, b: Playlist) => number> = {
@@ -22,6 +22,8 @@ const PAGE_SIZE = 24;
 
 /** One playlist card of the grid. */
 function PlaylistCard({ playlist }: { playlist: Playlist }) {
+  // Own artwork, else the first track's (fetched lazily), else the note icon.
+  const artworkUrl = usePlaylistArtwork(playlist);
   return (
     <li
       data-playlist-id={playlist.id}
@@ -31,7 +33,7 @@ function PlaylistCard({ playlist }: { playlist: Playlist }) {
         navigateToPlaylist(playlist.id);
       }}
     >
-      <Artwork artworkUrl={playlist.artwork_url} />
+      <Artwork artworkUrl={artworkUrl} />
       <div className="card-body">
         <h3 className="card-title" title={playlist.title ?? ""}>{playlist.title ?? ""}</h3>
         <Badges playlist={playlist} />
