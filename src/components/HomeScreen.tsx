@@ -113,7 +113,13 @@ export function HomeScreen() {
   return (
     <section id="home-screen" className="home">
       <div className="hero">
-        <h2>Manage your SoundCloud playlists</h2>
+        <div className="hero-badge" aria-hidden="true">
+          <span className="hero-badge-dot" /> OAuth 2.1 + PKCE · Runs entirely in your browser
+        </div>
+        <h2>
+          Manage your SoundCloud<br />
+          <span className="hero-title-accent">playlists</span> like a pro
+        </h2>
         <p className="hero-tagline">
           A fast, backend-free client for the SoundCloud API: browse, preview,
           analyze and reorganize your playlists — all in your browser.
@@ -226,6 +232,7 @@ export function HomeScreen() {
       </div>
 
       <h2 className="features-title">What you can do</h2>
+      <div className="features-rule" aria-hidden="true" />
       <div className="features-grid">
         <Feature icon="📚" title="Browse & search playlists">
           List all your playlists with live search, type filter, sorting and
