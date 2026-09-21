@@ -156,6 +156,7 @@ export function OrganizeSidebar() {
           <button
             className="button button-quiet"
             type="button"
+            data-tour="organize-choose"
             onClick={() => setSelectionMode(!selectionMode)}
           >
             {selectionMode ? "Done" : "Choose…"}

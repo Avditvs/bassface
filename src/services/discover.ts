@@ -83,6 +83,11 @@ export const TOUR_STEPS: TourStep[] = [
     body: "Short on space? “Retract” hides the search bar and description; “Expand” brings them back — your choice is remembered.",
   },
   {
+    selector: '[data-tour="organize-choose"]',
+    title: "Pick your drop targets",
+    body: "Click “Choose…” to tick which playlists appear in the sidebar as drag targets — “All” and “None” sweep the list, and “Done” confirms.",
+  },
+  {
     selector: '[data-tour="theme-toggle"]',
     title: "Light or dark",
     body: "Switch the theme any time — your choice is remembered for the next visit.",
