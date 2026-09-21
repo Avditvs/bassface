@@ -51,15 +51,16 @@
   letter-spacing: -0.02em;
 }
 
-/* "bassface" word in the hero: the wobble-mouth gradient from the brand
-   mark (logo #ff8a3d → #ff5500) on the word itself; the rest of the
-   headline stays plain bold. */
+/* "bassface" word in the hero: plain brand orange, with the same drop-down
+   motion the header wordmark gives "Bass" on hover (layout.css). The rest
+   of the headline stays plain bold. */
 .bassface-word {
-  background: linear-gradient(90deg, #ff8a3d, var(--accent));
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+  color: var(--accent);
+  display: inline-block;
+  transition: transform 120ms ease;
 }
+
+.bassface-word:hover { transform: translateY(3px); }
 
 .hero-tagline {
   font-size: 1.12rem;
