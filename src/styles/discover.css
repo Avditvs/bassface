@@ -14,7 +14,7 @@
    box-shadow spread dims everything outside it. */
 .discover-spotlight {
   position: fixed;
-  border-radius: 10px;
+  border-radius: var(--radius-m);
   box-shadow: 0 0 0 200vmax rgba(0, 0, 0, 0.6);
   outline: 2px solid var(--accent);
   transition: top 0.25s ease, left 0.25s ease, width 0.25s ease, height 0.25s ease;
@@ -26,7 +26,7 @@
   pointer-events: auto;
   background: var(--panel);
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--radius-m);
   box-shadow: 0 8px 24px var(--shadow);
   padding: 14px 16px;
 }

@@ -8,7 +8,7 @@
   z-index: 2;
   overflow: hidden;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-s);
   /* Opaque on purpose: a translucent background + backdrop-filter must
      re-capture and re-blur the scrolling content behind the bar on every
      frame, which makes the bar flicker while scrolling (Chromium bug with
@@ -42,7 +42,7 @@
   width: 50px;
   height: 50px;
   flex: none;
-  border-radius: 4px;
+  border-radius: var(--radius-s);
   object-fit: cover;
   background: var(--panel-alt);
 }
@@ -90,7 +90,7 @@
   height: 38px;
   flex: 1 1 120px;
   min-width: 80px;
-  border-radius: 3px;
+  border-radius: var(--radius-s);
   background: var(--panel-alt);
   cursor: pointer;
 }
@@ -162,7 +162,7 @@ body:has(.player-bar) .app-footer { display: none; }
     right: 24px;
     bottom: calc(8px + env(safe-area-inset-bottom, 0px)); /* floats above the screen edge */
     margin-top: 0;
-    border-radius: 6px;
+    border-radius: var(--radius-s);
     z-index: 3; /* above the pinned Reorganize panel */
   }
   /* Home-indicator clearance lives inside the bar, so no content can

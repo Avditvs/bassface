@@ -13,6 +13,11 @@
   --border: #3a3a3a;
   --danger: #e5484d;
   --shadow: rgba(0, 0, 0, 0.38);
+  /* One radius scale for the whole app: small controls, medium chips and
+     buttons, large cards. Keep new surfaces on these three values. */
+  --radius-s: 6px;
+  --radius-m: 10px;
+  --radius-l: 12px;
 }
 
 /* Light theme: same tokens, flipped but kept soft — text is a warm dark

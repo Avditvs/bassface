@@ -81,7 +81,7 @@ body:has(#playlist-screen:not([hidden])) .app-footer {
     position: sticky;
     bottom: 0;
     z-index: 2;
-    border-radius: 6px 6px 0 0;
+    border-radius: var(--radius-s) var(--radius-s) 0 0;
     padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
     box-shadow: 0 -10px 24px var(--shadow); /* separate from rows behind */
   }
@@ -161,7 +161,7 @@ body:has(#playlist-screen:not([hidden])) .app-footer {
   align-items: flex-start;
   background: var(--panel);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-s);
   padding: 22px 24px;
   margin-top: 16px;
 }
@@ -173,7 +173,7 @@ body:has(#playlist-screen:not([hidden])) .app-footer {
 }
 
 .playlist-header-art .artwork,
-.playlist-header-art .artwork-placeholder { border-radius: 5px; }
+.playlist-header-art .artwork-placeholder { border-radius: var(--radius-s); }
 
 .playlist-header-body { flex: 1; min-width: 0; }
 
@@ -214,7 +214,7 @@ body:has(#playlist-screen:not([hidden])) .app-footer {
 .remove-panel {
   background: var(--panel);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-s);
   padding: 16px;
   display: flex;
   flex-direction: column;
@@ -238,6 +238,6 @@ body:has(#playlist-screen:not([hidden])) .app-footer {
   font-size: 0.95rem;
   color: var(--muted);
   border: 2px dashed var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-s);
   text-align: center;
 }
