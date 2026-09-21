@@ -107,6 +107,11 @@ export function App() {
           <a href="https://developers.soundcloud.com/docs/api/guide" target="_blank" rel="noreferrer">SoundCloud API</a>
           {" "}— no backend, tokens never leave your browser.
         </p>
+        <p className="muted">
+          Aggregate, cookie-free audience measurement via{" "}
+          <a href="https://www.cloudflare.com/web-analytics/" target="_blank" rel="noreferrer">Cloudflare Web Analytics</a>
+          {" "}— no cookies, no fingerprinting, no personal data collected.
+        </p>
       </footer>
       {/* First-use guided tour (skip inside the tour, replay via the
           header's “✨ Discover” button). */}

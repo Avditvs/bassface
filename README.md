@@ -133,6 +133,11 @@ directly.)
   sent by the app**: it lives only in the token proxy's environment.
   Only run this app from a trusted origin, and sign out when done on a
   shared machine.
+- **Analytics**: aggregate, cookie-free audience measurement via
+  [Cloudflare Web Analytics](https://www.cloudflare.com/web-analytics/) —
+  no cookies, no fingerprinting, no cross-site tracking, no personal data
+  collected; a consent banner is therefore not required (RGPD audience
+  measurement exemption).
 
 > **Bassface** stores the token proxy URL and OAuth tokens in
 > `localStorage` of your own browser. They never leave your machine. The
