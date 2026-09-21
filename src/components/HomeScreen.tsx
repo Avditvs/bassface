@@ -107,9 +107,15 @@ export function HomeScreen() {
     <section id="home-screen" className="home-screen">
       <div className="home">
         <div className="hero">
-          <h2>
-            Drag, drop, done:<br />
-            Your playlists. Your <span className="bassface-word"><span className="bass-dip">Bass</span>face</span>.
+          <h2 className="hero-headline">
+            {/* Each word is carried in and dropped into place; "Bass" drops
+                again — down and up — once the headline has landed. */}
+            <span className="hero-word hero-word-1">Drag,</span>{" "}
+            <span className="hero-word hero-word-2">drop,</span>{" "}
+            <span className="hero-word hero-word-3">done:</span>
+            <br />
+            <span className="hero-word hero-word-4">Your playlists. Your</span>{" "}
+            <span className="hero-word hero-word-5 bassface-word"><span className="bass-dip">Bass</span>face</span>.
           </h2>
           <p className="hero-tagline">
             Browse, preview and reorganize your playlists — fast, safe and
