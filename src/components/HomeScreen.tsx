@@ -102,15 +102,6 @@ export function HomeScreen() {
   const [clientSecret, setClientSecret] = useState(runtime.config.clientSecret);
   const [redirectUri, setRedirectUri] = useState(runtime.config.redirectUri);
   const [redirecting, setRedirecting] = useState(false);
-  const [showAdvanced, setShowAdvanced] = useState(false);
-
-  // Hint under the redirect field: explains what must be registered where.
-  const resolved = redirectUri.trim() || runtime.config.resolveRedirectUri();
-  const hint = redirectUri.trim()
-    ? "This exact URI (including trailing slash) must be registered as a redirect URI."
-    : resolved
-      ? `Registered redirect: ${resolved} — or enter another address above.`
-      : "Serve this folder over http(s) (e.g. `python3 -m http.server 8080`) to enable the OAuth redirect.";
 
   return (
     <section id="home-screen" className="home">
@@ -126,11 +117,11 @@ export function HomeScreen() {
         {local && (
           <p className="muted">
             Local development mode (loopback origin): token requests go
-            straight to SoundCloud with your own credentials by default —
-            enter them below, or drop a <code>public/config.local.json</code>{" "}
-            (see <code>config.local.json.example</code>) to configure this
-            automatically, including a proxy mode. The Client Secret is only
-            ever sent to SoundCloud's own token endpoint.
+            straight to SoundCloud with your own credentials — drop a{" "}
+            <code>public/config.local.json</code> (see{" "}
+            <code>config.local.json.example</code>) to configure them,
+            including a proxy mode. The Client Secret is only ever sent to
+            SoundCloud's own token endpoint.
           </p>
         )}
         <form
@@ -153,73 +144,6 @@ export function HomeScreen() {
           >
             {redirecting ? "Redirecting to SoundCloud…" : "Connect with SoundCloud"}
           </button>
-          <p className="advanced-toggle">
-            <span className="tooltip-anchor">
-              <button
-                type="button"
-                className="link-quiet"
-                onClick={() => setShowAdvanced((visible) => !visible)}
-              >
-                Advanced options
-              </button>
-              <span className="tooltip" role="tooltip">
-                Only needed if you host your own copy: register an app on the{" "}
-                <a href="https://developers.soundcloud.com/docs/api/register-app" target="_blank" rel="noreferrer">SoundCloud developer portal</a>
-                {" "}(requires an Artist Pro subscription) to get a Client ID,
-                and deploy the token proxy in <code>worker/</code> for the Client Secret.
-              </span>
-            </span>
-          </p>
-          {showAdvanced && (
-          <div className="form-stack advanced-panel">
-            {local ? (
-              <>
-                <label>
-                  <span>Client ID</span>
-                  <input
-                    type="text"
-                    autoComplete="off"
-                    placeholder="e.g. AbC123xYz…"
-                    value={clientId}
-                    onChange={(event) => setClientId(event.target.value)}
-                  />
-                </label>
-                <label>
-                  <span>Client secret</span>
-                  <input
-                    type="password"
-                    autoComplete="off"
-                    placeholder="Required for the token exchange (confidential client)"
-                    value={clientSecret}
-                    onChange={(event) => setClientSecret(event.target.value)}
-                  />
-                </label>
-              </>
-            ) : (
-              <label>
-                <span>Client ID</span>
-                <input
-                  type="text"
-                  autoComplete="off"
-                  placeholder="Fetched from the token proxy when left empty"
-                  value={clientId}
-                  onChange={(event) => setClientId(event.target.value)}
-                />
-              </label>
-            )}
-            <label>
-              <span>Redirect URI</span>
-              <input
-                type="text"
-                autoComplete="off"
-                placeholder="Default: the address this page is served from"
-                value={redirectUri}
-                onChange={(event) => setRedirectUri(event.target.value)}
-              />
-            </label>
-            <p className="muted" id="redirect-hint">{hint}</p>
-          </div>
-          )}
         </form>
         {!local && (
           <p className="muted">
