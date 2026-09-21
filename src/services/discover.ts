@@ -6,7 +6,8 @@
  *
  * The tour auto-starts once (flag in localStorage, see markDiscoverSeen);
  * steps whose target element is not on screen (screen-dependent features)
- * are skipped automatically.
+ * are skipped automatically — unless the step declares a `prepare` action
+ * that can bring its target back (e.g. un-retract the sidebar panel).
  */
 
 const DISCOVER_KEY = "playlist_updater.discover";
@@ -14,6 +15,7 @@ const RESTART_EVENT = "bassface:discover-start";
 
 import { getState } from "./store";
 import { navigateToPlaylist } from "./router";
+import { expandSidebarPanel } from "./organize";
 
 /** One tour stop: what to highlight and what to say about it. */
 export interface TourStep {
@@ -24,6 +26,9 @@ export interface TourStep {
   /** Optional side effect fired when the user advances past this step —
    *  e.g. navigate to the screen the next steps talk about. */
   advance?: () => void;
+  /** Optional action fired once when the target is missing, before the step
+   *  is skipped — e.g. expand a retracted panel so its search bar shows up. */
+  prepare?: () => void;
 }
 
 /** The tour, in visiting order. Screen-specific targets (analyze, sidebar)
@@ -68,6 +73,14 @@ export const TOUR_STEPS: TourStep[] = [
     selector: '[data-tour="organize-filter"]',
     title: "Find the right playlist fast",
     body: "Many playlists? Type here to filter the sidebar list — drag targets update instantly.",
+    // The search bar can be retracted ("Retract" toggle): bring it back
+    // instead of skipping the step.
+    prepare: expandSidebarPanel,
+  },
+  {
+    selector: '[data-tour="organize-toggle"]',
+    title: "Retract or expand the panel",
+    body: "Short on space? “Retract” hides the search bar and description; “Expand” brings them back — your choice is remembered.",
   },
   {
     selector: '[data-tour="theme-toggle"]',

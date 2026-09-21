@@ -74,6 +74,21 @@ export function toggleSelection(id: string, checked: boolean): void {
   saveSelection();
 }
 
+// --- Panel expansion ---------------------------------------------------------
+
+/**
+ * Window event that expands the sidebar's search bar + description (the
+ * "Retract" toggle retracts them, and the choice is persisted). The Discover
+ * tour fires it so its filter step can un-retract the panel instead of being
+ * skipped when the search bar is hidden.
+ */
+export const EXPAND_EVENT = "bassface:organize-expand";
+
+/** Expand the sidebar panel (search bar + description) from anywhere. */
+export function expandSidebarPanel(): void {
+  window.dispatchEvent(new Event(EXPAND_EVENT));
+}
+
 /** All playlists eligible for the sidebar (everything but the open one). */
 export function candidatePlaylists(): Playlist[] {
   const currentId = String(getState().currentPlaylist?.id ?? "");

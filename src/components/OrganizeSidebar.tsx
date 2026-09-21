@@ -12,11 +12,12 @@
  * organize service.
  */
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useApp } from "../services/store";
 import {
   escapeUrl, formatCount, formatDate,
 } from "../services/util";
+import { EXPAND_EVENT } from "../services/organize";
 import { StatsLine, TrackIcon, usePlaylistArtwork, usePlaylistStats } from "./shared";
 import {
   candidatePlaylists, createPlaylistFromSidebar, getSelection,
@@ -91,6 +92,21 @@ export function OrganizeSidebar() {
   const [expanded, setExpanded] = useState(loadExpanded);
   const [, setSelectionCopy] = useState<Set<string> | null>(getSelection());
 
+  // External expansion (Discover tour's filter step): expand and persist, so
+  // the retracted panel never hides a feature the tour is pointing at.
+  useEffect(() => {
+    const expand = () => {
+      setExpanded(true);
+      try {
+        localStorage.setItem(EXPANDED_KEY, JSON.stringify(true));
+      } catch {
+        // Storage unavailable: expanded for this session only.
+      }
+    };
+    window.addEventListener(EXPAND_EVENT, expand);
+    return () => window.removeEventListener(EXPAND_EVENT, expand);
+  }, []);
+
   /** Toggle the search bar + description and remember the choice. */
   function toggleExpanded(): void {
     setExpanded((value) => {
@@ -122,6 +138,7 @@ export function OrganizeSidebar() {
           <button
             className="button button-quiet org-toggle"
             type="button"
+            data-tour="organize-toggle"
             aria-expanded={expanded}
             title={expanded ? "Hide the search bar and description" : "Show the search bar and description"}
             onClick={toggleExpanded}

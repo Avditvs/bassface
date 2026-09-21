@@ -75,16 +75,25 @@ export function DiscoverTour() {
   // spotlight glued to it across scrolling and resizing (measuring only —
   // scrolling on every scroll event would fight the user). A freshly
   // advanced step's target may not be mounted yet (navigation is async) —
-  // retry briefly, then skip the step entirely if it never shows up.
+  // retry briefly, then — after firing the step's `prepare`, if any — skip
+  // the step entirely if it never shows up.
   useEffect(() => {
     if (!active || !step) return;
     let attempts = 0;
     let scrolled = false;
+    let prepared = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
     const measure = () => {
       const target = document.querySelector(step.selector);
       if (!target) {
         setRect(null);
+        // The element may be hidden rather than absent: a `prepare` action
+        // (e.g. expand the retracted sidebar panel) is fired once, then the
+        // retry window below gives it time to appear.
+        if (!prepared) {
+          prepared = true;
+          step.prepare?.();
+        }
         // The element may still be mounting (e.g. right after the step's
         // advance() navigated to another screen) — retry ~1.5 s, then skip.
         if (attempts++ < 15) timer = setTimeout(measure, 100);
