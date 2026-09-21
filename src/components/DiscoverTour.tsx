@@ -29,6 +29,14 @@ export function DiscoverTour() {
   const [active, setActive] = useState(false);
   const [stepIndex, setStepIndex] = useState(0);
   const [rect, setRect] = useState<Rect | null>(null);
+  // Whether the current step's target has been found and measured. While it
+  // is false (e.g. right after advancing onto a screen that is still
+  // mounting) the overlay stays mounted and fades, rather than vanishing.
+  const [targetReady, setTargetReady] = useState(false);
+  // True while a step-driven smooth scroll is in flight: the spotlight then
+  // tracks the target without its transition, and glides again once settled.
+  const [scrolling, setScrolling] = useState(false);
+  const scrollEndTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const cardRef = useRef<HTMLDivElement>(null);
 
   // Auto-start on first signed-in use; the header button can restart it.
@@ -72,10 +80,17 @@ export function DiscoverTour() {
     }
     // Optional step action (e.g. open the first playlist) before advancing.
     step.advance?.();
+    // Keep the previous rect: the spotlight glides to the next target while
+    // the overlay stays mounted, instead of unmounting and reappearing.
     setStepIndex(clampedIndex + 1);
-    setRect(null); // previous spotlight must not linger mid-navigation
   };
   const back = () => setStepIndex(Math.max(0, clampedIndex - 1));
+
+  // Re-enable the spotlight glide only once a step-driven scroll has settled.
+  const endScroll = () => {
+    if (scrollEndTimer.current) clearTimeout(scrollEndTimer.current);
+    scrollEndTimer.current = setTimeout(() => setScrolling(false), 140);
+  };
 
   // Track the highlighted element: scroll it into view once, then keep the
   // spotlight glued to it across scrolling and resizing (measuring only —
@@ -85,14 +100,18 @@ export function DiscoverTour() {
   // the step entirely if it never shows up.
   useEffect(() => {
     if (!active || !step) return;
+    setScrolling(false);
     let attempts = 0;
     let scrolled = false;
+    let isScrolling = false;
     let prepared = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
     const measure = () => {
       const target = document.querySelector(step.selector);
       if (!target) {
-        setRect(null);
+        // Keep the previous rect and the overlay mounted, so the step change
+        // fades instead of flashing while the target mounts.
+        setTargetReady(false);
         // The element may be hidden rather than absent: a `prepare` action
         // (e.g. expand the retracted sidebar panel) is fired once, then the
         // retry window below gives it time to appear.
@@ -107,18 +126,28 @@ export function DiscoverTour() {
         else finish();
         return;
       }
-      if (!scrolled) {
-        target.scrollIntoView({ behavior: "smooth", block: "center" });
-        scrolled = true;
-      }
+      setTargetReady(true);
       const r = target.getBoundingClientRect();
+      if (!scrolled) {
+        scrolled = true;
+        // Only scroll when the target is not already comfortably in view, so
+        // most step changes just glide the spotlight straight across.
+        const fullyVisible = r.top >= VIEWPORT_MARGIN && r.bottom <= window.innerHeight - VIEWPORT_MARGIN;
+        if (!fullyVisible) {
+          isScrolling = true;
+          setScrolling(true);
+          target.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
+      }
       setRect({ top: r.top, left: r.left, width: r.width, height: r.height });
+      if (isScrolling) endScroll();
     };
     measure();
     window.addEventListener("resize", measure);
     window.addEventListener("scroll", measure, true);
     return () => {
       if (timer) clearTimeout(timer);
+      if (scrollEndTimer.current) clearTimeout(scrollEndTimer.current);
       window.removeEventListener("resize", measure);
       window.removeEventListener("scroll", measure, true);
     };
@@ -175,7 +204,9 @@ export function DiscoverTour() {
   if (!active || !step || !rect || !placement || !spotlight) return null;
 
   return (
-    <div className="discover-overlay">
+    <div
+      className={`discover-overlay${targetReady ? "" : " is-waiting"}${scrolling ? " is-scrolling" : ""}`}
+    >
       <div
         className="discover-spotlight"
         style={{

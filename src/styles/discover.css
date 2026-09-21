@@ -17,7 +17,24 @@
   border-radius: var(--radius-m);
   box-shadow: 0 0 0 200vmax rgba(0, 0, 0, 0.6);
   outline: 2px solid var(--accent);
-  transition: top 0.25s ease, left 0.25s ease, width 0.25s ease, height 0.25s ease;
+  transition: top 0.3s ease, left 0.3s ease, width 0.3s ease, height 0.3s ease, opacity 0.18s ease;
+}
+
+/* While a step scrolls its target into view, the spotlight rides the target
+   (no transition); it glides again as soon as the scroll settles. */
+.discover-overlay.is-scrolling .discover-spotlight {
+  transition: none;
+}
+
+/* The next step's target is still mounting: fade rather than unmount, so
+   advancing never flashes. */
+.discover-overlay.is-waiting .discover-spotlight,
+.discover-overlay.is-waiting .discover-card {
+  opacity: 0;
+}
+
+.discover-overlay.is-waiting .discover-card {
+  pointer-events: none;
 }
 
 .discover-card {
@@ -29,6 +46,7 @@
   border-radius: var(--radius-m);
   box-shadow: 0 8px 24px var(--shadow);
   padding: 14px 16px;
+  transition: top 0.3s ease, left 0.3s ease, opacity 0.18s ease;
 }
 
 .discover-step {
