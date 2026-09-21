@@ -110,6 +110,7 @@ export function OrganizeSidebar() {
     <aside
       id="organize"
       className="organize"
+      data-tour="organize-sidebar"
       aria-label="Reorganize playlists"
       onDragOver={onOrganizeDragOver}
       onDragLeave={onOrganizeDragLeave}

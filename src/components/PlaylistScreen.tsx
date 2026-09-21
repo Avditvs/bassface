@@ -66,6 +66,7 @@ export function PlaylistScreen() {
             <button
               className={`button button-quiet${state.chromaAllRunning || state.bpmAllRunning ? " is-loading" : ""}`}
               type="button"
+              data-tour="analyze-all"
               title="Estimate the BPM and the key of every track (click again to stop)"
               onClick={analyzeAllTracks}
             >

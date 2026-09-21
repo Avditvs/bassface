@@ -1,0 +1,61 @@
+/* discover.css — first-use guided tour: page dim, spotlight hole and
+   floating step card (see components/DiscoverTour.tsx, services/discover.ts). */
+
+/* The overlay itself never catches the pointer: the tour explains, it does
+   not block — the spotlight keeps the highlighted control readable. */
+.discover-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  pointer-events: none;
+}
+
+/* The "hole": a transparent rounded rect over the target; the huge
+   box-shadow spread dims everything outside it. */
+.discover-spotlight {
+  position: fixed;
+  border-radius: 10px;
+  box-shadow: 0 0 0 200vmax rgba(0, 0, 0, 0.6);
+  outline: 2px solid var(--accent);
+  transition: top 0.25s ease, left 0.25s ease, width 0.25s ease, height 0.25s ease;
+}
+
+.discover-card {
+  position: fixed;
+  z-index: 1001;
+  pointer-events: auto;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 8px 24px var(--shadow);
+  padding: 14px 16px;
+}
+
+.discover-step {
+  margin: 0 0 4px;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.discover-title {
+  margin: 0 0 6px;
+  font-size: 1.05rem;
+}
+
+.discover-body {
+  margin: 0 0 12px;
+  font-size: 0.9rem;
+}
+
+.discover-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.discover-nav {
+  display: flex;
+  gap: 8px;
+}

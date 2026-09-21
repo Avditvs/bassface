@@ -6,6 +6,7 @@ import { useState } from "react";
 import { useApp } from "../services/store";
 import { signOut } from "../services/session";
 import { currentTheme, toggleTheme } from "../services/theme";
+import { startDiscoverTour } from "../services/discover";
 import { StatusBar } from "./StatusBar";
 
 /** Small icon button that flips dark ↔ light (moon = switch to dark,
@@ -16,6 +17,7 @@ function ThemeToggle() {
   return (
     <button
       className="button button-quiet theme-toggle"
+      data-tour="theme-toggle"
       type="button"
       aria-label={dark ? "Switch to light mode" : "Switch to dark mode"}
       onClick={() => { toggleTheme(); setDark(currentTheme() === "dark"); }}
@@ -44,6 +46,14 @@ export function Header() {
         <h1>Bassface</h1>
       </div>
       <StatusBar />
+      <button
+        className="button button-quiet"
+        type="button"
+        title="Take a quick guided tour of the app"
+        onClick={startDiscoverTour}
+      >
+        ✨ Discover
+      </button>
       <ThemeToggle />
       {user && (
         <div className="user-area">

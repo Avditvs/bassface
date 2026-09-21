@@ -157,6 +157,7 @@ export function PlaylistsScreen() {
         <button
           className="button button-quiet"
           type="button"
+          data-tour="liked-button"
           title="List every track you liked on SoundCloud, most recently liked first — drag them onto playlists in the Reorganize sidebar"
           onClick={navigateToLiked}
         >
@@ -165,6 +166,7 @@ export function PlaylistsScreen() {
         <input
           className="search"
           type="search"
+          data-tour="playlists-search"
           placeholder="Filter playlists…"
           value={search}
           onChange={(event) => resetPageAndRender(() => setSearch(event.target.value))}
@@ -197,7 +199,7 @@ export function PlaylistsScreen() {
         {`${visible.length} playlist${visible.length === 1 ? "" : "s"} · ${playlists.length} total`}
       </p>
 
-      <ul id="playlist-list" className="playlist-grid">
+      <ul id="playlist-list" className="playlist-grid" data-tour="playlist-grid">
         {playlistsLoading && (
           <li className="empty-state"><span className="spinner" aria-hidden="true" />Loading your playlists…</li>
         )}

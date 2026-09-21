@@ -11,6 +11,7 @@ import { handleOAuthCallback, enterApp } from "../services/session";
 import { runtime, showStatus, tokenSummary, useApp } from "../services/store";
 import { SoundCloudApi } from "../services/api";
 import { Header } from "./Header";
+import { DiscoverTour } from "./DiscoverTour";
 import { HomeScreen } from "./HomeScreen";
 import { PlaylistsScreen } from "./PlaylistsScreen";
 import { PlaylistScreen } from "./PlaylistScreen";
@@ -107,6 +108,9 @@ export function App() {
           {" "}— no backend, tokens never leave your browser.
         </p>
       </footer>
+      {/* First-use guided tour (skip inside the tour, replay via the
+          header's “✨ Discover” button). */}
+      <DiscoverTour />
     </>
   );
 }
