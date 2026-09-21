@@ -51,16 +51,21 @@
   letter-spacing: -0.02em;
 }
 
-/* "bassface" word in the hero: plain brand orange, with the same drop-down
-   motion the header wordmark gives "Bass" on hover (layout.css). The rest
-   of the headline stays plain bold. */
+/* "bassface" word in the hero: plain brand orange, echoing the header
+   wordmark. Hovering the headline dips "bass" only — the same drop the
+   header gives "Bass" on hover (layout.css) — so the word reads in two.
+   The rest of the headline stays plain bold. */
 .bassface-word {
   color: var(--accent);
+  display: inline-block;
+}
+
+.bass-dip {
   display: inline-block;
   transition: transform 120ms ease;
 }
 
-.bassface-word:hover { transform: translateY(3px); }
+.hero h2:hover .bass-dip { transform: translateY(3px); }
 
 .hero-tagline {
   font-size: 1.12rem;
