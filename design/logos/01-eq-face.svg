@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <!-- Bassface — equalizer bars forming a face -->
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ff8a3d"/>
+      <stop offset="1" stop-color="#ff5500"/>
+    </linearGradient>
+  </defs>
+  <rect width="128" height="128" rx="28" fill="#1c1c1c"/>
+
+  <!-- eyes: two vertical bars -->
+  <rect x="38" y="34" width="10" height="26" rx="5" fill="url(#g)"/>
+  <rect x="80" y="34" width="10" height="26" rx="5" fill="url(#g)"/>
+
+  <!-- grin: equalizer bars whose heights trace a smile -->
+  <rect x="30" y="78" width="9" height="10" rx="4.5" fill="url(#g)"/>
+  <rect x="43" y="74" width="9" height="14" rx="4.5" fill="url(#g)"/>
+  <rect x="56" y="71" width="9" height="17" rx="4.5" fill="url(#g)"/>
+  <rect x="69" y="74" width="9" height="14" rx="4.5" fill="url(#g)"/>
+  <rect x="82" y="78" width="9" height="10" rx="4.5" fill="url(#g)"/>
+</svg>

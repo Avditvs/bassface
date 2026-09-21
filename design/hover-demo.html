@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<title>Bassface — hover demo (19 ⇄ 21)</title>
+<style>
+  body { margin: 0; min-height: 100vh; display: grid; place-items: center;
+         background: #111; font-family: system-ui, sans-serif; color: #a6a6a6; }
+  .wrap { text-align: center; }
+  .icon { position: relative; width: 128px; height: 128px; margin: 0 auto 16px; cursor: pointer; }
+  .icon img { position: absolute; inset: 0; transition: opacity 120ms ease; }
+  .icon .alt { opacity: 0; }
+  .icon:hover .base { opacity: 0; }
+  .icon:hover .alt  { opacity: 1; }
+  p { font-size: 14px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="icon">
+    <img class="base" src="logos/19-headphones-wobble-down.svg" alt="Bassface">
+    <img class="alt"  src="logos/21-wobble-open-eyes.svg" alt="">
+  </div>
+  <p>hover the face 👆</p>
+</div>
+</body>
+</html>

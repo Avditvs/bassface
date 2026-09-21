@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <!-- Bassface — "B" monogram built from playlist bars -->
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ff8a3d"/>
+      <stop offset="1" stop-color="#ff5500"/>
+    </linearGradient>
+  </defs>
+  <rect width="128" height="128" rx="28" fill="#1c1c1c"/>
+
+  <!-- spine of the B -->
+  <rect x="34" y="26" width="12" height="76" rx="6" fill="url(#g)"/>
+
+  <!-- three playlist rows curving into B bowls; middle row shorter (track 2) -->
+  <path d="M40 32 H 76 A 14 14 0 0 1 76 60 H 40" fill="none" stroke="url(#g)" stroke-width="11" stroke-linecap="round"/>
+  <path d="M40 60 H 84 A 14 14 0 0 1 84 92 H 40" fill="none" stroke="url(#g)" stroke-width="11" stroke-linecap="round"/>
+
+  <!-- waveform dot on middle row: "playing" track -->
+  <circle cx="66" cy="60" r="4" fill="#1c1c1c"/>
+</svg>

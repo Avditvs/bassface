@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <!-- 17 · Headphones + wobbly mouth: full-body shiver of a good bassline -->
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#ff8a3d"/>
+      <stop offset="1" stop-color="#ff5500"/>
+    </linearGradient>
+  </defs>
+  <rect width="128" height="128" rx="28" fill="#1c1c1c"/>
+
+  <!-- head silhouette -->
+  <circle cx="64" cy="68" r="42" fill="#2e2e2e"/>
+
+  <!-- headphone band -->
+  <path d="M20 70 C 20 40 40 22 64 22 C 88 22 108 40 108 70"
+        fill="none" stroke="#f2f2f2" stroke-width="8" stroke-linecap="round"/>
+
+  <!-- ear cups -->
+  <rect x="12"  y="62" width="16" height="28" rx="8" fill="url(#g)"/>
+  <rect x="100" y="62" width="16" height="28" rx="8" fill="url(#g)"/>
+
+  <!-- blissful closed eyes -->
+  <path d="M44 58 Q 50 52 56 58" fill="none" stroke="#f2f2f2" stroke-width="5" stroke-linecap="round"/>
+  <path d="M72 58 Q 78 52 84 58" fill="none" stroke="#f2f2f2" stroke-width="5" stroke-linecap="round"/>
+
+  <!-- wobbly mouth: the sinusoidal lip-curl of pure bass -->
+  <path d="M44 84 q 5 -9 10 0 q 5 9 10 0 q 5 -9 10 0 q 5 9 10 0"
+        fill="none" stroke="url(#g)" stroke-width="6" stroke-linecap="round"/>
+</svg>

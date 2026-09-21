@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <!-- 23 · 19 + bass shudder: motion arcs and a floating note -->
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#ff8a3d"/>
+      <stop offset="1" stop-color="#ff5500"/>
+    </linearGradient>
+  </defs>
+  <rect width="128" height="128" rx="28" fill="#1c1c1c"/>
+
+  <!-- shudder arcs around the head -->
+  <g fill="none" stroke="#f2f2f2" stroke-width="3.5" stroke-linecap="round" opacity="0.6">
+    <path d="M14 44 Q 10 34 16 26"/>
+    <path d="M114 44 Q 118 34 112 26"/>
+  </g>
+
+  <circle cx="64" cy="68" r="42" fill="#2e2e2e"/>
+
+  <path d="M20 70 C 20 40 40 22 64 22 C 88 22 108 40 108 70"
+        fill="none" stroke="#f2f2f2" stroke-width="8" stroke-linecap="round"/>
+
+  <rect x="12"  y="62" width="16" height="28" rx="8" fill="url(#g)"/>
+  <rect x="100" y="62" width="16" height="28" rx="8" fill="url(#g)"/>
+
+  <path d="M44 58 Q 50 52 56 58" fill="none" stroke="#f2f2f2" stroke-width="5" stroke-linecap="round"/>
+  <path d="M72 58 Q 78 52 84 58" fill="none" stroke="#f2f2f2" stroke-width="5" stroke-linecap="round"/>
+
+  <path d="M38 92 Q 42 84 44 84 q 5 -9 10 0 q 5 9 10 0 q 5 -9 10 0 q 5 9 10 0 Q 86 84 90 92"
+        fill="none" stroke="url(#g)" stroke-width="6" stroke-linecap="round"/>
+
+  <!-- floating eighth note, shaken loose by the bass -->
+  <g fill="url(#g)">
+    <ellipse cx="103" cy="34" rx="4.5" ry="3.5" transform="rotate(-20 103 34)"/>
+    <path d="M106.5 33 V 20" stroke="url(#g)" stroke-width="2.5" stroke-linecap="round"/>
+    <path d="M106.5 20 C 111 22 112 27 109 30 C 111 26 108 24 106.5 25" />
+  </g>
+</svg>

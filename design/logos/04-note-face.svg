@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <!-- Bassface — eighth note with a face on the note head -->
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ff8a3d"/>
+      <stop offset="1" stop-color="#ff5500"/>
+    </linearGradient>
+  </defs>
+  <rect width="128" height="128" rx="28" fill="#1c1c1c"/>
+
+  <!-- stem + flag -->
+  <path d="M76 24 V 82" stroke="url(#g)" stroke-width="8" stroke-linecap="round"/>
+  <path d="M76 24 C 92 30 96 42 88 56 C 96 46 88 38 76 40" fill="url(#g)"/>
+
+  <!-- note head = face -->
+  <ellipse cx="58" cy="90" rx="22" ry="17" transform="rotate(-15 58 90)" fill="url(#g)"/>
+  <circle cx="51" cy="86" r="3.2" fill="#1c1c1c"/>
+  <circle cx="64" cy="84" r="3.2" fill="#1c1c1c"/>
+  <path d="M50 95 Q 58 101 67 93" fill="none" stroke="#1c1c1c" stroke-width="3" stroke-linecap="round"/>
+</svg>

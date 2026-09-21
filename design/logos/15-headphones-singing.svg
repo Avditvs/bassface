@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <!-- 15 · Headphones, singing along: open mouth with waveform inside -->
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#ff8a3d"/>
+      <stop offset="1" stop-color="#ff5500"/>
+    </linearGradient>
+  </defs>
+  <rect width="128" height="128" rx="28" fill="#1c1c1c"/>
+
+  <!-- head silhouette -->
+  <circle cx="64" cy="68" r="42" fill="#2e2e2e"/>
+
+  <!-- headphone band -->
+  <path d="M20 70 C 20 40 40 22 64 22 C 88 22 108 40 108 70"
+        fill="none" stroke="#f2f2f2" stroke-width="8" stroke-linecap="round"/>
+
+  <!-- ear cups -->
+  <rect x="12"  y="62" width="16" height="28" rx="8" fill="url(#g)"/>
+  <rect x="100" y="62" width="16" height="28" rx="8" fill="url(#g)"/>
+
+  <!-- eyes -->
+  <circle cx="50" cy="54" r="6" fill="#f2f2f2"/>
+  <circle cx="78" cy="54" r="6" fill="#f2f2f2"/>
+
+  <!-- open mouth: dark opening with EQ bars inside -->
+  <ellipse cx="64" cy="86" rx="23" ry="16" fill="#1c1c1c"/>
+  <g fill="url(#g)">
+    <rect x="46" y="84" width="5" height="8"  rx="2.5"/>
+    <rect x="54" y="81" width="5" height="13" rx="2.5"/>
+    <rect x="62" y="79" width="5" height="16" rx="2.5"/>
+    <rect x="70" y="81" width="5" height="13" rx="2.5"/>
+    <rect x="78" y="84" width="5" height="8"  rx="2.5"/>
+  </g>
+</svg>

@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <!-- 20 · 19 but the droop is deeper — total sonic devastation -->
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#ff8a3d"/>
+      <stop offset="1" stop-color="#ff5500"/>
+    </linearGradient>
+  </defs>
+  <rect width="128" height="128" rx="28" fill="#1c1c1c"/>
+
+  <circle cx="64" cy="68" r="42" fill="#2e2e2e"/>
+
+  <path d="M20 70 C 20 40 40 22 64 22 C 88 22 108 40 108 70"
+        fill="none" stroke="#f2f2f2" stroke-width="8" stroke-linecap="round"/>
+
+  <rect x="12"  y="62" width="16" height="28" rx="8" fill="url(#g)"/>
+  <rect x="100" y="62" width="16" height="28" rx="8" fill="url(#g)"/>
+
+  <!-- eyes pushed higher by the shock -->
+  <path d="M44 54 Q 50 48 56 54" fill="none" stroke="#f2f2f2" stroke-width="5" stroke-linecap="round"/>
+  <path d="M72 54 Q 78 48 84 54" fill="none" stroke="#f2f2f2" stroke-width="5" stroke-linecap="round"/>
+
+  <!-- deeper droop -->
+  <path d="M38 96 Q 42 84 44 84 q 5 -9 10 0 q 5 9 10 0 q 5 -9 10 0 q 5 9 10 0 Q 86 84 90 96"
+        fill="none" stroke="url(#g)" stroke-width="6" stroke-linecap="round"/>
+</svg>

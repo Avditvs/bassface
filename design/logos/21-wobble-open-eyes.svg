@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <!-- 21 · 19 with open eyes: wide-eyed bass shock -->
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#ff8a3d"/>
+      <stop offset="1" stop-color="#ff5500"/>
+    </linearGradient>
+  </defs>
+  <rect width="128" height="128" rx="28" fill="#1c1c1c"/>
+
+  <circle cx="64" cy="68" r="42" fill="#2e2e2e"/>
+
+  <path d="M20 70 C 20 40 40 22 64 22 C 88 22 108 40 108 70"
+        fill="none" stroke="#f2f2f2" stroke-width="8" stroke-linecap="round"/>
+
+  <rect x="12"  y="62" width="16" height="28" rx="8" fill="url(#g)"/>
+  <rect x="100" y="62" width="16" height="28" rx="8" fill="url(#g)"/>
+
+  <!-- wide open eyes (aligned with 19's closed-eye arcs) -->
+  <circle cx="50" cy="55" r="6.5" fill="#f2f2f2"/>
+  <circle cx="78" cy="55" r="6.5" fill="#f2f2f2"/>
+  <circle cx="52" cy="53" r="2" fill="#1c1c1c"/>
+  <circle cx="80" cy="53" r="2" fill="#1c1c1c"/>
+
+  <!-- wobble mouth: same asymmetric path as 19 -->
+  <path d="M38 92 Q 42 84 44 84 q 5 -9 10 0 q 5 9 10 0 q 5 -9 10 0 q 5 9 10 0 Q 86 84 90 92"
+        fill="none" stroke="url(#g)" stroke-width="6" stroke-linecap="round"/>
+</svg>

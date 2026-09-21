@@ -26,6 +26,30 @@
 
 .brand h1 { font-size: 1.05rem; margin: 0; color: var(--text); }
 
+/* Brand mark: two stacked variants (eyes closed / open); hovering the
+   brand crossfades between them. See BrandMark in components/Header.tsx. */
+.brand-logo {
+  position: relative;
+  width: 24px;
+  height: 24px;
+  flex: none;
+}
+
+.brand-logo svg {
+  position: absolute;
+  inset: 0;
+  transition: opacity 120ms ease;
+}
+
+.brand-logo .brand-logo-alt { opacity: 0; }
+
+.brand:hover .brand-logo-base { opacity: 0; }
+.brand:hover .brand-logo-alt { opacity: 1; }
+
+@media (prefers-reduced-motion: reduce) {
+  .brand-logo svg { transition: none; }
+}
+
 .status-bar {
   margin-left: auto;
 }
