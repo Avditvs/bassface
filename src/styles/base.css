@@ -41,6 +41,7 @@ body {
   background: var(--bg);
   color: var(--text);
   line-height: 1.45;
+  overflow-x: hidden; /* never scroll the page horizontally */
 }
 
 a {
