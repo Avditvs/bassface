@@ -160,7 +160,7 @@ export function HomeScreen() {
           <h2 className="features-title">What you can do</h2>
           <div className="features-rule" aria-hidden="true" />
           <div className="features-grid">
-            <Feature icon="📚" title="All your playlists in one place">
+            <Feature icon="📚" title="Every playlist, one place">
               Instantly search, sort and flip through every playlist — and share
               any of them with its own direct link.
             </Feature>
@@ -168,9 +168,13 @@ export function HomeScreen() {
               Play any track right on the page, with a sound wave you can click
               through — no switching tabs needed.
             </Feature>
-            <Feature icon="🎼" title="Match tracks by key & tempo">
+            <Feature icon="🎼" title="Match by key & tempo">
               One click finds the key and BPM of every track in a playlist —
               perfect for planning a smooth DJ set.
+            </Feature>
+            <Feature icon="📈" title="See runtime & BPM range">
+              Every playlist card shows its total runtime and the tempo range of
+              the tracks you have analyzed.
             </Feature>
             <Feature icon="🔀" title="Rearrange by drag & drop">
               Move or copy tracks between playlists with a simple drag, and spin

@@ -8,13 +8,23 @@
 
 /* ---------- hero ---------- */
 
-/* Ambient glow behind the hero: two soft radial blobs, slowly drifting. */
 .hero {
   position: relative;
   text-align: center;
   padding: 48px 0 8px;
 }
 
+/* Ambient glow behind the hero: one soft radial blob, centered. The bright
+   core sits below the top edge (at 18%), otherwise the ellipse is clipped
+   by the header and leaves a hard band of colour across the top of the
+   page. Static — a drifting blob read as a weird background offset.
+   The colour comes from --hero-glow: the same orange at 26% over a dark
+   background is a smudge over a light one, so the light theme dials it
+   down (see the --hero-glow token in base.css).
+
+   The transparent stop must stay below 70%: the pseudo-element is clipped
+   to the hero's 812px content box, and any residual alpha at that clip
+   shows up as a hard vertical seam down each side of the glow. */
 .hero::before {
   content: "";
   position: absolute;
@@ -22,14 +32,7 @@
   z-index: -1;
   pointer-events: none;
   border-radius: inherit;
-}
-
-/* Ambient glow behind the hero: one soft radial blob, centered. The bright
-   core sits below the top edge (at 18%), otherwise the ellipse is clipped
-   by the header and leaves a hard band of colour across the top of the
-   page. Static — a drifting blob read as a weird background offset. */
-.hero::before {
-  background: radial-gradient(ellipse 70% 62% at 50% 18%, rgba(255, 85, 0, 0.26), transparent 72%);
+  background: radial-gradient(ellipse 70% 62% at 50% 18%, var(--hero-glow), transparent 68%);
 }
 
 .hero h2 {
@@ -96,65 +99,6 @@
   font-size: 0.85rem;
 }
 
-/* ---------- advanced options under the connect button ---------- */
-
-.advanced-toggle {
-  margin: 10px 0 0;
-  text-align: center;
-}
-
-.link-quiet {
-  background: none;
-  border: none;
-  padding: 0;
-  font: inherit;
-  font-size: 0.8rem;
-  color: var(--muted);
-  text-decoration: underline dotted;
-  cursor: pointer;
-}
-
-.link-quiet:hover { color: var(--text); }
-
-/* hover tooltip anchored to the toggle */
-
-.tooltip-anchor { position: relative; display: inline-block; }
-
-.tooltip {
-  display: none;
-  position: absolute;
-  bottom: calc(100% + 8px);
-  left: 50%;
-  transform: translateX(-50%);
-  width: min(340px, 80vw);
-  padding: 10px 12px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-s);
-  background: var(--panel-alt);
-  color: var(--text);
-  font-size: 0.8rem;
-  line-height: 1.45;
-  text-align: left;
-  box-shadow: 0 4px 14px rgb(0 0 0 / 25%);
-  z-index: 20;
-}
-
-.tooltip a { color: var(--accent); }
-
-.tooltip-anchor:hover .tooltip,
-.tooltip-anchor:focus-within .tooltip { display: block; }
-
-.advanced-panel {
-  margin-top: 14px;
-  padding: 14px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-s);
-  background: var(--panel);
-  text-align: left;
-}
-
-.advanced-panel label { text-align: left; }
-
 /* ---------- feature grid ---------- */
 
 /* Full-bleed band separating the hero from the feature grid: gives the
@@ -185,17 +129,16 @@
   background: linear-gradient(90deg, var(--accent), #ff8a3c);
 }
 
-/* Flex (not auto-fit grid): the last row of cards centres instead of
-   leaving a hole — 3 + 2 at full width, 2 or 1 as the viewport narrows. */
+/* Six cards, so the grid is always full: 3 x 2 at full width, 2 or 1
+   column as the viewport narrows. auto-fit (not a fixed 3) keeps the
+   cards full-width on phones instead of leaving side gutters. */
 .features-grid {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
   gap: 16px;
 }
 
 .feature-card {
-  flex: 0 1 258px;
   border: 1px solid var(--border);
   border-radius: var(--radius-l);
   background: linear-gradient(180deg, var(--panel), var(--panel-deep));
@@ -245,7 +188,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .feature-card, .feature-icon { transition: none; }
+  .feature-card, .feature-icon, .bass-dip { transition: none; }
   .feature-card:hover { transform: none; }
   .feature-card:hover .feature-icon { transform: none; }
 }

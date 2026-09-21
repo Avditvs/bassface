@@ -186,3 +186,11 @@ main:has(#playlist-screen:not([hidden])) {
   color: var(--muted);
   opacity: 0.6;
 }
+
+/* Phones: the two sentences wrap into short, ragged lines with the "·"
+   stranded at the end of one. Stack them and drop the separator. */
+@media (max-width: 560px) {
+  .app-footer { padding: 20px 20px 24px; }
+  .app-footer p { flex-direction: column; }
+  .footer-sep { display: none; }
+}

@@ -13,6 +13,7 @@
   --border: #3a3a3a;
   --danger: #e5484d;
   --shadow: rgba(0, 0, 0, 0.38);
+  --hero-glow: rgba(255, 85, 0, 0.26);
   /* One radius scale for the whole app: small controls, medium chips and
      buttons, large cards. Keep new surfaces on these three values. */
   --radius-s: 6px;
@@ -36,6 +37,10 @@
   --border: #e6e2dc;
   --danger: #d96a6e;
   --shadow: rgba(0, 0, 0, 0.1);
+  /* The hero glow is the same shape in both themes, only much weaker here:
+     over off-white the full-strength orange reads as a dirty smudge
+     rather than a light source. */
+  --hero-glow: rgba(229, 101, 32, 0.11);
 }
 
 * { box-sizing: border-box; }
