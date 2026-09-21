@@ -108,7 +108,7 @@ export function HomeScreen() {
       <div className="hero">
         <h2>
           Drag, drop, done:<br />
-          <span className="hero-title-accent">Your playlists.</span> Your bassface.
+          Your playlists. Your <span className="bassface-word">bassface</span>.
         </h2>
         <p className="hero-tagline">
           Browse, preview and reorganize your playlists — fast, safe and
