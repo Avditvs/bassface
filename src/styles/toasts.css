@@ -1,0 +1,67 @@
+/* toasts.css — ephemeral popups confirming organize actions (add / move /
+   remove / revert). See services/toasts.ts and components/Toasts.tsx. */
+
+.toast-stack {
+  position: fixed;
+  top: 60px; /* just below the sticky header */
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 50; /* above the header (z-index 10) */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  pointer-events: none; /* the stack never blocks the page; toasts do */
+}
+
+.toast {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: min(480px, 90vw);
+  padding: 9px 16px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--panel);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.88rem;
+  line-height: 1.3;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
+  cursor: pointer;
+  pointer-events: auto;
+  animation: toast-in 160ms ease;
+}
+
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toast { animation: none; }
+}
+
+.toast-icon {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  font-size: 0.75rem;
+  color: var(--panel);
+  background: var(--accent);
+}
+
+.toast.error .toast-icon { background: var(--danger); }
+
+.toast.info .toast-icon { background: var(--muted); }
+
+.toast-message {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}

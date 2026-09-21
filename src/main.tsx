@@ -23,6 +23,7 @@ import "./styles/tracks.css";
 import "./styles/player-bar.css";
 import "./styles/home.css";
 import "./styles/discover.css";
+import "./styles/toasts.css";
 
 const container = document.getElementById("root");
 if (!container) throw new Error("Missing #root element");

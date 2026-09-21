@@ -13,7 +13,8 @@
  * dragged track and the undo stack live here.
  */
 
-import { getState, setState, showStatus, clearStatus } from "./store";
+import { getState, setState, showStatus } from "./store";
+import { showToast } from "./toasts";
 import { navigateToPlaylist } from "./router";
 import { isLikedView, replaceTracks } from "./tracks";
 import type { Playlist, Track } from "../services/types";
@@ -201,8 +202,7 @@ export async function revertLastAction(): Promise<void> {
     replaceTracks([...currentChange.before], getState().currentPlaylist!);
   }
   setState({ playlists: [...getState().playlists] }); // refresh sidebar counts
-  showStatus(`Reverted: ${entry.label}.`, "success");
-  setTimeout(clearStatus, 3000);
+  showToast(`Reverted: ${entry.label}.`);
 }
 
 // --- Operations (read playlist → modify id list → PUT) ------------------------
@@ -222,19 +222,17 @@ export async function addTrack(track: Track, playlist: Playlist): Promise<void> 
     const before = (full.tracks ?? []).slice(); // full track objects — the revert snapshot
     const ids = before.map((t) => t.id);
     if (ids.some((id) => String(id) === String(track.id))) {
-      showStatus(`“${track.title}” is already in “${playlist.title}”.`, "info");
-      setTimeout(clearStatus, 3000);
+      showToast(`“${track.title}” is already in “${playlist.title}”.`, "info");
       return;
     }
     ids.push(track.id);
     await rewritePlaylist(playlist, ids);
     pushUndo({ label: `Add to “${playlist.title}”`, track, changes: [{ playlist, before }] });
-    showStatus(`Added “${track.title}” to “${playlist.title}”.`, "success");
+    showToast(`Added “${track.title}” to “${playlist.title}”.`);
   } catch (err) {
     showStatus(`Could not add the sound: ${(err as Error).message}`, "error");
     return;
   }
-  setTimeout(clearStatus, 3000);
 }
 
 /** Add the track to the target playlist and remove it from the open one. */
@@ -273,12 +271,11 @@ export async function moveTrack(track: Track, playlist: Playlist): Promise<void>
     const remaining = getState().tracks.filter((t) => String(t.id) !== String(track.id));
     current.track_count = remainingIds.length;
     setState({ tracks: remaining, currentPlaylist: { ...current } });
-    showStatus(`Moved “${track.title}” to “${playlist.title}”.`, "success");
+    showToast(`Moved “${track.title}” to “${playlist.title}”.`);
   } catch (err) {
     showStatus(`Could not move the sound: ${(err as Error).message}`, "error");
     return;
   }
-  setTimeout(clearStatus, 3000);
 }
 
 /**
@@ -320,12 +317,11 @@ export async function removeTrack(track: Track): Promise<void> {
     const remaining = getState().tracks.filter((t) => String(t.id) !== String(track.id));
     current.track_count = remainingIds.length;
     setState({ tracks: remaining, currentPlaylist: { ...current } });
-    showStatus(`Removed “${track.title}” from “${current.title}”.`, "success");
+    showToast(`Removed “${track.title}” from “${current.title}”.`);
   } catch (err) {
     showStatus(`Could not remove the sound: ${(err as Error).message}`, "error");
     return;
   }
-  setTimeout(clearStatus, 3000);
 }
 
 /**
@@ -346,8 +342,7 @@ export async function createPlaylistFromSidebar(): Promise<void> {
     showStatus(`Could not create the playlist: ${(err as Error).message}`, "error");
     return;
   }
-  showStatus(`Created “${title}”. Drag sounds onto it to fill it.`, "success");
-  setTimeout(clearStatus, 3000);
+  showToast(`Created “${title}”. Drag sounds onto it to fill it.`);
 }
 
 /** Clicking a sidebar card opens that playlist. */

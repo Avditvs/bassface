@@ -16,6 +16,7 @@ import { HomeScreen } from "./HomeScreen";
 import { PlaylistsScreen } from "./PlaylistsScreen";
 import { PlaylistScreen } from "./PlaylistScreen";
 import { PlayerBar } from "./PlayerBar";
+import { Toasts } from "./Toasts";
 import {
   onPreviewEnded, onPreviewError, updatePreviewTime,
 } from "../services/preview";
@@ -113,6 +114,9 @@ export function App() {
       {/* First-use guided tour (skip inside the tour, replay via the
           header's “✨ Discover” button). */}
       <DiscoverTour />
+      {/* Organize confirmations (moved / removed / added) — overlays all
+          screens, auto-dismisses. */}
+      <Toasts />
     </>
   );
 }
