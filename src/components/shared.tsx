@@ -41,10 +41,10 @@ export function TrackIcon({ size }: { size?: number }) {
  * resolves to its own (absent) artwork without any fetch.
  */
 export function usePlaylistArtwork(playlist: Playlist | null): string | null {
-  const [version, setVersion] = useState(0);
-  const artworkUrl = playlist?.artwork_url ?? (version && playlist ? cachedTrackArtwork(playlist) : null);
+  const [, setVersion] = useState(0);
+  const artworkUrl = playlist?.artwork_url ?? (playlist ? cachedTrackArtwork(playlist) : null);
   useEffect(() => {
-    if (!playlist || playlist.artwork_url || version) return undefined;
+    if (!playlist || playlist.artwork_url) return undefined;
     const target = playlist;
     let cancelled = false;
     void fetchTrackArtwork(target).then((fetched) => {

@@ -14,6 +14,8 @@ import type { Playlist } from "./types";
 interface CachedArt {
   /** First track's artwork URL, null when no track exposes one. */
   artworkUrl: string | null;
+  /** Playlist track count at fetch time — a mismatch invalidates the entry. */
+  trackCount: number;
   fetchedAt: number;
 }
 
@@ -43,9 +45,19 @@ function saveCache(): void {
 /** One `/playlists/:id/tracks` fetch per playlist at a time. */
 const inflight = new Map<string, Promise<void>>();
 
-/** Cached first-track artwork of a playlist (null when none is known yet). */
+/** Is the cached entry usable for this playlist as-is? */
+function isFresh(cached: CachedArt | undefined, expectedCount: number): boolean {
+  return Boolean(
+    cached
+    && cached.trackCount === expectedCount
+    && Date.now() - cached.fetchedAt < MAX_AGE_MS,
+  );
+}
+
+/** Cached first-track artwork of a playlist (null when none/stale). */
 export function cachedTrackArtwork(playlist: Playlist): string | null {
-  return cache[String(playlist.id)]?.artworkUrl ?? null;
+  const cached = cache[String(playlist.id)];
+  return isFresh(cached, playlist.track_count ?? 0) ? cached!.artworkUrl : null;
 }
 
 /**
@@ -58,8 +70,7 @@ export function cachedTrackArtwork(playlist: Playlist): string | null {
 export async function fetchTrackArtwork(playlist: Playlist): Promise<boolean> {
   if (!playlist.permalink_url) return false;
   const id = String(playlist.id);
-  const cached = cache[id];
-  if (cached && Date.now() - cached.fetchedAt < MAX_AGE_MS) return true;
+  if (isFresh(cache[id], playlist.track_count ?? 0)) return true;
   const api = getState().api;
   if (!api) return false;
   let pending = inflight.get(id);
@@ -68,7 +79,7 @@ export async function fetchTrackArtwork(playlist: Playlist): Promise<boolean> {
       .next()
       .then((tracks) => {
         const artworkUrl = tracks?.find((track) => track.artwork_url)?.artwork_url ?? null;
-        cache[id] = { artworkUrl, fetchedAt: Date.now() };
+        cache[id] = { artworkUrl, trackCount: playlist.track_count ?? 0, fetchedAt: Date.now() };
         saveCache();
       })
       .finally(() => { inflight.delete(id); });
