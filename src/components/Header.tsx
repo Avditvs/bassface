@@ -68,7 +68,9 @@ function BrandMark() {
 }
 
 export function Header() {
-  const user = useApp().user;
+  const app = useApp();
+  const user = app.user;
+  const onPlaylist = app.route.name === "playlist";
   return (
     <header className="app-header">
       <a className="brand" href="#/playlists" aria-label="Bassface — back to playlists">
@@ -78,7 +80,7 @@ export function Header() {
       <StatusBar />
       {user && (
         <button
-          className="button button-quiet"
+          className={`button button-quiet${onPlaylist ? " discover-jump" : ""}`}
           type="button"
           title="Take a quick guided tour of the app"
           onClick={startDiscoverTour}

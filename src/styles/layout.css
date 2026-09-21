@@ -95,6 +95,24 @@
 
 .theme-toggle:hover { color: var(--text); }
 
+/* On a playlist page, the Discover button hops to draw the eye to the tour.
+   Small repeated bounce; turned off for reduced motion. */
+.discover-jump {
+  animation: discover-jump 1.6s ease-in-out infinite;
+}
+
+@keyframes discover-jump {
+  0%, 100% { transform: translateY(0); }
+  35% { transform: translateY(-4px); }
+  55% { transform: translateY(0); }
+  70% { transform: translateY(-2px); }
+  85% { transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .discover-jump { animation: none; }
+}
+
 .avatar {
   width: 30px;
   height: 30px;
