@@ -17,7 +17,12 @@
   align-items: center;
   gap: 10px;
   color: var(--accent);
+  text-decoration: none;
+  cursor: pointer;
+  border-radius: 6px;
 }
+
+.brand:hover h1 { color: var(--accent); }
 
 .brand h1 { font-size: 1.05rem; margin: 0; color: var(--text); }
 
