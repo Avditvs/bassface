@@ -155,7 +155,7 @@ export const runtime = {
   bpmAllStop: false,
 };
 
-/** One-line token summary for the troubleshooting log. */
+/** One-line token summary for log messages. */
 export function tokenSummary(): string {
   const t = runtime.tokens;
   return `at=${t.hasAccessToken()} rt=${t.canRefresh()} fresh=${t.isFresh()}`;

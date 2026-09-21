@@ -26,11 +26,10 @@ let booted = false;
 function boot(): void {
   if (booted) return; // StrictMode double-mount in dev must not double-boot
   booted = true;
-  // Mirrors every API request into the on-page troubleshooting log (visible
-  // on the connect screen) — status codes, URLs and failure bodies.
+  // Mirror every API request into the console log.
   SoundCloudApi.logger = (message) => dbg(message);
 
-  // Surface unexpected runtime errors in the on-page log as well.
+  // Surface unexpected runtime errors in the console log as well.
   window.addEventListener("error", (event) => dbg(`[page error] ${event.message}`));
   window.addEventListener("unhandledrejection", (event) => dbg(`[page rejection] ${event.reason instanceof Error ? event.reason.message : String(event.reason)}`));
 
@@ -54,8 +53,6 @@ function boot(): void {
     } else {
       showStatus("Your stored session expired and cannot be restored — please connect again.", "error");
     }
-  } else if (runtime.config.isComplete()) {
-    showStatus("Not connected yet — click “Connect with SoundCloud” to sign in.", "info");
   }
 }
 

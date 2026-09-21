@@ -13,7 +13,6 @@ import { useState } from "react";
 import { buildAuthUrl, fetchClientIdFromProxy, isLocalOrigin } from "../services/oauth";
 import { runtime } from "../services/store";
 import { showStatus } from "../services/store";
-import { DebugPanel } from "./DebugPanel";
 
 type ConnectValues = { clientId: string; clientSecret: string; redirectUri: string };
 
@@ -254,11 +253,6 @@ export function HomeScreen() {
           and SoundCloud — nobody else ever sees it.
         </Feature>
       </div>
-
-      <details className="debug home-details">
-        <summary>Troubleshooting log</summary>
-        <DebugPanel />
-      </details>
     </section>
   );
 }

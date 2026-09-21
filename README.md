@@ -125,7 +125,7 @@ directly.)
   elsewhere are refused.
 - **Log redaction** (`redactSecrets` in `util.ts` applied by `dbg`): token
   query params, secrets and signed URL fragments are stripped before anything
-  reaches the troubleshooting log.
+  reaches the console.
 - **Redirect URIs must be https** (loopback http allowed, RFC 8252 §8.3);
   `npm run serve` binds `127.0.0.1` only.
 - Credentials and tokens are stored in `localStorage` of your own browser —
@@ -159,7 +159,6 @@ src/
     Header.tsx          – brand + user badge (avatar, sign out)
     StatusBar.tsx       – message bar (spinner / info / success / error)
     ConnectScreen.tsx   – config form, validation, authorize redirect
-    DebugPanel.tsx      – troubleshooting log (live view of the ring buffer)
     PlaylistsScreen.tsx – toolbar (search / type / sort), card grid, pagination
     PlaylistScreen.tsx  – detail layout: toolbar, remove zone, audio, sidebar
     PlaylistHeader.tsx  – artwork, title, badges, meta
@@ -194,11 +193,11 @@ src/
                           window, mono mixdown, HLS blob decoding)
     waveform.ts         – waveform fetch/cache/draw for the track rows
     organize.ts         – drag & drop between playlists, create playlist, undo
-    debug.ts            – persistent troubleshooting log (subscribable)
+    debug.ts            – redacted console logger (dbg)
     util.ts             – base64url / PKCE / formatting helpers
   styles/               – styling split into focused modules (base, layout,
                           components, forms, playlists, playlist-detail, tracks,
-                          organize, debug)
+                          organize)
 ```
 
 The data layer (config, oauth, api, debug) is untouched framework-agnostic

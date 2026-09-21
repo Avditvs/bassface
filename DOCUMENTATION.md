@@ -68,8 +68,7 @@ small shims (see [Testing](#testing)).
   never triggers a render.
 
 Status messages (spinner / info / success / error) flow through
-`showStatus()` into the snapshot and render in `StatusBar.tsx`; the
-troubleshooting log (see [Debug log](#debug-log)) records a superset.
+`showStatus()` into the snapshot and render in `StatusBar.tsx`.
 
 ## OAuth 2.1 flow
 
@@ -288,12 +287,10 @@ Storage failures are never fatal (`config.ts` warns and continues).
   CORS is limited to the configured origin(s). A loopback origin
   (local development) may instead connect with credentials entered directly.
 
-### Debug log
+### Logging
 
-`debug.ts` keeps a subscribable ring buffer of troubleshooting entries;
-`DebugPanel.tsx` renders it live. Everything is piped through `dbg()`,
-which applies `redactSecrets()` — tokens and signed URL fragments never
-appear in the log.
+`dbg()` in `debug.ts` writes redacted lines to the console — tokens and
+signed URL fragments never appear in log output.
 
 ## Testing
 
@@ -320,14 +317,12 @@ Run them with rolldown + node (see the README's Development section).
 | `components/Header.tsx` | Brand + user badge (avatar, sign out) |
 | `components/StatusBar.tsx` | Message bar (spinner / info / success / error) |
 | `components/ConnectScreen.tsx` | Config form, validation, authorize redirect |
-| `components/PlaylistsScreen.tsx` | Toolbar (search / type / sort), card grid, pagination |
-| `components/PlaylistScreen.tsx` | Detail layout: toolbar, remove zone, audio, sidebar |
+| `components/PlaylistsScreen.tsx` | Toolbar (search / type / sort), card grid, pagination || `components/PlaylistScreen.tsx` | Detail layout: toolbar, remove zone, audio, sidebar |
 | `components/PlaylistHeader.tsx` | Artwork, title, badges, meta |
 | `components/TrackList.tsx` | Track rows + infinite-scroll sentinel |
 | `components/TrackRow.tsx` | One sound row (artwork, waveform, preview buttons) |
 | `components/WaveformCanvas.tsx` | Per-track loudness waveform canvas |
 | `components/OrganizeSidebar.tsx` | Reorganize sidebar (drop targets, choose mode) |
-| `components/DebugPanel.tsx` | Live view of the troubleshooting log |
 | `components/shared.tsx` | Artwork / badges / meta presentational helpers |
 | `services/store.ts` | State snapshot + `useApp()` + `runtime` |
 | `services/config.ts` | localStorage persistence (config, tokens, user, analyses) |
@@ -345,6 +340,6 @@ Run them with rolldown + node (see the README's Development section).
 | `services/audio.ts` | FFT, Hann window, mono mixdown, decode/slice/cache primitives |
 | `services/waveform.ts` | Waveform fetch/cache/draw for the track rows |
 | `services/organize.ts` | Drag & drop between playlists, create, undo |
-| `services/debug.ts` | Subscribable redacted troubleshooting log |
+| `services/debug.ts` | Redacted console logger (`dbg`) |
 | `services/util.ts` | base64url / PKCE / formatting helpers |
 | `services/types.ts` | Shared domain types (SoundCloud API shapes, contracts) |
