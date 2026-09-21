@@ -3,17 +3,15 @@
 
 /* ---------- status / errors ---------- */
 
+/* Header status slot: always mounted as the right-pushing flex spacer; the
+   box styling applies only while an error message is visible (loading,
+   info and success notes are deliberately not shown in the header). */
 .status-bar {
   display: flex;
   align-items: center;
   gap: 8px;
   min-width: 0;
   max-width: min(560px, 45vw);
-  padding: 5px 10px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: var(--panel-alt);
-  color: var(--muted);
   overflow: hidden;
   font-size: 0.82rem;
   line-height: 1.3;
@@ -21,9 +19,13 @@
   text-overflow: ellipsis;
 }
 
-.status-bar.error { border-color: var(--danger); color: var(--danger); }
-
-.status-bar.success { border-color: var(--accent); color: var(--text); }
+.status-bar.error {
+  padding: 5px 10px;
+  border: 1px solid var(--danger);
+  border-radius: 6px;
+  background: var(--panel-alt);
+  color: var(--danger);
+}
 
 /* ---------- spinner ---------- */
 
@@ -39,8 +41,6 @@
 }
 
 @keyframes spin { to { transform: rotate(360deg); } }
-
-.status-bar .spinner { flex: none; }
 
 .empty-state .spinner { margin-right: 8px; }
 

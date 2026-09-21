@@ -1,16 +1,18 @@
 /**
- * Compact top-bar message: a spinner while loading, colour by kind.
+ * Compact top-bar message. Only errors are surfaced — loading/analysis
+ * progress notes would be noise in the header and are skipped. The element
+ * stays mounted (empty when idle) as the flex spacer that pushes the
+ * right-hand header controls across.
  */
 
 import { useApp } from "../services/store";
 
 export function StatusBar() {
   const status = useApp().status;
-  if (!status) return null;
+  const error = status?.kind === "error" ? status.message : "";
   return (
-    <div className={`status-bar ${status.kind}`} role="status" aria-live="polite">
-      {status.kind === "loading" && <span className="spinner" aria-hidden="true" />}
-      {status.message}
+    <div className={`status-bar${error ? " error" : ""}`} role={error ? "alert" : "status"}>
+      {error}
     </div>
   );
 }
