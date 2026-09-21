@@ -41,7 +41,7 @@ function ThemeToggle() {
     stacking, so the mark can never overlap the brand text. */
 function BrandMark() {
   return (
-    <svg className="brand-logo" viewBox="12 14 104 96" width="32" height="32" aria-hidden="true">
+    <svg className="brand-logo" viewBox="12 14 104 96" width="36" height="36" aria-hidden="true">
       <defs>
         <linearGradient id="brand-grad" x1="0" y1="0" x2="1" y2="0">
           <stop offset="0" stopColor="#ff8a3d" />

@@ -5,6 +5,7 @@
   --bg: #1c1c1c;
   --panel: #262626;
   --panel-alt: #2e2e2e;
+  --panel-deep: #202020; /* darker panel end-stop for gradients */
   --text: #f2f2f2;
   --muted: #a6a6a6;
   --accent: #ff5500;
@@ -22,6 +23,7 @@
   --bg: #f4f2ef;
   --panel: #fbfaf8;
   --panel-alt: #edebe7;
+  --panel-deep: #eeebe6; /* darker panel end-stop for gradients */
   --text: #524c45;
   --muted: #948e85;
   --accent: #e56520;

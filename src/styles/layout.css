@@ -36,10 +36,16 @@
 .brand h1 { font-size: 1.3rem; margin: 0; color: var(--text); }
 
 /* Brand mark: one SVG holding both eye variants (closed / open); hovering
-   the brand crossfades the groups. See BrandMark in components/Header.tsx. */
+   the brand crossfades the groups. See BrandMark in components/Header.tsx.
+   A warm accent-tinted tile sits behind the mark so the dark face circle and
+   orange details stay visible against the header in both themes. */
 .brand-logo {
   flex: none;
   display: block;
+  padding: 2px;
+  border-radius: 10px;
+  background: linear-gradient(140deg, var(--accent-soft), transparent 80%), var(--panel-deep);
+  box-shadow: inset 0 0 0 1px rgba(255, 85, 0, 0.28);
 }
 
 .brand-logo .eyes-closed,

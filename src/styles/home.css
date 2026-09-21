@@ -228,7 +228,7 @@
 .feature-card {
   border: 1px solid var(--border);
   border-radius: 8px;
-  background: linear-gradient(180deg, var(--panel), #202020);
+  background: linear-gradient(180deg, var(--panel), var(--panel-deep));
   padding: 20px;
   transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
 }
@@ -236,7 +236,7 @@
 .feature-card:hover {
   transform: translateY(-3px);
   border-color: rgba(255, 85, 0, 0.5);
-  box-shadow: 0 8px 24px rgb(0 0 0 / 35%), 0 2px 10px rgba(255, 85, 0, 0.12);
+  box-shadow: 0 8px 24px var(--shadow), 0 2px 10px rgba(255, 85, 0, 0.12);
 }
 
 .feature-icon {
