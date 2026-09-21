@@ -12,9 +12,10 @@
 
 const DISCOVER_KEY = "playlist_updater.discover";
 const RESTART_EVENT = "bassface:discover-start";
+const SEEN_EVENT = "bassface:discover-seen";
 
 import { getState } from "./store";
-import { navigateToPlaylist } from "./router";
+import { navigateToPlaylist, goBackToPlaylists } from "./router";
 import { expandSidebarPanel } from "./organize";
 
 /** One tour stop: what to highlight and what to say about it. */
@@ -111,6 +112,14 @@ export function markDiscoverSeen(): void {
   } catch {
     // Storage blocked: the tour may reappear next visit. Not fatal.
   }
+  window.dispatchEvent(new Event(SEEN_EVENT));
+}
+
+/** Subscribe to seen-state changes (e.g. the header stops hopping once the
+ *  tour is done); returns an unsubscribe function. */
+export function onDiscoverSeenChange(listener: () => void): () => void {
+  window.addEventListener(SEEN_EVENT, listener);
+  return () => window.removeEventListener(SEEN_EVENT, listener);
 }
 
 /** True while the element a step points at is currently in the DOM. */
@@ -118,8 +127,11 @@ export function stepTargetExists(selector: string): boolean {
   return Boolean(document.querySelector(selector));
 }
 
-/** Restart the tour (header "Discover" button). */
+/** Restart the tour (header "Discover" button). The tour opens on the
+ *  playlists screen, where its first steps live — whatever screen (or step)
+ *  the user was on, the walkthrough always starts from the beginning. */
 export function startDiscoverTour(): void {
+  goBackToPlaylists();
   window.dispatchEvent(new Event(RESTART_EVENT));
 }
 

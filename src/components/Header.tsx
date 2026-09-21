@@ -2,11 +2,13 @@
  * App header: brand + user badge (avatar, name, sign out).
  */
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useApp } from "../services/store";
 import { signOut } from "../services/session";
 import { currentTheme, toggleTheme } from "../services/theme";
-import { startDiscoverTour } from "../services/discover";
+import {
+  discoverSeen, onDiscoverSeenChange, startDiscoverTour,
+} from "../services/discover";
 import { StatusBar } from "./StatusBar";
 
 /** Small icon button that flips dark ↔ light (moon = switch to dark,
@@ -71,6 +73,10 @@ export function Header() {
   const app = useApp();
   const user = app.user;
   const onPlaylist = app.route.name === "playlist";
+  // Reactive copy of "tour already seen": stops the hop the moment the
+  // user finishes or skips the tour, without waiting for another render.
+  const [tourSeen, setTourSeen] = useState(discoverSeen());
+  useEffect(() => onDiscoverSeenChange(() => setTourSeen(discoverSeen())), []);
   return (
     <header className="app-header">
       <a className="brand" href="#/playlists" aria-label="Bassface — back to playlists">
@@ -80,7 +86,11 @@ export function Header() {
       <StatusBar />
       {user && (
         <button
-          className={`button button-quiet${onPlaylist ? " discover-jump" : ""}`}
+          className={`button button-quiet${
+            // Hop to draw the eye to the tour — but only before the user
+            // has seen (or skipped) it; afterwards the button stays still.
+            onPlaylist && !tourSeen ? " discover-jump" : ""
+          }`}
           type="button"
           title="Take a quick guided tour of the app"
           onClick={startDiscoverTour}

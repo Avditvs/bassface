@@ -39,7 +39,13 @@ export function DiscoverTour() {
       setActive(true);
       setStepIndex(Math.max(0, TOUR_STEPS.findIndex((s) => stepTargetExists(s.selector))));
     }
-    return onStartDiscoverTour(() => setActive(true));
+    return onStartDiscoverTour(() => {
+      // Restart from the header button: always start over on the playlists
+      // screen (startDiscoverTour navigates there) — never resume mid-tour.
+      setStepIndex(0);
+      setRect(null);
+      setActive(true);
+    });
   }, [state.api]);
 
   // The full tour; steps whose target is missing are skipped on the fly
