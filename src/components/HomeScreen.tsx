@@ -116,11 +116,12 @@ export function HomeScreen() {
     <section id="home-screen" className="home">
       <div className="hero">
         <h2>
-          Manage your SoundCloud<br />
-          <span className="hero-title-accent">playlists</span> like a pro
+          Drag, drop, done:<br />
+          <span className="hero-title-accent">Your playlists.</span> Your bassface.
         </h2>
         <p className="hero-tagline">
-          Drag, drop, done: Your playlists. Your bassface.
+          Browse, preview and reorganize your playlists — fast, safe and
+          all in your browser.
         </p>
         {local && (
           <p className="muted">
