@@ -26,28 +26,26 @@
 
 .brand h1 { font-size: 1.05rem; margin: 0; color: var(--text); }
 
-/* Brand mark: two stacked variants (eyes closed / open); hovering the
-   brand crossfades between them. See BrandMark in components/Header.tsx. */
+/* Brand mark: one SVG holding both eye variants (closed / open); hovering
+   the brand crossfades the groups. See BrandMark in components/Header.tsx. */
 .brand-logo {
-  position: relative;
-  width: 24px;
-  height: 24px;
   flex: none;
+  display: block;
 }
 
-.brand-logo svg {
-  position: absolute;
-  inset: 0;
+.brand-logo .eyes-closed,
+.brand-logo .eyes-open {
   transition: opacity 120ms ease;
 }
 
-.brand-logo .brand-logo-alt { opacity: 0; }
+.brand-logo .eyes-open { opacity: 0; }
 
-.brand:hover .brand-logo-base { opacity: 0; }
-.brand:hover .brand-logo-alt { opacity: 1; }
+.brand:hover .eyes-closed { opacity: 0; }
+.brand:hover .eyes-open { opacity: 1; }
 
 @media (prefers-reduced-motion: reduce) {
-  .brand-logo svg { transition: none; }
+  .brand-logo .eyes-closed,
+  .brand-logo .eyes-open { transition: none; }
 }
 
 .status-bar {

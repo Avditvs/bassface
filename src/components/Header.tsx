@@ -36,48 +36,34 @@ function ThemeToggle() {
 }
 
 /** Bassface logo mark: blissful face on headphones with a wobble mouth.
-    Two stacked variants — eyes closed by default, open on hover of the
-    parent .brand (CSS in layout.css). The mouth path is identical in both
-    so the swap is seamless; the headband uses var(--text) to track the
-    theme, everything else keeps the brand colors. */
+    Single SVG with two eye variants inside — closed by default, the CSS
+    crossfades the groups on .brand:hover (layout.css). One node, no
+    stacking, so the mark can never overlap the brand text. */
 function BrandMark() {
-  const mouth =
-    "M38 92 Q 42 84 44 84 q 5 -9 10 0 q 5 9 10 0 q 5 -9 10 0 q 5 9 10 0 Q 86 84 90 92";
   return (
-    <span className="brand-logo" aria-hidden="true">
-      <svg className="brand-logo-base" viewBox="12 16 96 96" width="24" height="24">
-        <defs>
-          <linearGradient id="brand-grad-base" x1="0" y1="0" x2="1" y2="0">
-            <stop offset="0" stopColor="#ff8a3d" />
-            <stop offset="1" stopColor="#ff5500" />
-          </linearGradient>
-        </defs>
-        <circle cx="64" cy="68" r="42" fill="#2e2e2e" />
-        <path d="M20 70 C 20 40 40 22 64 22 C 88 22 108 40 108 70" fill="none" stroke="var(--text)" strokeWidth="8" strokeLinecap="round" />
-        <rect x="12" y="62" width="16" height="28" rx="8" fill="url(#brand-grad-base)" />
-        <rect x="100" y="62" width="16" height="28" rx="8" fill="url(#brand-grad-base)" />
+    <svg className="brand-logo" viewBox="12 16 96 96" width="24" height="24" aria-hidden="true">
+      <defs>
+        <linearGradient id="brand-grad" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0" stopColor="#ff8a3d" />
+          <stop offset="1" stopColor="#ff5500" />
+        </linearGradient>
+      </defs>
+      <circle cx="64" cy="68" r="42" fill="#2e2e2e" />
+      <path d="M20 70 C 20 40 40 22 64 22 C 88 22 108 40 108 70" fill="none" stroke="var(--text)" strokeWidth="8" strokeLinecap="round" />
+      <rect x="12" y="62" width="16" height="28" rx="8" fill="url(#brand-grad)" />
+      <rect x="100" y="62" width="16" height="28" rx="8" fill="url(#brand-grad)" />
+      <g className="eyes-closed">
         <path d="M44 58 Q 50 52 56 58" fill="none" stroke="#f2f2f2" strokeWidth="5" strokeLinecap="round" />
         <path d="M72 58 Q 78 52 84 58" fill="none" stroke="#f2f2f2" strokeWidth="5" strokeLinecap="round" />
-        <path d={mouth} fill="none" stroke="url(#brand-grad-base)" strokeWidth="6" strokeLinecap="round" />
-      </svg>
-      <svg className="brand-logo-alt" viewBox="12 16 96 96" width="24" height="24">
-        <defs>
-          <linearGradient id="brand-grad-alt" x1="0" y1="0" x2="1" y2="0">
-            <stop offset="0" stopColor="#ff8a3d" />
-            <stop offset="1" stopColor="#ff5500" />
-          </linearGradient>
-        </defs>
-        <circle cx="64" cy="68" r="42" fill="#2e2e2e" />
-        <path d="M20 70 C 20 40 40 22 64 22 C 88 22 108 40 108 70" fill="none" stroke="var(--text)" strokeWidth="8" strokeLinecap="round" />
-        <rect x="12" y="62" width="16" height="28" rx="8" fill="url(#brand-grad-alt)" />
-        <rect x="100" y="62" width="16" height="28" rx="8" fill="url(#brand-grad-alt)" />
+      </g>
+      <g className="eyes-open">
         <circle cx="50" cy="55" r="6.5" fill="#f2f2f2" />
         <circle cx="78" cy="55" r="6.5" fill="#f2f2f2" />
         <circle cx="52" cy="53" r="2" fill="#1c1c1c" />
         <circle cx="80" cy="53" r="2" fill="#1c1c1c" />
-        <path d={mouth} fill="none" stroke="url(#brand-grad-alt)" strokeWidth="6" strokeLinecap="round" />
-      </svg>
-    </span>
+      </g>
+      <path d="M38 92 Q 42 84 44 84 q 5 -9 10 0 q 5 9 10 0 q 5 -9 10 0 q 5 9 10 0 Q 86 84 90 92" fill="none" stroke="url(#brand-grad)" strokeWidth="6" strokeLinecap="round" />
+    </svg>
   );
 }
 
