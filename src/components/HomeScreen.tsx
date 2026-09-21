@@ -112,9 +112,6 @@ export function HomeScreen() {
   return (
     <section id="home-screen" className="home">
       <div className="hero">
-        <div className="hero-badge" aria-hidden="true">
-          <span className="hero-badge-dot" /> Nothing to install · Runs in your browser
-        </div>
         <h2>
           Manage your SoundCloud<br />
           <span className="hero-title-accent">playlists</span> like a pro
