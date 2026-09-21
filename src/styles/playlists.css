@@ -23,6 +23,19 @@
 
 .playlist-grid li:hover { border-color: var(--accent); }
 
+/* Loading / empty message: span the whole grid row instead of a single
+   card-sized column, and center the spinner + label with flex so the
+   spinner sits on the text baseline. */
+.playlist-grid .empty-state {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: default;
+}
+
+.playlist-grid .empty-state:hover { border-color: var(--border); }
+
 .artwork {
   background: linear-gradient(135deg, #2b2b2b 0%, #3a3a3a 60%, #2e2e2e 100%);
 }
