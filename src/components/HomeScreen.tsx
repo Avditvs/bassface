@@ -104,78 +104,84 @@ export function HomeScreen() {
   const [redirecting, setRedirecting] = useState(false);
 
   return (
-    <section id="home-screen" className="home">
-      <div className="hero">
-        <h2>
-          Drag, drop, done:<br />
-          Your playlists. Your <span className="bassface-word"><span className="bass-dip">Bass</span>face</span>.
-        </h2>
-        <p className="hero-tagline">
-          Browse, preview and reorganize your playlists — fast, safe and
-          all in your browser.
-        </p>
-        {local && (
-          <p className="muted">
-            Local development mode (loopback origin): token requests go
-            straight to SoundCloud with your own credentials — drop a{" "}
-            <code>public/config.local.json</code> (see{" "}
-            <code>config.local.json.example</code>) to configure them,
-            including a proxy mode. The Client Secret is only ever sent to
-            SoundCloud's own token endpoint.
+    <section id="home-screen" className="home-screen">
+      <div className="home">
+        <div className="hero">
+          <h2>
+            Drag, drop, done:<br />
+            Your playlists. Your <span className="bassface-word"><span className="bass-dip">Bass</span>face</span>.
+          </h2>
+          <p className="hero-tagline">
+            Browse, preview and reorganize your playlists — fast, safe and
+            all in your browser.
           </p>
-        )}
-        <form
-          className="form-stack"
-          onSubmit={(event) => {
-            event.preventDefault();
-            void onConnectSubmit(
-              { clientId, clientSecret, redirectUri },
-              {
-                onRedirecting: () => setRedirecting(true),
-                onClientId: (id) => setClientId(id),
-              },
-            );
-          }}
-        >
-          <button
-            className="button button-primary button-block"
-            type="submit"
-            disabled={redirecting}
+          {local && (
+            <p className="muted">
+              Local development mode (loopback origin): token requests go
+              straight to SoundCloud with your own credentials — drop a{" "}
+              <code>public/config.local.json</code> (see{" "}
+              <code>config.local.json.example</code>) to configure them,
+              including a proxy mode. The Client Secret is only ever sent to
+              SoundCloud's own token endpoint.
+            </p>
+          )}
+          <form
+            className="form-stack"
+            onSubmit={(event) => {
+              event.preventDefault();
+              void onConnectSubmit(
+                { clientId, clientSecret, redirectUri },
+                {
+                  onRedirecting: () => setRedirecting(true),
+                  onClientId: (id) => setClientId(id),
+                },
+              );
+            }}
           >
-            {redirecting ? "Redirecting to SoundCloud…" : "Connect with SoundCloud"}
-          </button>
-        </form>
-        {!local && (
-          <p className="muted">
-            You sign in securely on SoundCloud itself — we never see your
-            password, and nothing is stored on any server.
-          </p>
-        )}
+            <button
+              className="button button-primary button-block"
+              type="submit"
+              disabled={redirecting}
+            >
+              {redirecting ? "Redirecting to SoundCloud…" : "Connect with SoundCloud"}
+            </button>
+          </form>
+          {!local && (
+            <p className="muted">
+              You sign in securely on SoundCloud itself — we never see your
+              password, and nothing is stored on any server.
+            </p>
+          )}
+        </div>
       </div>
 
-      <h2 className="features-title">What you can do</h2>
-      <div className="features-rule" aria-hidden="true" />
-      <div className="features-grid">
-        <Feature icon="📚" title="All your playlists in one place">
-          Instantly search, sort and flip through every playlist — and share
-          any of them with its own direct link.
-        </Feature>
-        <Feature icon="▶" title="Listen before you decide">
-          Play any track right on the page, with a sound wave you can click
-          through — no switching tabs needed.
-        </Feature>
-        <Feature icon="♪" title="Match tracks by key & tempo">
-          One click finds the key and BPM of every track in a playlist —
-          perfect for planning a smooth DJ set.
-        </Feature>
-        <Feature icon="↔" title="Rearrange by drag & drop">
-          Move or copy tracks between playlists with a simple drag, and spin
-          up brand-new playlists in one click.
-        </Feature>
-        <Feature icon="🔒" title="Private by design">
-          Everything happens in your browser. Your sign-in stays between you
-          and SoundCloud — nobody else ever sees it.
-        </Feature>
+      <div className="features-band">
+        <div className="home">
+          <h2 className="features-title">What you can do</h2>
+          <div className="features-rule" aria-hidden="true" />
+          <div className="features-grid">
+            <Feature icon="📚" title="All your playlists in one place">
+              Instantly search, sort and flip through every playlist — and share
+              any of them with its own direct link.
+            </Feature>
+            <Feature icon="🎧" title="Listen before you decide">
+              Play any track right on the page, with a sound wave you can click
+              through — no switching tabs needed.
+            </Feature>
+            <Feature icon="🎼" title="Match tracks by key & tempo">
+              One click finds the key and BPM of every track in a playlist —
+              perfect for planning a smooth DJ set.
+            </Feature>
+            <Feature icon="🔀" title="Rearrange by drag & drop">
+              Move or copy tracks between playlists with a simple drag, and spin
+              up brand-new playlists in one click.
+            </Feature>
+            <Feature icon="🔒" title="Private by design">
+              Everything happens in your browser. Your sign-in stays between you
+              and SoundCloud — nobody else ever sees it.
+            </Feature>
+          </div>
+        </div>
       </div>
     </section>
   );

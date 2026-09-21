@@ -19,7 +19,7 @@
   color: var(--accent);
   text-decoration: none;
   cursor: pointer;
-  border-radius: 6px;
+  border-radius: var(--radius-s);
 }
 
 .brand:hover h1 { color: var(--accent); }
@@ -47,7 +47,7 @@
   flex: none;
   display: block;
   padding: 5px;
-  border-radius: 12px;
+  border-radius: var(--radius-l);
   background: linear-gradient(140deg, var(--accent-soft), transparent 80%), var(--panel-deep);
   box-shadow: inset 0 0 0 1px rgba(255, 85, 0, 0.28);
 }
@@ -87,8 +87,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 34px;
-  height: 34px;
+  width: 40px;
+  height: 40px;
   padding: 0;
   color: var(--muted);
 }
@@ -128,6 +128,14 @@ main {
   padding: 0 24px;
 }
 
+/* Home: the landing page paints its own edge-to-edge bands, so the
+   shell hands it the full window and lets home.css centre the column. */
+main:has(#home-screen) {
+  max-width: none;
+  margin: 0;
+  padding: 0;
+}
+
 /* Playlist detail: use the full window width so the track list gets the room
    and the Reorganize sidebar sits at the right edge of the screen. The wider
    container keeps the same 24px side padding on both sides. Vertical margins
@@ -141,7 +149,7 @@ main:has(#playlist-screen:not([hidden])) {
 .panel {
   background: var(--panel);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-s);
   padding: 28px;
   max-width: 640px;
   margin: 0 auto;
@@ -149,8 +157,32 @@ main:has(#playlist-screen:not([hidden])) {
 
 .panel h2 { margin-top: 0; }
 
+/* Footer: brand mark echoing the header, then the two credit lines as one
+   centred row (the separator keeps them readable when they wrap). */
 .app-footer {
-  padding: 18px 28px;
+  padding: 22px 28px 26px;
   border-top: 1px solid var(--border);
   text-align: center;
+}
+
+.app-footer .brand-logo {
+  width: 30px;
+  height: 30px;
+  padding: 3px;
+  border-radius: var(--radius-m);
+  margin: 0 auto 10px;
+}
+
+.app-footer p {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: center;
+  column-gap: 10px;
+  margin: 0;
+}
+
+.footer-sep {
+  color: var(--muted);
+  opacity: 0.6;
 }

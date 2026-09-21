@@ -10,7 +10,7 @@ import { dbg } from "../services/debug";
 import { handleOAuthCallback, enterApp } from "../services/session";
 import { runtime, showStatus, tokenSummary, useApp } from "../services/store";
 import { SoundCloudApi } from "../services/api";
-import { Header } from "./Header";
+import { Header, BrandMark } from "./Header";
 import { DiscoverTour } from "./DiscoverTour";
 import { HomeScreen } from "./HomeScreen";
 import { PlaylistsScreen } from "./PlaylistsScreen";
@@ -100,15 +100,19 @@ export function App() {
         />
       </main>
       <footer className="app-footer">
+        <BrandMark />
         <p className="muted">
-          Unofficial client for the{" "}
-          <a href="https://developers.soundcloud.com/docs/api/guide" target="_blank" rel="noreferrer">SoundCloud API</a>
-          {" "}— no backend, tokens never leave your browser.
-        </p>
-        <p className="muted">
-          Aggregate, cookie-free audience measurement via{" "}
-          <a href="https://www.cloudflare.com/web-analytics/" target="_blank" rel="noreferrer">Cloudflare Web Analytics</a>
-          {" "}— no cookies, no fingerprinting, no personal data collected.
+          <span>
+            Unofficial client for the{" "}
+            <a href="https://developers.soundcloud.com/docs/api/guide" target="_blank" rel="noreferrer">SoundCloud API</a>
+            {" "}— no backend, tokens never leave your browser.
+          </span>
+          <span className="footer-sep" aria-hidden="true">·</span>
+          <span>
+            Aggregate, cookie-free audience measurement via{" "}
+            <a href="https://www.cloudflare.com/web-analytics/" target="_blank" rel="noreferrer">Cloudflare Web Analytics</a>
+            {" "}— no cookies, no fingerprinting, no personal data collected.
+          </span>
         </p>
       </footer>
       {/* First-use guided tour (skip inside the tour, replay via the

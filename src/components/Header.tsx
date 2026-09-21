@@ -41,7 +41,7 @@ function ThemeToggle() {
     Single SVG with two eye variants inside — closed by default, the CSS
     crossfades the groups on .brand:hover (layout.css). One node, no
     stacking, so the mark can never overlap the brand text. */
-function BrandMark() {
+export function BrandMark() {
   return (
     <svg className="brand-logo" viewBox="12 14 104 96" width="44" height="44" aria-hidden="true">
       <defs>
