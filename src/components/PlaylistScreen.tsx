@@ -48,6 +48,7 @@ export function PlaylistScreen() {
             <div
               id="remove-zone"
               className="remove-zone"
+              data-tour="remove-zone"
               onDragOver={onRemoveZoneDragOver}
               onDragLeave={onRemoveZoneDragLeave}
               onDrop={onRemoveZoneDrop}

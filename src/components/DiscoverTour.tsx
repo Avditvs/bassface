@@ -5,7 +5,7 @@
  * (once — see services/discover.ts) and can be replayed from the header.
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useApp } from "../services/store";
 import {
   TOUR_STEPS, discoverSeen, markDiscoverSeen, onStartDiscoverTour, stepTargetExists,
@@ -32,16 +32,20 @@ export function DiscoverTour() {
   const cardRef = useRef<HTMLDivElement>(null);
 
   // Auto-start on first signed-in use; the header button can restart it.
+  // Start at the first step whose target exists (a reload can land on any
+  // screen; the grid steps only exist on the playlists screen).
   useEffect(() => {
-    if (state.api && !discoverSeen()) setActive(true);
+    if (state.api && !discoverSeen()) {
+      setActive(true);
+      setStepIndex(Math.max(0, TOUR_STEPS.findIndex((s) => stepTargetExists(s.selector))));
+    }
     return onStartDiscoverTour(() => setActive(true));
   }, [state.api]);
 
-  // Only keep steps whose target element is on screen (screen-dependent).
-  const steps = useMemo(
-    () => (active ? TOUR_STEPS.filter((step) => stepTargetExists(step.selector)) : []),
-    [active, stepIndex],
-  );
+  // The full tour; steps whose target is missing are skipped on the fly
+  // (see the measurement effect below), never filtered at render time — the
+  // DOM may still show the previous screen right after a navigation.
+  const steps = active ? TOUR_STEPS : [];
 
   // Clamp in case the step list shrank between renders (e.g. navigation).
   const clampedIndex = Math.min(stepIndex, Math.max(0, steps.length - 1));
@@ -55,28 +59,50 @@ export function DiscoverTour() {
     setRect(null);
   };
 
-  const next = () => (isLast ? finish() : setStepIndex(clampedIndex + 1));
+  const next = () => {
+    if (isLast) {
+      finish();
+      return;
+    }
+    // Optional step action (e.g. open the first playlist) before advancing.
+    step.advance?.();
+    setStepIndex(clampedIndex + 1);
+    setRect(null); // previous spotlight must not linger mid-navigation
+  };
   const back = () => setStepIndex(Math.max(0, clampedIndex - 1));
 
   // Track the highlighted element: scroll it into view, then keep the
-  // spotlight glued to it across scrolling and resizing.
+  // spotlight glued to it across scrolling and resizing. A freshly advanced
+  // step's target may not be mounted yet (navigation is async) — retry
+  // briefly, then skip the step entirely if it never shows up.
   useEffect(() => {
     if (!active || !step) return;
-    const el = document.querySelector(step.selector);
-    if (!el) return;
+    let attempts = 0;
+    let timer: ReturnType<typeof setTimeout> | undefined;
     const measure = () => {
-      el.scrollIntoView({ behavior: "smooth", block: "center" });
-      const r = el.getBoundingClientRect();
+      const target = document.querySelector(step.selector);
+      if (!target) {
+        setRect(null);
+        // The element may still be mounting (e.g. right after the step's
+        // advance() navigated to another screen) — retry ~1.5 s, then skip.
+        if (attempts++ < 15) timer = setTimeout(measure, 100);
+        else if (clampedIndex + 1 < steps.length) setStepIndex(clampedIndex + 1);
+        else finish();
+        return;
+      }
+      target.scrollIntoView({ behavior: "smooth", block: "center" });
+      const r = target.getBoundingClientRect();
       setRect({ top: r.top, left: r.left, width: r.width, height: r.height });
     };
     measure();
     window.addEventListener("resize", measure);
     window.addEventListener("scroll", measure, true);
     return () => {
+      if (timer) clearTimeout(timer);
       window.removeEventListener("resize", measure);
       window.removeEventListener("scroll", measure, true);
     };
-  }, [active, step]);
+  }, [active, step, clampedIndex]);
 
   // Keyboard: Esc skips, ←/→ (and Enter) navigate.
   useEffect(() => {

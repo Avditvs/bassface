@@ -12,12 +12,18 @@
 const DISCOVER_KEY = "playlist_updater.discover";
 const RESTART_EVENT = "bassface:discover-start";
 
+import { getState } from "./store";
+import { navigateToPlaylist } from "./router";
+
 /** One tour stop: what to highlight and what to say about it. */
 export interface TourStep {
   /** CSS selector of the element to spotlight; missing elements skip the step. */
   selector: string;
   title: string;
   body: string;
+  /** Optional side effect fired when the user advances past this step —
+   *  e.g. navigate to the screen the next steps talk about. */
+  advance?: () => void;
 }
 
 /** The tour, in visiting order. Screen-specific targets (analyze, sidebar)
@@ -36,12 +42,22 @@ export const TOUR_STEPS: TourStep[] = [
   {
     selector: '[data-tour="playlist-grid"]',
     title: "All your playlists",
-    body: "Each card opens the full track list. Badges show sharing status and playlist type at a glance.",
+    body: "Each card opens the full track list. Badges show sharing status and playlist type at a glance — let's open your first one.",
+    // The next steps live on the detail screen: open the first playlist.
+    advance: () => {
+      const first = getState().playlists[0];
+      if (first) navigateToPlaylist(first.id);
+    },
   },
   {
     selector: '[data-tour="analyze-all"]',
     title: "Keys & tempo in one click",
     body: "Inside a playlist, “Analyze all” estimates the BPM and musical key of every track — perfect for planning a smooth DJ set.",
+  },
+  {
+    selector: '[data-tour="remove-zone"]',
+    title: "Take tracks out",
+    body: "Drag a sound onto this bin — or swipe it left on a touchscreen — to remove it from the open playlist. Every action can be reverted.",
   },
   {
     selector: '[data-tour="organize-sidebar"]',
