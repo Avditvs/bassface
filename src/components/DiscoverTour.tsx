@@ -71,13 +71,15 @@ export function DiscoverTour() {
   };
   const back = () => setStepIndex(Math.max(0, clampedIndex - 1));
 
-  // Track the highlighted element: scroll it into view, then keep the
-  // spotlight glued to it across scrolling and resizing. A freshly advanced
-  // step's target may not be mounted yet (navigation is async) — retry
-  // briefly, then skip the step entirely if it never shows up.
+  // Track the highlighted element: scroll it into view once, then keep the
+  // spotlight glued to it across scrolling and resizing (measuring only —
+  // scrolling on every scroll event would fight the user). A freshly
+  // advanced step's target may not be mounted yet (navigation is async) —
+  // retry briefly, then skip the step entirely if it never shows up.
   useEffect(() => {
     if (!active || !step) return;
     let attempts = 0;
+    let scrolled = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
     const measure = () => {
       const target = document.querySelector(step.selector);
@@ -90,7 +92,10 @@ export function DiscoverTour() {
         else finish();
         return;
       }
-      target.scrollIntoView({ behavior: "smooth", block: "center" });
+      if (!scrolled) {
+        target.scrollIntoView({ behavior: "smooth", block: "center" });
+        scrolled = true;
+      }
       const r = target.getBoundingClientRect();
       setRect({ top: r.top, left: r.left, width: r.width, height: r.height });
     };
@@ -116,39 +121,59 @@ export function DiscoverTour() {
     return () => window.removeEventListener("keydown", onKey);
   }, [active, clampedIndex, isLast]);
 
-  // Card placement: below the spotlight when there is room, above otherwise,
-  // horizontally clamped to the viewport.
+  // Card placement, driven by the *visible* part of the target (an element
+  // can be taller than the viewport or scrolled halfway out of it): below
+  // the spotlight when there is room, above otherwise, always clamped —
+  // top, left and width — so the card never leaves the screen.
   const placement = (() => {
     if (!rect) return null;
     const cardHeight = cardRef.current?.offsetHeight ?? 190;
-    const below = rect.top + rect.height + CARD_GAP + cardHeight < window.innerHeight - VIEWPORT_MARGIN;
-    const top = below
-      ? rect.top + rect.height + CARD_GAP
-      : rect.top - CARD_GAP - cardHeight;
+    const cardWidth = Math.min(CARD_WIDTH, window.innerWidth - VIEWPORT_MARGIN * 2);
+    const visibleTop = Math.max(rect.top, VIEWPORT_MARGIN);
+    const visibleBottom = Math.min(rect.top + rect.height, window.innerHeight - VIEWPORT_MARGIN);
+    const below = window.innerHeight - VIEWPORT_MARGIN - visibleBottom >= cardHeight + CARD_GAP;
+    const top = Math.min(
+      Math.max(VIEWPORT_MARGIN, below ? visibleBottom + CARD_GAP : visibleTop - CARD_GAP - cardHeight),
+      window.innerHeight - VIEWPORT_MARGIN - cardHeight,
+    );
     const left = Math.min(
       Math.max(VIEWPORT_MARGIN, rect.left),
-      window.innerWidth - CARD_WIDTH - VIEWPORT_MARGIN,
+      window.innerWidth - cardWidth - VIEWPORT_MARGIN,
     );
-    return { top, left, below };
+    return { top, left, width: cardWidth, below };
   })();
 
-  if (!active || !step || !rect || !placement) return null;
+  // Spotlight clamped to the viewport: a target taller/wider than the
+  // screen (the playlist grid) must not push the hole offscreen.
+  const spotlight = (() => {
+    if (!rect) return null;
+    const top = Math.max(rect.top - SPOTLIGHT_PADDING, 0);
+    const left = Math.max(rect.left - SPOTLIGHT_PADDING, 0);
+    return {
+      top,
+      left,
+      width: Math.min(rect.width + SPOTLIGHT_PADDING * 2, window.innerWidth - left),
+      height: Math.min(rect.height + SPOTLIGHT_PADDING * 2, window.innerHeight - top),
+    };
+  })();
+
+  if (!active || !step || !rect || !placement || !spotlight) return null;
 
   return (
     <div className="discover-overlay">
       <div
         className="discover-spotlight"
         style={{
-          top: rect.top - SPOTLIGHT_PADDING,
-          left: rect.left - SPOTLIGHT_PADDING,
-          width: rect.width + SPOTLIGHT_PADDING * 2,
-          height: rect.height + SPOTLIGHT_PADDING * 2,
+          top: spotlight.top,
+          left: spotlight.left,
+          width: spotlight.width,
+          height: spotlight.height,
         }}
       />
       <div
         ref={cardRef}
         className={`discover-card${placement.below ? " is-below" : " is-above"}`}
-        style={{ top: placement.top, left: placement.left, width: CARD_WIDTH }}
+        style={{ top: placement.top, left: placement.left, width: placement.width }}
         role="dialog"
         aria-label="Discover Bassface"
       >
