@@ -24,7 +24,7 @@
 
 .brand:hover h1 { color: var(--accent); }
 
-.brand h1 { font-size: 1.05rem; margin: 0; color: var(--text); }
+.brand h1 { font-size: 1.3rem; margin: 0; color: var(--text); }
 
 /* Brand mark: one SVG holding both eye variants (closed / open); hovering
    the brand crossfades the groups. See BrandMark in components/Header.tsx. */
