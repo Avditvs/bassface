@@ -65,6 +65,11 @@ export const TOUR_STEPS: TourStep[] = [
     body: "Drag any sound onto another playlist to copy it there, or onto its right-hand strip to move it out of the open playlist.",
   },
   {
+    selector: '[data-tour="organize-filter"]',
+    title: "Find the right playlist fast",
+    body: "Many playlists? Type here to filter the sidebar list — drag targets update instantly.",
+  },
+  {
     selector: '[data-tour="theme-toggle"]',
     title: "Light or dark",
     body: "Switch the theme any time — your choice is remembered for the next visit.",

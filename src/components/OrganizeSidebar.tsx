@@ -195,6 +195,7 @@ export function OrganizeSidebar() {
           {expanded && (
             <input
               className="search org-filter"
+              data-tour="organize-filter"
               type="search"
               placeholder="Filter playlists…"
               value={filter}
