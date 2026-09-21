@@ -14,6 +14,7 @@
 import { base64UrlEncode, randomBytes, randomState, sha256Of } from "./util";
 import type { TokenPayload } from "../services/types";
 import { isLocalOrigin, type AppConfig } from "./config";
+import { dbg } from "./debug";
 
 export { isLocalOrigin };
 
@@ -75,10 +76,14 @@ function tokenEndpoint(config: AppConfig): string {
 export async function fetchClientIdFromProxy(proxyUrl: string): Promise<string> {
   try {
     const response = await fetch(proxyUrl, { headers: { accept: "application/json; charset=utf-8" } });
-    if (!response.ok) return "";
+    if (!response.ok) {
+      dbg(`[oauth] client-id fetch from proxy ${response.status} — ${await response.text().catch(() => "")}`);
+      return "";
+    }
     const body = (await response.json()) as { client_id?: string };
     return typeof body.client_id === "string" ? body.client_id : "";
-  } catch {
+  } catch (err) {
+    dbg(`[oauth] client-id fetch from proxy failed: ${err instanceof Error ? err.message : String(err)}`);
     return "";
   }
 }

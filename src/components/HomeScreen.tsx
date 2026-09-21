@@ -39,7 +39,7 @@ async function onConnectSubmit(
     showStatus("Fetching the Client ID from your token proxy…");
     const clientId = await fetchClientIdFromProxy(runtime.config.tokenProxyUrl);
     if (!clientId) {
-      showStatus("No Client ID entered, and the proxy returned none — set SOUNDCLOUD_CLIENT_ID on the worker, or paste your Client ID here.", "error");
+      showStatus("Couldn't fetch the Client ID from the token proxy — the proxy may be down or blocked (ad-blocker / privacy shield). Clear this site's stored data, reload and try again.", "error");
       return;
     }
     runtime.config.clientId = clientId;
@@ -95,7 +95,10 @@ function Feature({ icon, title, children }: { icon: string; title: string; child
 
 export function HomeScreen() {
   const local = isLocalOrigin();
-  const [clientId, setClientId] = useState(runtime.config.clientId);
+  // Remote (proxy) deployments always refetch the Client ID from the proxy:
+  // a stale value in localStorage (older build, rotated app) must never be
+  // reused silently — SoundCloud's authorize page would reject it.
+  const [clientId, setClientId] = useState(local ? runtime.config.clientId : "");
   const [clientSecret, setClientSecret] = useState(runtime.config.clientSecret);
   const [redirectUri, setRedirectUri] = useState(runtime.config.redirectUri);
   const [redirecting, setRedirecting] = useState(false);
