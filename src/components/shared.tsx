@@ -15,7 +15,7 @@ import {
 } from "../services/playlist-art";
 import type { PlaylistStats } from "../services/playlist-stats";
 import {
-  escapeUrl, formatCount, formatDate, formatTotalDuration, playlistBucket,
+  escapeUrl, formatCount, formatDate, formatTotalDuration, hiResArtwork, playlistBucket,
 } from "../services/util";
 import type { Playlist } from "../services/types";
 
@@ -75,7 +75,7 @@ export function Artwork({ artworkUrl, className, fallback }: {
   return (
     <div className={className ?? "artwork"}>
       <img
-        src={escapeUrl(artworkUrl) || undefined}
+        src={escapeUrl(hiResArtwork(artworkUrl)) || undefined}
         alt=""
         loading="lazy"
         onError={() => setFailed(true)}

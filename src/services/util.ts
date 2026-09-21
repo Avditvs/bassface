@@ -75,6 +75,21 @@ export function escapeUrl(url: unknown): string {
 }
 
 /**
+ * Upgrade a SoundCloud artwork/avatar URL to its high-resolution variant.
+ * The API returns small renditions whose file name ends with a size suffix
+ * (`-large`, `-badge`, `-t120x120`, …); the same asset is hosted up to
+ * `-t500x500`. `-original` is left untouched since 500×500 would be a
+ * downscale. Non-soundcloud URLs and suffix-less URLs pass through.
+ */
+export function hiResArtwork(url: unknown): string {
+  const value = String(url ?? "");
+  return value.replace(
+    /-(?:badge|large|small|mini|medium|t\d+x\d+)\.(jpe?g|png|gif|webp)$/i,
+    "-t500x500.$1",
+  );
+}
+
+/**
  * Redact credential-bearing query parameters (oauth_token, access_token,
  * client_secret, …) from a string before it is logged. SoundCloud stream
  * URLs embed `?oauth_token=…`, which must never reach the persistent debug

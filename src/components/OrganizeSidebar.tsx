@@ -15,7 +15,7 @@
 import { useEffect, useState } from "react";
 import { useApp } from "../services/store";
 import {
-  escapeUrl, formatCount, formatDate,
+  escapeUrl, formatCount, formatDate, hiResArtwork,
 } from "../services/util";
 import { EXPAND_EVENT } from "../services/organize";
 import { StatsLine, TrackIcon, usePlaylistArtwork, usePlaylistStats } from "./shared";
@@ -46,7 +46,7 @@ function OrganizationEntry({ playlist, bpmValues }: {
         onClick={() => openSidebarPlaylist(String(playlist.id))}
       >
         {artworkUrl
-          ? <img className="org-art" src={escapeUrl(artworkUrl) || undefined} alt="" loading="lazy" />
+          ? <img className="org-art" src={escapeUrl(hiResArtwork(artworkUrl)) || undefined} alt="" loading="lazy" />
           : <span className="org-art org-art-placeholder"><TrackIcon size={24} /></span>}
         <span className="org-body">
           <span className="org-title" title={playlist.title ?? ""}>{playlist.title ?? ""}</span>
