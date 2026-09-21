@@ -15,8 +15,7 @@
   padding: 48px 0 8px;
 }
 
-.hero::before,
-.hero::after {
+.hero::before {
   content: "";
   position: absolute;
   inset: 0;
@@ -25,25 +24,12 @@
   border-radius: inherit;
 }
 
-/* Ambient glow behind the hero. The bright core sits below the top edge
-   (at 18%), otherwise the ellipse is clipped by the header and leaves a
-   hard band of colour across the top of the page. */
+/* Ambient glow behind the hero: one soft radial blob, centered. The bright
+   core sits below the top edge (at 18%), otherwise the ellipse is clipped
+   by the header and leaves a hard band of colour across the top of the
+   page. Static — a drifting blob read as a weird background offset. */
 .hero::before {
   background: radial-gradient(ellipse 70% 62% at 50% 18%, rgba(255, 85, 0, 0.26), transparent 72%);
-}
-
-.hero::after {
-  background: radial-gradient(ellipse 45% 45% at 75% 58%, rgba(255, 138, 0, 0.15), transparent 70%);
-  animation: hero-drift 9s ease-in-out infinite alternate;
-}
-
-@keyframes hero-drift {
-  from { transform: translate(-4%, -2%) scale(1); }
-  to { transform: translate(4%, 4%) scale(1.15); }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .hero::after { animation: none; }
 }
 
 .hero h2 {
