@@ -57,8 +57,15 @@ body:has(#playlist-screen:not([hidden])) .app-footer {
 @media (max-width: 1100px) {
   /* Block layout: the panels stack in DOM order AND the sticky panel's
      containing block becomes the whole column (a grid item would be
-     constrained to its own row and could never travel with the scroll). */
-  #playlist-screen:not([hidden]) .playlist-columns {
+     constrained to its own row and could never travel with the scroll).
+     The desktop rule that shrinks the columns by the player-bar height
+     ("main:has(.player-bar) …") outranks a plain height:auto override, so
+     it must be repeated here: without it the columns keep a fixed viewport
+     height on phones with an active preview — the rows then overflow the
+     fixed box and the pinned Reorganize panel covers the last track for
+     good (WebKit pins it even at full scroll; see PlayerBar). */
+  #playlist-screen:not([hidden]) .playlist-columns,
+  main:has(.player-bar) #playlist-screen:not([hidden]) .playlist-columns {
     display: block;
     height: auto; /* back to normal document scrolling */
   }
