@@ -105,6 +105,9 @@ body:has(#playlist-screen:not([hidden])) .app-footer {
   .app-header { padding: 10px 14px; gap: 10px; }
   .user-name { display: none; } /* avatar + sign out stay visible */
 
+  /* Discover button: keep only the ✨ icon to free up header space. */
+  .discover-label { display: none; }
+
   main { padding: 0 12px; margin: 20px auto; } /* 32px is too airy on a phone */
   main:has(#playlist-screen:not([hidden])) {
     max-width: calc(100vw - 24px);

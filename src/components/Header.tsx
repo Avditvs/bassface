@@ -83,7 +83,7 @@ export function Header() {
           title="Take a quick guided tour of the app"
           onClick={startDiscoverTour}
         >
-          ✨ Discover
+          ✨ <span className="discover-label">Discover</span>
         </button>
       )}
       <ThemeToggle />

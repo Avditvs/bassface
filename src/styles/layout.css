@@ -35,6 +35,10 @@
 
 .brand h1 { font-size: 1.3rem; margin: 0; color: var(--text); }
 
+/* The two word spans are inline-block, so narrow widths could carry "face"
+   to a second line — forbid any break inside the brand title. */
+.brand h1 { white-space: nowrap; }
+
 /* Brand mark: one SVG holding both eye variants (closed / open); hovering
    the brand crossfades the groups. See BrandMark in components/Header.tsx.
    A warm accent-tinted tile sits behind the mark so the dark face circle and
