@@ -24,6 +24,15 @@
 
 .brand:hover h1 { color: var(--accent); }
 
+/* The global a:hover underline (base.css) applies to the nested h1 too —
+   suppress it for the brand. */
+.brand h1 { text-decoration: none; }
+
+.brand h1 span { display: inline-block; transition: transform 120ms ease; }
+
+/* On hover, drop "Bass" a touch so Bass and face read separately. */
+.brand:hover h1 .brand-bass { transform: translateY(3px); }
+
 .brand h1 { font-size: 1.3rem; margin: 0; color: var(--text); }
 
 /* Brand mark: one SVG holding both eye variants (closed / open); hovering

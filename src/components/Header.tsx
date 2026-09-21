@@ -73,7 +73,7 @@ export function Header() {
     <header className="app-header">
       <a className="brand" href="#/playlists" aria-label="Bassface — back to playlists">
         <BrandMark />
-        <h1>Bassface</h1>
+        <h1><span className="brand-bass">Bass</span><span>face</span></h1>
       </a>
       <StatusBar />
       <button
