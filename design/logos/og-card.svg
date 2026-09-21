@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
+  <!-- Social share card (og:image). Rendered to public/og-image.png. -->
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#ff8a3d"/>
+      <stop offset="1" stop-color="#ff5500"/>
+    </linearGradient>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#181818"/>
+      <stop offset="1" stop-color="#0e0e0e"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1200" height="630" fill="url(#bg)"/>
+
+  <!-- faint wobble line, decorative -->
+  <path d="M60 560 q 30 -60 60 0 q 30 60 60 0 q 30 -60 60 0 q 30 60 60 0"
+        fill="none" stroke="#242424" stroke-width="14" stroke-linecap="round"/>
+  <path d="M900 100 q 30 -60 60 0 q 30 60 60 0 q 30 -60 60 0 q 30 60 60 0"
+        fill="none" stroke="#242424" stroke-width="14" stroke-linecap="round"/>
+
+  <!-- logo, scaled 3x from the 128 grid -->
+  <g transform="translate(150 105) scale(3)">
+    <rect width="128" height="128" rx="28" fill="#1c1c1c" stroke="#3a3a3a" stroke-width="2"/>
+    <circle cx="64" cy="68" r="42" fill="#2e2e2e"/>
+    <path d="M20 70 C 20 40 40 22 64 22 C 88 22 108 40 108 70"
+          fill="none" stroke="#f2f2f2" stroke-width="8" stroke-linecap="round"/>
+    <rect x="12"  y="62" width="16" height="28" rx="8" fill="url(#g)"/>
+    <rect x="100" y="62" width="16" height="28" rx="8" fill="url(#g)"/>
+    <path d="M44 58 Q 50 52 56 58" fill="none" stroke="#f2f2f2" stroke-width="5" stroke-linecap="round"/>
+    <path d="M72 58 Q 78 52 84 58" fill="none" stroke="#f2f2f2" stroke-width="5" stroke-linecap="round"/>
+    <path d="M44 84 q 5 -9 10 0 q 5 9 10 0 q 5 -9 10 0 q 5 9 10 0"
+          fill="none" stroke="url(#g)" stroke-width="6" stroke-linecap="round"/>
+  </g>
+
+  <!-- wordmark -->
+  <text x="620" y="270" font-family="system-ui, -apple-system, Helvetica, Arial, sans-serif"
+        font-size="104" font-weight="700" fill="#f2f2f2" letter-spacing="-2">Bassface</text>
+
+  <!-- gradient underline -->
+  <rect x="625" y="305" width="320" height="8" rx="4" fill="url(#g)"/>
+
+  <!-- tagline -->
+  <text x="624" y="390" font-family="system-ui, -apple-system, Helvetica, Arial, sans-serif"
+        font-size="36" fill="#9a9a9a">SoundCloud playlists, done right.</text>
+
+  <!-- domain hint -->
+  <text x="624" y="460" font-family="ui-monospace, Menlo, monospace"
+        font-size="30" fill="#5c5c5c">made for soundcloud.com</text>
+</svg>

@@ -16,8 +16,32 @@
   <script type="module" src="https://static.cloudflareinsights.com/beacon.min.js"
           data-cf-beacon='{"token": "b70b2236e04e43e7b2f516f3c05d833c"}'></script>
   <title>Bassface — SoundCloud</title>
+  <meta name="description" content="Bassface — a backend-free SoundCloud playlist manager. Reorder, filter and curate your playlists, straight from the browser." />
   <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
   <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
+  <meta name="theme-color" content="#181818" />
+  <!-- Social link previews (Instagram DM, Messenger, WhatsApp, iMessage, X…).
+       Scrapers don't run JS and ignore hash fragments, so these static tags
+       are the whole preview. og:image MUST be an absolute URL (relative
+       paths are ignored by most scrapers); SVG is not supported.
+       %SITE_URL% is filled in from vite.config.ts (SITE_URL).
+       Validate with https://developers.facebook.com/tools/debug/ (Messenger,
+       Instagram and WhatsApp all read these tags via Facebook's scraper).
+       Re-scrape after changes — previews are cached and need a refresh. -->
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="Bassface" />
+  <meta property="og:title" content="Bassface — SoundCloud" />
+  <meta property="og:description" content="A backend-free SoundCloud playlist manager. Reorder, filter and curate your playlists, straight from the browser." />
+  <meta property="og:url" content="%SITE_URL%/" />
+  <meta property="og:image" content="%SITE_URL%/og-image.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:type" content="image/png" />
+  <meta property="og:image:alt" content="Bassface — a grinning headphones logo. SoundCloud playlists, done right." />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Bassface — SoundCloud" />
+  <meta name="twitter:description" content="A backend-free SoundCloud playlist manager. Reorder, filter and curate your playlists, straight from the browser." />
+  <meta name="twitter:image" content="%SITE_URL%/og-image.png" />
 </head>
 <body>
   <div id="root"></div>
