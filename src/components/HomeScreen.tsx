@@ -120,8 +120,7 @@ export function HomeScreen() {
           <span className="hero-title-accent">playlists</span> like a pro
         </h2>
         <p className="hero-tagline">
-          Browse, preview and reorganize your playlists — fast, safe and
-          all in your browser.
+          Drag, drop, done: Your playlists. Your bassface.
         </p>
         {local && (
           <p className="muted">
