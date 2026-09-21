@@ -110,9 +110,12 @@ directly.)
 
 - **OAuth 2.1 + PKCE (S256)** with a single-use `state` nonce validated on
   callback; the verifier lives in `sessionStorage` only.
-- **CSP** (`index.html`): `script-src 'self'`, SoundCloud-only
-  `connect-src`/`img-src`, `frame-ancestors 'none'` — contains the blast
-  radius of any future injection bug.
+- **CSP** (`index.html`): `script-src 'self'` plus the Cloudflare Web
+  Analytics beacon (`static.cloudflareinsights.com`, included as an explicit
+  script tag in `index.html`), SoundCloud-only
+  `connect-src`/`img-src` (plus `cloudflareinsights.com` for the analytics
+  beacon), `frame-ancestors 'none'` — contains the blast radius of any
+  future injection bug.
 - **All SoundCloud-data interpolation goes through React**, which escapes
   text and attribute values by construction; URL-typed attributes (`href`,
   `src`) additionally pass through `escapeUrl` in `util.ts`, which rejects

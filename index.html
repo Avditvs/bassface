@@ -5,9 +5,16 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <!-- Restrict what the page may load/execute: contains the blast radius of
        any future injection bug. soundcloud hosts + blob: (audio blobs) only,
-       plus workers.dev and our token proxy domain (see worker/). -->
+       plus workers.dev and our token proxy domain (see worker/).
+       static.cloudflareinsights.com / cloudflareinsights.com are the
+       cookie-free Cloudflare Web Analytics beacon (explicit script tag below
+       — keep "auto-inject" OFF in the Cloudflare dashboard to avoid double
+       counting). -->
   <meta http-equiv="Content-Security-Policy"
-        content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' https://*.soundcloud.com https://*.sndcdn.com data:; media-src 'self' blob:; connect-src 'self' https://*.soundcloud.com https://*.sndcdn.com https://*.workers.dev https://soundcloud-token-proxy.louis-germain.fr; frame-ancestors 'none'; base-uri 'none'; form-action 'none'" />
+        content="default-src 'self'; script-src 'self' https://static.cloudflareinsights.com; style-src 'self'; img-src 'self' https://*.soundcloud.com https://*.sndcdn.com data:; media-src 'self' blob:; connect-src 'self' https://*.soundcloud.com https://*.sndcdn.com https://*.workers.dev https://soundcloud-token-proxy.louis-germain.fr https://cloudflareinsights.com; frame-ancestors 'none'; base-uri 'none'; form-action 'none'" />
+  <!-- Cloudflare Web Analytics (cookieless; token is public by design). -->
+  <script type="module" src="https://static.cloudflareinsights.com/beacon.min.js"
+          data-cf-beacon='{"token": "b70b2236e04e43e7b2f516f3c05d833c"}'></script>
   <title>Bassface — SoundCloud</title>
 </head>
 <body>

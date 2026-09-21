@@ -266,9 +266,12 @@ Storage failures are never fatal (`config.ts` warns and continues).
 
 - **OAuth 2.1 + PKCE (S256)**, single-use `state` validated on callback;
   verifier/state in `sessionStorage` only.
-- **CSP** in `index.html`: `script-src 'self'`, SoundCloud-only
-  `connect-src`/`img-src`, `frame-ancestors 'none'` — contains the blast
-  radius of any future injection bug.
+- **CSP** in `index.html`: `script-src 'self'` plus the Cloudflare Web
+  Analytics beacon (`static.cloudflareinsights.com`, included as an explicit
+  script tag in `index.html`), SoundCloud-only
+  `connect-src`/`img-src` (plus `cloudflareinsights.com` for the analytics
+  beacon), `frame-ancestors 'none'` — contains the blast radius of any
+  future injection bug.
 - **React-escaped interpolation** for all SoundCloud data; URL-typed
   attributes (`href`, `src`) pass through `escapeUrl()` (`util.ts`),
   which rejects `javascript:` / `data:` schemes.
