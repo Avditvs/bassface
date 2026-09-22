@@ -78,9 +78,9 @@
 }
 
 @keyframes word-enter {
-  0%   { opacity: 0; transform: scale(3.2); filter: blur(22px); }
-  55%  { opacity: 1; filter: blur(0); }
-  100% { opacity: 1; transform: scale(1); filter: blur(0); }
+  0%   { opacity: 0; transform: scale(4.5); filter: blur(30px) brightness(1.9); }
+  55%  { opacity: 1; filter: blur(0) brightness(1); }
+  100% { opacity: 1; transform: scale(1); filter: blur(0) brightness(1); }
 }
 
 /* "Your playlists. Your": each letter is its own element. They all arrive

@@ -9,7 +9,7 @@
  *   SoundCloud's own token endpoint).
  */
 
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { buildAuthUrl, fetchClientIdFromProxy, isLocalOrigin } from "../services/oauth";
 import { runtime } from "../services/store";
 import { showStatus } from "../services/store";
@@ -94,21 +94,25 @@ function TossedText({ text }: { text: string }) {
   return (
     <>
       {words.map((word, w) => (
-        <span key={word + w} className="tossed-word">
-          {Array.from(word).map((char, c) => {
-            const i = index++;
-            return (
-              <span
-                key={`${char}-${c}`}
-                className="letter-drop"
-                style={{ animationDelay: `${0.61 + i * 0.034}s` }}
-              >
-                {char}
-              </span>
-            );
-          })}
+        <Fragment key={word + w}>
+          <span className="tossed-word">
+            {Array.from(word).map((char, c) => {
+              const i = index++;
+              return (
+                <span
+                  key={`${char}-${c}`}
+                  className="letter-drop"
+                  style={{ animationDelay: `${0.61 + i * 0.034}s` }}
+                >
+                  {char}
+                </span>
+              );
+            })}
+          </span>
+          {/* The space must sit outside the inline-block word, otherwise it
+              is collapsed away and the words run together. */}
           {w < words.length - 1 ? " " : null}
-        </span>
+        </Fragment>
       ))}
     </>
   );
