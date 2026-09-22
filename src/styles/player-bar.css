@@ -34,13 +34,15 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  min-height: 68px;
-  padding: 8px 12px 8px 8px;
+  /* Same first-line height as the track rows / Reorganize cards: 52px art
+     + 2 × 10px padding (see tracks.css / playlist-detail.css). */
+  min-height: 72px;
+  padding: 10px 12px;
 }
 
 .player-art {
-  width: 50px;
-  height: 50px;
+  width: 52px;
+  height: 52px;
   flex: none;
   border-radius: var(--radius-s);
   object-fit: cover;
@@ -63,8 +65,8 @@
   text-overflow: ellipsis;
 }
 
-.player-track strong { font-size: 0.9rem; }
-.player-artist { color: var(--muted); font-size: 0.78rem; }
+.player-track strong { font-size: 0.95rem; }
+.player-artist { color: var(--muted); font-size: 0.8rem; }
 
 .player-indicator {
   display: flex;
@@ -87,7 +89,7 @@
 .player-waveform {
   display: block;
   width: min(28vw, 320px);
-  height: 38px;
+  height: 52px; /* same as .track-art / .track-waveform, so the rows line up */
   flex: 1 1 120px;
   min-width: 80px;
   border-radius: var(--radius-s);
@@ -208,9 +210,9 @@ body:has(.player-bar) .app-footer { display: none; }
   .player-bar { left: 12px; right: 12px; }
 }
 
-@media (max-width: 620px) {
-  .player-bar__content { gap: 9px; min-height: 62px; }
-  .player-art { width: 44px; height: 44px; }
-  .player-waveform { width: auto; height: 32px; min-width: 50px; }
+@media (max-width: 640px) {
+  /* Same breakpoint as the track rows and Reorganize cards; sizes already
+     match them via the base rules (52px art, 10px/12px padding, 72px rows). */
+  .player-waveform { width: auto; min-width: 50px; }
   .player-time { display: none; }
 }

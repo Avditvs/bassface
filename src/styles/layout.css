@@ -126,6 +126,10 @@
 
 .user-name { color: var(--muted); font-size: 0.9rem; }
 
+/* Header buttons must never wrap onto two lines: on phones the user area
+   is tight and "Sign out" used to break into a ragged two-line pill. */
+.user-area .button { white-space: nowrap; }
+
 main {
   max-width: 1100px;
   margin: 32px auto;

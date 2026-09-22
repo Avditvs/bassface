@@ -107,55 +107,15 @@ body:has(#playlist-screen:not([hidden])) .app-footer {
 }
 
 /* Phones: compact the shell, header and playlist header so everything fits
-   a ~390px viewport. Laptop (>1100px) rules above are untouched. */
-@media (max-width: 640px) {
-  .app-header { padding: 10px 14px; gap: 10px; }
-  .user-name { display: none; } /* avatar + sign out stay visible */
+   a ~390px viewport. Laptop (>1100px) rules above are untouched.
 
-  /* Discover button: keep only the ✨ icon to free up header space. */
-  .discover-label { display: none; }
-
-  main { padding: 0 12px; margin: 20px auto; } /* 32px is too airy on a phone */
-  main:has(#playlist-screen:not([hidden])) {
-    max-width: calc(100vw - 24px);
-    margin-top: 10px;
-    margin-bottom: 10px;
-  }
-
-  /* Stacked panels sit closer together than the desktop columns. */
-  #playlist-screen:not([hidden]) .playlist-columns { gap: 14px; }
-
-  /* Playlist header stays side by side on phones: the artwork shrinks so
-     the title/description have room on its right. */
-  .playlist-header {
-    align-items: center;
-    gap: 14px;
-    padding: 16px;
-    margin-top: 10px;
-  }
-  .playlist-header-art { width: 96px; height: 96px; }
-
-  /* Phones: the remove drop zone is out of reach (HTML5 drag & drop does
-     not work from a touch screen) — the swipe-left gesture replaces it.
-     The #id prefix outranks the base .remove-panel rule that follows this
-     query in the file. */
-  #playlist-screen .remove-panel { display: none; }
-
-  .organize {
-    padding: 14px;
-    padding-bottom: calc(14px + env(safe-area-inset-bottom, 0px));
-  }
-  /* Match the playlist view's stacked track rows (see tracks.css): same
-     artwork size, side padding, title size and first-line height (52px art
-     + 2 × 10px padding), so both lists read alike on a phone. */
-  .org-drop { min-height: 72px; padding: 10px 12px; }
-  .org-art { width: 52px; height: 52px; }
-  .org-move { width: 52px; font-size: 1.3rem; }
-  .org-drop .org-title { font-size: 0.95rem; }
-
-  /* 3 × card min-height (72px) + 2 × list gap (8px). */
-  .org-list, .org-check-list { max-height: 232px; }
-}
+   NOTE: this block must stay AFTER the base .playlist-header rules at the
+   bottom of this file — a media query adds no specificity, so a later base
+   rule would quietly override the phone values (the artwork fell back to
+   its 170px desktop size and squeezed the title to a ~100px column). The
+   block therefore lives at the end of the file. The .organize / .org-*
+   phone rules live in organize.css for the same reason: that file is
+   imported after this one. */
 
 /* ---------- playlist header ---------- */
 
@@ -208,6 +168,44 @@ body:has(#playlist-screen:not([hidden])) .app-footer {
   font-size: 0.82rem;
   text-align: center;
   padding: 7px 0;
+}
+
+/* Phones: compact the shell, header and playlist header so everything fits
+   a ~390px viewport. Kept after the base .playlist-header rules above —
+   see the NOTE at the old in-file location for why the order matters.
+   The .organize / .org-* phone rules live in organize.css. */
+@media (max-width: 640px) {
+  .app-header { padding: 10px 14px; gap: 10px; }
+  .user-name { display: none; } /* avatar + sign out stay visible */
+
+  /* Discover button: keep only the ✨ icon to free up header space. */
+  .discover-label { display: none; }
+
+  main { padding: 0 12px; margin: 20px auto; } /* 32px is too airy on a phone */
+  main:has(#playlist-screen:not([hidden])) {
+    max-width: calc(100vw - 24px);
+    margin-top: 10px;
+    margin-bottom: 10px;
+  }
+
+  /* Stacked panels sit closer together than the desktop columns. */
+  #playlist-screen:not([hidden]) .playlist-columns { gap: 14px; }
+
+  /* Playlist header stays side by side on phones: the artwork shrinks so
+     the title/description have room on its right. */
+  .playlist-header {
+    align-items: center;
+    gap: 14px;
+    padding: 16px;
+    margin-top: 10px;
+  }
+  .playlist-header-art { width: 96px; height: 96px; }
+
+  /* Phones: the remove drop zone is out of reach (HTML5 drag & drop does
+     not work from a touch screen) — the swipe-left gesture replaces it.
+     The #id prefix outranks the base .remove-panel rule that follows this
+     query in the file. */
+  #playlist-screen .remove-panel { display: none; }
 }
 
 /* ---------- drop-to-remove panel (left column) ---------- */

@@ -1,5 +1,15 @@
 /* home.css — landing page shown before signing in: hero + feature grid. */
 
+/* The landing animation flings the headline words in from beyond the screen
+   edges (±320px) and starts "Bassface" at scale(4.5). Transforms extend the
+   document's scrollable overflow area, so on phones the page is ~580px wide
+   in a 390px viewport for the first ~3 seconds: everything looks off-centre
+   and the layout snaps sideways once the animation ends. Clipping the screen
+   horizontally keeps the entrance visually identical (words still emerge
+   from past the edges) without ever widening the page. overflow-x: clip
+   (not hidden) avoids turning the section into a scroll container. */
+.home-screen { overflow-x: clip; }
+
 .home {
   max-width: 860px;
   margin: 0 auto;

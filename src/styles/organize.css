@@ -168,3 +168,31 @@
 
 /* The dragged track row fades while the drag is in flight. */
 .track-row.is-dragging { opacity: 0.45; }
+
+/* Phones: compact the pinned Reorganize panel. These rules live here (not
+   in playlist-detail.css's phone block) because organize.css is imported
+   after it — a media query adds no specificity, so phone values placed in
+   the earlier file would be silently beaten by the base rules below (the
+   cards kept their 76px desktop height and the panel its desktop padding). */
+@media (max-width: 640px) {
+  .organize {
+    padding: 14px;
+    padding-bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+  }
+
+  /* The header row is too tight for title + three buttons on ~390px: give
+     the title its own line instead of ellipsing it to "Reorgan…". */
+  .org-head { flex-wrap: wrap; }
+  .org-head .org-title { flex-basis: 100%; }
+
+  /* Match the playlist view's stacked track rows (see tracks.css): same
+     artwork size, side padding, title size and first-line height (52px art
+     + 2 × 10px padding), so both lists read alike on a phone. */
+  .org-drop { min-height: 72px; padding: 10px 12px; }
+  .org-art { width: 52px; height: 52px; }
+  .org-move { width: 52px; font-size: 1.3rem; }
+  .org-drop .org-title { font-size: 0.95rem; }
+
+  /* 3 × card min-height (72px) + 2 × list gap (8px). */
+  .org-list, .org-check-list { max-height: 232px; }
+}
