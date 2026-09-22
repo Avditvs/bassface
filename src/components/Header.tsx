@@ -51,7 +51,9 @@ export function BrandMark() {
         </linearGradient>
       </defs>
       <circle cx="64" cy="68" r="42" fill="#2e2e2e" />
-      <path d="M20 70 C 20 40 40 22 64 22 C 88 22 108 40 108 70" fill="none" stroke="var(--text)" strokeWidth="8" strokeLinecap="round" />
+      {/* Fixed light band (not var(--text)): the face circle is always dark,
+          so a theme-flipped stroke would vanish against it in light mode. */}
+      <path d="M20 70 C 20 40 40 22 64 22 C 88 22 108 40 108 70" fill="none" stroke="#f2f2f2" strokeWidth="8" strokeLinecap="round" />
       <rect x="12" y="62" width="16" height="28" rx="8" fill="url(#brand-grad)" />
       <rect x="100" y="62" width="16" height="28" rx="8" fill="url(#brand-grad)" />
       <g className="eyes-closed">
