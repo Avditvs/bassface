@@ -178,6 +178,20 @@ body:has(#playlist-screen:not([hidden])) .app-footer {
   .app-header { padding: 10px 14px; gap: 10px; }
   .user-name { display: none; } /* avatar + sign out stay visible */
 
+  /* Error pill: the header row has no room for it between the brand and
+     the controls on a phone — flex-shrink collapsed it to a ~50px "P…"
+     stub. Let it wrap onto its own row below and wrap its text instead.
+     :not(:empty) keeps the idle spacer (which must stay on the first row
+     to push the controls right) from adding an empty second row. */
+  .app-header { flex-wrap: wrap; row-gap: 8px; }
+  .status-bar:not(:empty) {
+    order: 1; /* below the brand + controls row */
+    flex: 1 1 100%;
+    max-width: 100%;
+    white-space: normal;
+  }
+  .status-bar:not(:empty) ~ .user-area { margin-left: auto; }
+
   /* Discover button: keep only the ✨ icon to free up header space. */
   .discover-label { display: none; }
 
