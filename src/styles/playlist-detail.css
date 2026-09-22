@@ -175,7 +175,7 @@ body:has(#playlist-screen:not([hidden])) .app-footer {
    see the NOTE at the old in-file location for why the order matters.
    The .organize / .org-* phone rules live in organize.css. */
 @media (max-width: 640px) {
-  .app-header { padding: 10px 14px; gap: 10px; }
+  .app-header { padding: 10px 12px; gap: 10px; } /* same gutter as main */
   .user-name { display: none; } /* avatar + sign out stay visible */
 
   /* Error pill: the header row has no room for it between the brand and
@@ -196,8 +196,14 @@ body:has(#playlist-screen:not([hidden])) .app-footer {
   .discover-label { display: none; }
 
   main { padding: 0 12px; margin: 20px auto; } /* 32px is too airy on a phone */
+  /* No extra box inset on top of main's 12px padding: the desktop rule
+     shrinks the detail container to 100vw - 48px (wide gutters for the
+     side panels), and this block's predecessor shrank it to 100vw - 24px,
+     which put the rows/panels 24px from the screen edge while the
+     playlists screen sat at 12px — content jumped sideways on navigation.
+     max-width: none lets the shared 12px padding provide the gutter. */
   main:has(#playlist-screen:not([hidden])) {
-    max-width: calc(100vw - 24px);
+    max-width: none;
     margin-top: 10px;
     margin-bottom: 10px;
   }

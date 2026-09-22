@@ -153,6 +153,15 @@ main:not(:has(#playlist-screen:not([hidden]))):has(.player-bar) #playlists-scree
 /* The pinned bar takes the footer's place at the bottom of the screen. */
 body:has(.player-bar) .app-footer { display: none; }
 
+/* Tablets (641–1100px): on the playlist screen the rows sit 48px from the
+   screen edge (the calc(100vw - 48px) detail container plus its 24px
+   padding), while the fixed bar's left/right would put it at 24px — wider
+   than the list it serves. Match the rows; non-playlist screens keep 24px
+   to line up with their own 24px content gutter. */
+@media (min-width: 641px) and (max-width: 1100px) {
+  main:has(#playlist-screen:not([hidden])) .player-bar { left: 48px; right: 48px; }
+}
+
 /* Stacked layout (≤1100px): pin the bar to the viewport on every screen.
    A sticky bar unpins when its natural in-flow spot (the page end) enters
    the viewport, so it visibly drifts up while scrolling the last screens;
@@ -172,6 +181,12 @@ body:has(.player-bar) .app-footer { display: none; }
     border-radius: var(--radius-s);
     z-index: 3; /* above the pinned Reorganize panel */
   }
+  /* Same high-specificity selector as the base rule below the desktop
+     layout: without it the playlists-screen margin-inline (24px) beats the
+     margin reset here and the bar sits 12px+24px = 36px from the screen
+     edge on phones while the cards above it sit 12px away. Same specificity
+     + later in the file wins. */
+  main:not(:has(#playlist-screen:not([hidden]))) .player-bar { margin-inline: 0; }
   /* Home-indicator clearance lives inside the bar, so no content can
      show through below it. */
   .player-bar__content {
