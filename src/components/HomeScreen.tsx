@@ -9,7 +9,7 @@
  *   SoundCloud's own token endpoint).
  */
 
-import { useState, type CSSProperties } from "react";
+import { useState } from "react";
 import { buildAuthUrl, fetchClientIdFromProxy, isLocalOrigin } from "../services/oauth";
 import { runtime } from "../services/store";
 import { showStatus } from "../services/store";
@@ -83,10 +83,10 @@ async function onConnectSubmit(
 }
 
 /**
- * "Your playlists. Your" split into individual letters, each tossed in from
- * its own direction with a per-letter stagger — alternate letters flip side
- * and each one is thrown from progressively further out. Words stay atomic
- * so the headline can still wrap at its spaces on narrow screens.
+ * "Your playlists. Your" split into individual letters. Every letter is
+ * thrown in from the same upper-left direction, with a short per-letter
+ * stagger so they arrive like a deck being dealt. Words stay atomic so the
+ * headline can still wrap at its spaces on narrow screens.
  */
 function TossedText({ text }: { text: string }) {
   const words = text.split(" ");
@@ -97,15 +97,14 @@ function TossedText({ text }: { text: string }) {
         <span key={word + w} className="tossed-word">
           {Array.from(word).map((char, c) => {
             const i = index++;
-            const side = i % 2 === 0 ? -1 : 1;
-            const style = {
-              "--wx": `${side * (150 + (i % 5) * 55)}px`,
-              "--wy": `${-190 - (i % 4) * 60}px`,
-              "--wr": `${side * (22 + (i % 3) * 16)}deg`,
-              animationDelay: `${0.72 + i * 0.04}s`,
-            } as CSSProperties;
             return (
-              <span key={`${char}-${c}`} className="letter-drop" style={style}>{char}</span>
+              <span
+                key={`${char}-${c}`}
+                className="letter-drop"
+                style={{ animationDelay: `${0.61 + i * 0.034}s` }}
+              >
+                {char}
+              </span>
             );
           })}
           {w < words.length - 1 ? " " : null}
