@@ -73,6 +73,14 @@ body:has(#playlist-screen:not([hidden])) .app-footer {
   .remove-panel { margin-bottom: 14px; }
   .organize { margin-top: 14px; }
 
+  /* The pinned Reorganize panel must be able to dock flush at the page end:
+     any margin below main adds scrollable space under the panel's containing
+     block, so during the last pixels of scroll the sticky panel releases from
+     its bottom anchor and visibly rides up. The spacing under the panel is
+     already provided by main's reserved padding-bottom (player-bar case, see
+     player-bar.css) or by nothing at all (no bar, bottom: 0). */
+  main:has(#playlist-screen:not([hidden])) { margin-bottom: 0; }
+
   /* Pin the Reorganize panel to the viewport bottom while scrolling the
      track list: drop targets stay reachable at all times. Flat bottom +
      safe-area padding: it docks with the screen edge (or onto the player
@@ -205,7 +213,10 @@ body:has(#playlist-screen:not([hidden])) .app-footer {
   main:has(#playlist-screen:not([hidden])) {
     max-width: none;
     margin-top: 10px;
-    margin-bottom: 10px;
+    /* No bottom margin: it would sit below the pinned Reorganize panel's
+       containing block and let it drift up during the last pixels of scroll
+       (same reason as the ≤1100px block in playlist-detail.css). */
+    margin-bottom: 0;
   }
 
   /* Stacked panels sit closer together than the desktop columns. */

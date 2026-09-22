@@ -99,6 +99,30 @@
    stands out from the other quiet header controls. */
 .discover-button:hover { color: var(--accent); }
 
+/* Header control sizing: Discover and the theme toggle sit side by side as
+   the two header actions — give Discover the toggle's exact 40px height so
+   the pair reads as one set of controls instead of a tall square next to a
+   small text pill. */
+.discover-button {
+  height: 40px;
+  display: inline-flex;
+  align-items: center;
+}
+
+/* Phones: the label is hidden (playlist-detail.css), so both buttons are
+   icon-only — make Discover a 40×40 square identical to the theme toggle
+   rather than a narrow ✨ pill floating beside it. The sparkle gets the
+   regular button font size: at .button-quiet's 0.82rem it looked lost in
+   the square. */
+@media (max-width: 640px) {
+  .discover-button {
+    width: 40px;
+    padding: 0;
+    justify-content: center;
+    font-size: 1rem;
+  }
+}
+
 /* On a playlist page, the Discover button hops to draw the eye to the tour.
    Small repeated bounce; turned off for reduced motion. */
 .discover-jump {
