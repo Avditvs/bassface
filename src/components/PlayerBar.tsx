@@ -77,15 +77,17 @@ export function PlayerBar() {
           {formatDuration(position)} <span>/</span> {formatDuration(duration)}
         </span>
         <div className="player-actions">
+          {/* Mirrors the row preview button: a tap while loading cancels the
+              pending preview instead of being swallowed by a disabled control
+              (loading can take a while on mobile networks). */}
           <button
             className="player-control player-control--primary"
             type="button"
-            disabled={isLoading}
-            aria-label={isPlaying ? "Pause preview" : "Resume preview"}
-            title={isPlaying ? "Pause" : "Play"}
+            aria-label={isLoading ? "Cancel preview" : isPlaying ? "Pause preview" : "Resume preview"}
+            title={isLoading ? "Cancel" : isPlaying ? "Pause" : "Play"}
             onClick={() => void togglePreview(track.id)}
           >
-            {isPlaying ? "❚❚" : "▶"}
+            {isLoading ? <span className="spinner" aria-hidden="true" /> : isPlaying ? "❚❚" : "▶"}
           </button>
           <button
             className="player-control"

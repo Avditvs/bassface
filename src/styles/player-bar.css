@@ -151,29 +151,34 @@ main:not(:has(#playlist-screen:not([hidden]))):has(.player-bar) #playlists-scree
 /* The pinned bar takes the footer's place at the bottom of the screen. */
 body:has(.player-bar) .app-footer { display: none; }
 
-/* Stacked playlist layout (≤1100px): a sticky bar unpins when its natural
-   in-flow spot (the page end) enters the viewport, so it visibly drifts up
-   while scrolling the last screens. Pin it to the viewport instead and let
+/* Stacked layout (≤1100px): pin the bar to the viewport on every screen.
+   A sticky bar unpins when its natural in-flow spot (the page end) enters
+   the viewport, so it visibly drifts up while scrolling the last screens;
+   worse, the playlists screen styled the bar differently from the playlist
+   screen (24px insets instead of 12px on phones, no home-indicator
+   clearance, flex-pinned main on 100vh — which overflows the visual
+   viewport on iOS and pushed the bar below the visible edge), so its size
+   changed when navigating back from a playlist. Pin it everywhere and let
    main's bottom padding reserve exactly the room the bar occupies. */
 @media (max-width: 1100px) {
-  main:has(#playlist-screen:not([hidden])) .player-bar {
+  .player-bar {
     position: fixed;
     left: 24px; /* same insets as main's side padding */
     right: 24px;
     bottom: calc(8px + env(safe-area-inset-bottom, 0px)); /* floats above the screen edge */
-    margin-top: 0;
+    margin: 0; /* left/right replace the in-flow margins */
     border-radius: var(--radius-s);
     z-index: 3; /* above the pinned Reorganize panel */
   }
   /* Home-indicator clearance lives inside the bar, so no content can
      show through below it. */
-  main:has(#playlist-screen:not([hidden])) .player-bar__content {
+  .player-bar__content {
     padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
   }
   /* Solid backdrop behind the pinned bottom stack: fills the 8px strip
      under the bar and the 12px gap between bar and panel with the page
      background, so scrolling rows can never show through the padding. */
-  main:has(#playlist-screen:not([hidden])):has(.player-bar)::after {
+  main:has(.player-bar)::after {
     content: "";
     position: fixed;
     left: 0;
@@ -183,16 +188,24 @@ body:has(.player-bar) .app-footer { display: none; }
     background: var(--bg);
     z-index: 1; /* behind the pinned panel (2) and bar (3), over the rows */
   }
-  main:has(#playlist-screen:not([hidden])):has(.player-bar) {
+  main:has(.player-bar) {
     /* Reserve the stack's exact height (bar + 12px gap, measured via
        --player-bar-h, see PlayerBar) so the resting Reorganize panel docks
        flush onto the pinned stack at the page end. */
     padding-bottom: calc(var(--player-bar-h, 75px) + 20px + env(safe-area-inset-bottom, 0px));
   }
+  /* Playlists screen: drop the desktop flex pinning (its 100vh main box
+     overflows the dynamic mobile viewport); the page scrolls normally and
+     the reserved padding above keeps the last rows clear of the bar. */
+  main:not(:has(#playlist-screen:not([hidden]))):has(.player-bar) {
+    display: block;
+    height: auto;
+    padding-bottom: calc(var(--player-bar-h, 75px) + 20px + env(safe-area-inset-bottom, 0px));
+  }
 }
 
 @media (max-width: 640px) {
-  main:has(#playlist-screen:not([hidden])) .player-bar { left: 12px; right: 12px; }
+  .player-bar { left: 12px; right: 12px; }
 }
 
 @media (max-width: 620px) {

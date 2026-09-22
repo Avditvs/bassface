@@ -336,7 +336,12 @@ export async function extendJumpWindow(): Promise<void> {
     await waitForMetadata(audio);
     if (p.jump !== jump) return; // switched away during the swap
     audio.currentTime = resumeAt;
-    if (wasPlaying) {
+    // Re-read the intent after the swap: the pre-swap snapshot is stale once
+    // the element was reloaded, and pausing during the swap (a tap on the
+    // bar while a slow mobile network fetches the window) must not be undone
+    // by the pending resume — otherwise the audio plays on behind a "paused"
+    // UI and neither the play/pause nor the close button seem to stop it.
+    if (wasPlaying && getState().previewPlaying) {
       try { await audio.play(); } catch { /* retried on next click */ }
     }
     dbg(`[preview] jump window extended — ${jump.parts.length} segments buffered`);
