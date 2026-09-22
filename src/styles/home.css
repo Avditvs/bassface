@@ -135,7 +135,7 @@
   100% { transform: translateY(0) scale(1, 1); text-shadow: 0 0 0 rgba(255, 85, 0, 0); }
 }
 
-.hero h2:hover .bass-dip { transform: translateY(3px); }
+.hero h2:hover .bass-dip { transform: translateY(8px); }
 
 .hero-tagline {
   font-size: 1.12rem;
