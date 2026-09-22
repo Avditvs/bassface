@@ -145,12 +145,16 @@ body:has(#playlist-screen:not([hidden])) .app-footer {
     padding: 14px;
     padding-bottom: calc(14px + env(safe-area-inset-bottom, 0px));
   }
-  .org-drop { min-height: 64px; padding: 10px; }
-  .org-art { width: 44px; height: 44px; }
+  /* Match the playlist view's stacked track rows (see tracks.css): same
+     artwork size, side padding, title size and first-line height (52px art
+     + 2 × 10px padding), so both lists read alike on a phone. */
+  .org-drop { min-height: 72px; padding: 10px 12px; }
+  .org-art { width: 52px; height: 52px; }
   .org-move { width: 52px; font-size: 1.3rem; }
+  .org-drop .org-title { font-size: 0.95rem; }
 
-  /* 3 × card min-height (64px) + 2 × list gap (8px). */
-  .org-list, .org-check-list { max-height: 208px; }
+  /* 3 × card min-height (72px) + 2 × list gap (8px). */
+  .org-list, .org-check-list { max-height: 232px; }
 }
 
 /* ---------- playlist header ---------- */
