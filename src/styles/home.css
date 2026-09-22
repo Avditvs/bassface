@@ -53,6 +53,11 @@
   display: inline-block;
 }
 
+/* The full stop rides inside the "Bassface" word so it lands with it instead
+   of sitting alone on the screen during the entrance — but keeps the plain
+   text colour rather than the orange of the wordmark. */
+.bassface-word .word-stop { color: var(--text); }
+
 /* ---------- landing animation: drop in, then let the bass hit ---------- */
 
 /* Every word is flung in from its own corner of the screen — some dragged

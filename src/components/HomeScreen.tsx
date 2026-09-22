@@ -151,7 +151,7 @@ export function HomeScreen() {
             <span className="hero-word hero-word-3">done:</span>
             <br />
             <TossedText text="Your playlists. Your" />{" "}
-            <span className="hero-word hero-word-5 bassface-word"><span className="bass-dip">Bass</span>face</span>.
+            <span className="hero-word hero-word-5 bassface-word"><span className="bass-dip">Bass</span>face<span className="word-stop">.</span></span>
           </h2>
           <p className="hero-tagline">
             Browse, preview and reorganize your playlists — fast, safe and
