@@ -102,7 +102,7 @@ function TossedText({ text }: { text: string }) {
                 <span
                   key={`${char}-${c}`}
                   className="letter-drop"
-                  style={{ animationDelay: `${0.61 + i * 0.034}s` }}
+                  style={{ animationDelay: `${1.45 + i * 0.026}s` }}
                 >
                   {char}
                 </span>
