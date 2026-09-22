@@ -95,6 +95,10 @@
 
 .theme-toggle:hover { color: var(--text); }
 
+/* Discover button: pick up the accent on hover so the tour entry point
+   stands out from the other quiet header controls. */
+.discover-button:hover { color: var(--accent); }
+
 /* On a playlist page, the Discover button hops to draw the eye to the tour.
    Small repeated bounce; turned off for reduced motion. */
 .discover-jump {

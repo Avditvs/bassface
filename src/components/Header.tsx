@@ -19,7 +19,6 @@ function ThemeToggle() {
   return (
     <button
       className="button button-quiet theme-toggle"
-      data-tour="theme-toggle"
       type="button"
       aria-label={dark ? "Switch to light mode" : "Switch to dark mode"}
       onClick={() => { toggleTheme(); setDark(currentTheme() === "dark"); }}
@@ -88,7 +87,7 @@ export function Header() {
       <StatusBar />
       {user && (
         <button
-          className={`button button-quiet${
+          className={`button button-quiet discover-button${
             // Hop to draw the eye to the tour — but only before the user
             // has seen (or skipped) it; afterwards the button stays still.
             onPlaylist && !tourSeen ? " discover-jump" : ""
