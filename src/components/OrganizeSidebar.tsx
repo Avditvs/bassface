@@ -82,7 +82,11 @@ function loadExpanded(): boolean {
   } catch {
     // Corrupted or unavailable storage: fall through to the default.
   }
-  return true;
+  // Phones: the panel is pinned to the viewport bottom and expanded would
+  // cover well over half the screen (help text, filter and card list all
+  // stacked above the player bar). Start retracted — the ▸ Expand toggle
+  // brings the search back, and a stored explicit choice still wins.
+  return !window.matchMedia("(max-width: 640px)").matches;
 }
 
 export function OrganizeSidebar() {

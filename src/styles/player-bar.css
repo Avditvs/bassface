@@ -208,11 +208,15 @@ body:has(.player-bar) .app-footer { display: none; }
 
 @media (max-width: 640px) {
   .player-bar { left: 12px; right: 12px; }
-}
 
-@media (max-width: 640px) {
   /* Same breakpoint as the track rows and Reorganize cards; sizes already
      match them via the base rules (52px art, 10px/12px padding, 72px rows). */
-  .player-waveform { width: auto; min-width: 50px; }
   .player-time { display: none; }
+
+  /* The desktop waveform flexes (basis 120px) and starves the track column:
+     on a 390px phone the title collapsed to ~30px and the status label
+     wrapped over it. Give the waveform a small fixed strip instead — the
+     track column keeps the rest and the seek control stays tappable. */
+  .player-waveform { flex: 0 0 56px; width: 56px; min-width: 0; }
+  .player-track { flex: 1 1 auto; }
 }
