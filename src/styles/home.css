@@ -110,23 +110,19 @@
   100% { opacity: 1; transform: translate(0, 0) rotate(0deg) scale(1); }
 }
 
-/* The finale: once "Bassface" lands, "Bass" takes the hit — a heavy
+/* The finale: once "Bassface" lands, "Bass" takes a single hit — one
    down-and-up slam with a flaring accent glow, like a subwoofer kicking
-   the whole word. */
+   the whole word, then it settles. */
 .bass-dip {
   display: inline-block;
   transition: transform 120ms ease;
-  animation: bass-bounce 1.28s cubic-bezier(0.34, 0.85, 0.35, 1) 2.55s;
+  animation: bass-bounce 0.72s cubic-bezier(0.34, 0.85, 0.35, 1) 2.55s;
 }
 
 @keyframes bass-bounce {
   0%   { transform: translateY(0) scale(1, 1); text-shadow: 0 0 0 rgba(255, 85, 0, 0); }
-  12%  { transform: translateY(30px) scale(1.16, 0.78); text-shadow: 0 16px 40px rgba(255, 85, 0, 0.85), 0 0 26px rgba(255, 85, 0, 0.55); }
-  30%  { transform: translateY(-16px) scale(0.9, 1.18); text-shadow: 0 0 34px rgba(255, 85, 0, 0.7); }
-  46%  { transform: translateY(16px) scale(1.09, 0.9); text-shadow: 0 9px 26px rgba(255, 85, 0, 0.5); }
-  62%  { transform: translateY(-9px) scale(0.96, 1.07); text-shadow: 0 0 18px rgba(255, 85, 0, 0.4); }
-  76%  { transform: translateY(6px) scale(1.03, 0.97); text-shadow: 0 4px 14px rgba(255, 85, 0, 0.3); }
-  88%  { transform: translateY(-3px) scale(1, 1.01); }
+  30%  { transform: translateY(30px) scale(1.16, 0.78); text-shadow: 0 16px 40px rgba(255, 85, 0, 0.85), 0 0 26px rgba(255, 85, 0, 0.55); }
+  60%  { transform: translateY(-16px) scale(0.9, 1.18); text-shadow: 0 0 34px rgba(255, 85, 0, 0.7); }
   100% { transform: translateY(0) scale(1, 1); text-shadow: 0 0 0 rgba(255, 85, 0, 0); }
 }
 
