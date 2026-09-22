@@ -64,11 +64,20 @@
   animation: word-drop 0.85s cubic-bezier(0.3, 0.9, 0.34, 1.35) both;
 }
 
-.hero-word-1 { --wx: -150px; --wy: -50px; --wr: -32deg; animation-delay: 0.05s; }
-.hero-word-2 { --wx: 16px;   --wy: -180px; --wr: 12deg; animation-delay: 0.42s; }
-.hero-word-3 { --wx: 155px;  --wy: -70px;  --wr: 28deg; animation-delay: 0.79s; }
-.hero-word-4 { --wx: -130px; --wy: 90px;   --wr: -18deg; animation-delay: 1.2s; }
-.hero-word-5 { --wx: 140px;  --wy: -130px; --wr: 24deg; animation-delay: 1.6s; }
+.hero-word-1 { --wx: -260px; --wy: -90px;  --wr: -32deg; animation-delay: 0.05s; }
+.hero-word-2 { --wx: 30px;   --wy: -320px; --wr: 12deg; animation-delay: 0.42s; }
+.hero-word-3 { --wx: 270px;  --wy: -120px; --wr: 28deg; animation-delay: 0.79s; }
+.hero-word-5 { --wx: 260px;  --wy: -240px; --wr: 24deg; animation-delay: 2.15s; }
+
+/* "Your playlists. Your": each letter is its own element, thrown in from
+   alternating far corners. Directions and delays are set per letter inline
+   (HomeScreen); .tossed-word keeps each word atomic so the line can wrap. */
+.tossed-word { display: inline-block; }
+
+.letter-drop {
+  display: inline-block;
+  animation: word-drop 0.85s cubic-bezier(0.3, 0.9, 0.34, 1.35) both;
+}
 
 @keyframes word-drop {
   0%   { opacity: 0; transform: translate(var(--wx), var(--wy)) rotate(var(--wr)) scale(0.55); }
@@ -85,7 +94,7 @@
   position: relative;
   display: inline-block;
   transition: transform 120ms ease;
-  animation: bass-bounce 1.5s cubic-bezier(0.34, 0.85, 0.35, 1) 2.55s;
+  animation: bass-bounce 1.5s cubic-bezier(0.34, 0.85, 0.35, 1) 3.25s;
 }
 
 .bass-dip::after {
@@ -100,7 +109,7 @@
   opacity: 0;
   pointer-events: none;
   transform: translate(-50%, -50%) scale(0.2);
-  animation: bass-shock 1.3s ease-out 2.72s;
+  animation: bass-shock 1.3s ease-out 3.42s;
 }
 
 @keyframes bass-bounce {
@@ -253,8 +262,8 @@
   .feature-card:hover { transform: none; }
   .feature-card:hover .feature-icon { transform: none; }
   /* Skip the landing animation entirely — the headline just sits there. */
-  .hero-word, .bass-dip { animation: none; }
-  .hero-word { opacity: 1; transform: none; }
+  .hero-word, .bass-dip, .letter-drop { animation: none; }
+  .hero-word, .letter-drop { opacity: 1; transform: none; }
   .bass-dip::after { display: none; }
 }
 
