@@ -228,10 +228,16 @@ body:has(.player-bar) .app-footer { display: none; }
      match them via the base rules (52px art, 10px/12px padding, 72px rows). */
   .player-time { display: none; }
 
-  /* The desktop waveform flexes (basis 120px) and starves the track column:
-     on a 390px phone the title collapsed to ~30px and the status label
-     wrapped over it. Give the waveform a small fixed strip instead — the
-     track column keeps the rest and the seek control stays tappable. */
-  .player-waveform { flex: 0 0 56px; width: 56px; min-width: 0; }
-  .player-track { flex: 1 1 auto; }
+  /* Phones: drop the thumbnail and tighten the gaps — the freed room goes
+     to the seek waveform. The waveform claims ~45% of the row (like the
+     desktop share) and the track column keeps a readable minimum: the
+     desktop waveform basis (120px flex) used to starve the title to ~30px,
+     and the 56px strip fix made the seek target tiny. */
+  .player-art { display: none; }
+  .player-bar__content { gap: 8px; }
+  /* Real basis for both columns so the freed thumbnail room is shared:
+     track ~120px (enough for the status label + a readable title), the
+     waveform takes the rest (~140px at 390, growing to ~335px at 640). */
+  .player-track { flex: 1 1 120px; min-width: 124px; }
+  .player-waveform { flex: 1 1 45%; width: 45%; min-width: 0; }
 }
