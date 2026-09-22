@@ -55,43 +55,68 @@
 
 /* ---------- landing animation: drop in, then let the bass hit ---------- */
 
-/* Every word of the headline is carried in from above-left, drifts while
-   falling and squashes into place — the elements are literally dragged
-   and dropped. Staggered so "Drag, drop, done:" lands word by word. */
+/* Every word is flung in from its own corner of the screen — some dragged
+   up from below, some hurled down or across — swings through while falling
+   and slams into place with a squash. The direction is per-word via the
+   --wx / --wy / --wr custom properties, read by the shared keyframes. */
 .hero-word {
   display: inline-block;
-  animation: word-drop 0.6s cubic-bezier(0.22, 0.9, 0.3, 1.18) both;
+  animation: word-drop 0.85s cubic-bezier(0.3, 0.9, 0.34, 1.35) both;
 }
 
-.hero-word-1 { animation-delay: 0.05s; }
-.hero-word-2 { animation-delay: 0.24s; }
-.hero-word-3 { animation-delay: 0.43s; }
-.hero-word-4 { animation-delay: 0.66s; }
-.hero-word-5 { animation-delay: 0.82s; }
+.hero-word-1 { --wx: -150px; --wy: -50px; --wr: -32deg; animation-delay: 0.05s; }
+.hero-word-2 { --wx: 16px;   --wy: -180px; --wr: 12deg; animation-delay: 0.42s; }
+.hero-word-3 { --wx: 155px;  --wy: -70px;  --wr: 28deg; animation-delay: 0.79s; }
+.hero-word-4 { --wx: -130px; --wy: 90px;   --wr: -18deg; animation-delay: 1.2s; }
+.hero-word-5 { --wx: 140px;  --wy: -130px; --wr: 24deg; animation-delay: 1.6s; }
 
 @keyframes word-drop {
-  0%   { opacity: 0; transform: translate(-56px, -70px) rotate(-9deg); }
-  55%  { opacity: 1; transform: translate(7px, 4px) rotate(2.5deg); }
-  76%  { transform: translate(-3px, -3px) rotate(-1deg); }
-  100% { opacity: 1; transform: translate(0, 0) rotate(0deg); }
+  0%   { opacity: 0; transform: translate(var(--wx), var(--wy)) rotate(var(--wr)) scale(0.55); }
+  42%  { opacity: 1; transform: translate(calc(var(--wx) * -0.12), calc(var(--wy) * -0.08)) rotate(calc(var(--wr) * -0.3)) scale(1.2); }
+  62%  { transform: translate(calc(var(--wx) * 0.05), calc(var(--wy) * 0.04)) rotate(calc(var(--wr) * 0.12)) scale(0.95, 1.07); }
+  80%  { transform: translate(calc(var(--wx) * -0.02), calc(var(--wy) * -0.02)) rotate(calc(var(--wr) * -0.05)) scale(1.05); }
+  100% { opacity: 1; transform: translate(0, 0) rotate(0deg) scale(1); }
 }
 
-/* The finale: once "Bassface" lands, "Bass" takes the hit — a thudding
-   down-and-up bounce with a fading accent glow, like a subwoofer kicking. */
+/* The finale: once "Bassface" lands, "Bass" takes the hit — a heavy
+   down-and-up slam with a flaring accent glow, like a subwoofer kicking
+   the whole word. A shockwave ring bursts outward on impact. */
 .bass-dip {
+  position: relative;
   display: inline-block;
   transition: transform 120ms ease;
-  animation: bass-bounce 0.95s cubic-bezier(0.3, 0.7, 0.4, 1) 1.55s;
+  animation: bass-bounce 1.5s cubic-bezier(0.34, 0.85, 0.35, 1) 2.55s;
+}
+
+.bass-dip::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 58%;
+  width: 1em;
+  height: 1em;
+  border-radius: 50%;
+  border: 3px solid var(--accent);
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, -50%) scale(0.2);
+  animation: bass-shock 1.3s ease-out 2.72s;
 }
 
 @keyframes bass-bounce {
   0%   { transform: translateY(0) scale(1, 1); text-shadow: 0 0 0 rgba(255, 85, 0, 0); }
-  18%  { transform: translateY(12px) scale(1.05, 0.92); text-shadow: 0 8px 22px rgba(255, 85, 0, 0.55); }
-  38%  { transform: translateY(-6px) scale(0.98, 1.04); text-shadow: 0 0 12px rgba(255, 85, 0, 0.35); }
-  56%  { transform: translateY(7px) scale(1.03, 0.97); text-shadow: 0 6px 16px rgba(255, 85, 0, 0.3); }
-  74%  { transform: translateY(-3px) scale(1, 1.01); text-shadow: 0 0 8px rgba(255, 85, 0, 0.2); }
-  88%  { transform: translateY(2px) scale(1, 1); }
+  12%  { transform: translateY(30px) scale(1.16, 0.78); text-shadow: 0 16px 40px rgba(255, 85, 0, 0.85), 0 0 26px rgba(255, 85, 0, 0.55); }
+  30%  { transform: translateY(-16px) scale(0.9, 1.18); text-shadow: 0 0 34px rgba(255, 85, 0, 0.7); }
+  46%  { transform: translateY(16px) scale(1.09, 0.9); text-shadow: 0 9px 26px rgba(255, 85, 0, 0.5); }
+  62%  { transform: translateY(-9px) scale(0.96, 1.07); text-shadow: 0 0 18px rgba(255, 85, 0, 0.4); }
+  76%  { transform: translateY(6px) scale(1.03, 0.97); text-shadow: 0 4px 14px rgba(255, 85, 0, 0.3); }
+  88%  { transform: translateY(-3px) scale(1, 1.01); }
   100% { transform: translateY(0) scale(1, 1); text-shadow: 0 0 0 rgba(255, 85, 0, 0); }
+}
+
+@keyframes bass-shock {
+  0%   { opacity: 0.9; transform: translate(-50%, -50%) scale(0.2); border-width: 5px; }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(4.5); border-width: 0; }
 }
 
 .hero h2:hover .bass-dip { transform: translateY(3px); }
@@ -230,6 +255,7 @@
   /* Skip the landing animation entirely — the headline just sits there. */
   .hero-word, .bass-dip { animation: none; }
   .hero-word { opacity: 1; transform: none; }
+  .bass-dip::after { display: none; }
 }
 
 /* ---------- details below the grid ---------- */
