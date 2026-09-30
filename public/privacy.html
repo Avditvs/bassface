@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <!-- Same posture as the app (index.html): self-hosted assets only. The
+       policy page has no scripts and its stylesheet is same-origin. -->
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; script-src 'none'; style-src 'self'; img-src 'self' data:; frame-ancestors 'none'; base-uri 'none'; form-action 'none'" />
+  <title>Privacy policy — Bassface</title>
+  <meta name="description" content="How Bassface handles your data: everything stays in your browser, no account, no server-side storage." />
+  <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
+  <meta name="robots" content="index,follow" />
+  <link rel="stylesheet" href="./privacy.css" />
+</head>
+<body>
+  <header class="policy-header">
+    <a class="brand" href="./">Bassface</a>
+  </header>
+
+  <main class="policy">
+    <h1>Privacy policy</h1>
+    <p class="updated">Last updated: 2025-01-01</p>
+
+    <p>
+      Bassface is an unofficial client for the
+      <a href="https://developers.soundcloud.com/docs/api/guide" target="_blank" rel="noreferrer">SoundCloud API</a>.
+      It is not affiliated with or endorsed by SoundCloud. This policy explains
+      what the app stores, what leaves your browser, and what we never do with
+      your data.
+    </p>
+
+    <h2>1. Who we are</h2>
+    <p>
+      Bassface is operated by Louis Germain. For any question or request about
+      this policy or your data, contact
+      <a href="mailto:contact@louis-germain.fr">contact@louis-germain.fr</a>.
+    </p>
+
+    <h2>2. What is stored on your device</h2>
+    <p>
+      Bassface has no account system and no server-side database. Everything it
+      remembers is kept in your own browser and never sent to us.
+    </p>
+    <h3>localStorage</h3>
+    <ul>
+      <li><code>bassface-theme</code> — your dark/light theme choice.</li>
+      <li><code>playlist_updater.config</code> — the token proxy URL / redirect URI (and, only in local development, credentials you entered yourself).</li>
+      <li><code>playlist_updater.tokens</code> — the OAuth access and refresh tokens issued by SoundCloud.</li>
+      <li><code>playlist_updater.user</code> — the signed-in SoundCloud profile returned by the API.</li>
+      <li><code>playlist_updater.chromas</code> — the per-track musical key estimated on your device.</li>
+      <li><code>playlist_updater.bpms</code> — the per-track tempo estimated on your device.</li>
+      <li><code>pu.organize.selected</code> — the Reorganize sidebar filter you picked.</li>
+      <li><code>playlist_updater.discover</code> — whether you already saw the first-use tour.</li>
+    </ul>
+    <h3>sessionStorage (cleared when the tab closes)</h3>
+    <ul>
+      <li><code>playlist_updater.code_verifier</code>, <code>playlist_updater.state</code> — short-lived OAuth 2.1 + PKCE values used during sign-in.</li>
+      <li><code>pu.organize.playlist_art</code>, <code>pu.organize.playlist_stats</code> — session-scoped caches of playlist artwork and aggregate stats. They are cleared when the tab closes, in line with the SoundCloud API Terms of Use.</li>
+    </ul>
+    <p>
+      The key and tempo analyses are numeric results computed on your device
+      from audio you asked the app to play; they are not copies of any
+      SoundCloud content and are kept only so an analysis never has to run
+      twice.
+    </p>
+
+    <h2>3. What leaves your browser</h2>
+    <ul>
+      <li>
+        <strong>OAuth token exchanges</strong> go through a small Cloudflare
+        Worker (the token proxy), which injects the SoundCloud Client Secret
+        server-side and does not log tokens or secrets.
+      </li>
+      <li>
+        <strong>API calls</strong> go directly from your browser to
+        <code>api.soundcloud.com</code>, authenticated with your own bearer
+        token.
+      </li>
+      <li>
+        <strong>Cloudflare Web Analytics</strong> provides aggregate,
+        cookie-free audience measurement: no cookies, no fingerprinting, no
+        cross-site tracking, and no personal data collected.
+      </li>
+    </ul>
+
+    <h2>4. SoundCloud's role</h2>
+    <p>
+      SoundCloud is an independent controller of the data you access through
+      its API and of your SoundCloud account. Your use of SoundCloud is also
+      governed by SoundCloud's own
+      <a href="https://soundcloud.com/pages/privacy" target="_blank" rel="noreferrer">privacy policy</a>
+      and <a href="https://soundcloud.com/terms-of-use" target="_blank" rel="noreferrer">terms of use</a>.
+    </p>
+
+    <h2>5. What we do not do</h2>
+    <p>
+      We do not sell, rent or share your data; we do not use advertising or
+      tracking technology; we do not collect other users' names, emails or
+      credentials; and we do not use SoundCloud content to train AI models.
+    </p>
+
+    <h2>6. Retention and your rights</h2>
+    <p>
+      Data stays in your browser until you sign out or clear site data.
+      <strong>Sign out</strong> removes the stored tokens and profile
+      immediately; clearing your browser's site data removes everything.
+      Because we hold no copy of your data, requests to access or erase it are
+      handled directly on your device, but you can contact us with any question
+      at the address above.
+    </p>
+
+    <h2>7. Children and changes</h2>
+    <p>
+      Bassface is not directed at children and requires a SoundCloud account,
+      which has its own age requirements. We may update this policy; material
+      changes will be reflected by the "last updated" date above.
+    </p>
+  </main>
+
+  <footer class="policy-footer">
+    <a href="./">← Back to Bassface</a>
+  </footer>
+</body>
+</html>

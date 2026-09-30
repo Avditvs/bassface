@@ -128,6 +128,8 @@ directly.)
   reaches the console.
 - **Redirect URIs must be https** (loopback http allowed, RFC 8252 §8.3);
   `npm run serve` binds `127.0.0.1` only.
+- **Published privacy policy** at [`/privacy.html`](public/privacy.html)
+  (linked from the app footer and the connect screen).
 - Credentials and tokens are stored in `localStorage` of your own browser —
   they never leave your machine. The **Client Secret is never stored or
   sent by the app**: it lives only in the token proxy's environment.

@@ -297,6 +297,9 @@ BPM figure, not User Content itself.
   grants are accepted, the `client_id` is pinned to the owner's app, and
   CORS is limited to the configured origin(s). A loopback origin
   (local development) may instead connect with credentials entered directly.
+- **Published privacy policy** — `public/privacy.html` (Vite copies it to
+  `/privacy.html`), linked from the app footer and the connect screen. It
+  documents every storage key below and the data that leaves the browser.
 
 ### Logging
 

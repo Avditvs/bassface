@@ -1,0 +1,81 @@
+/* privacy.css — minimal, self-contained styling for the published privacy
+   policy (public/privacy.html). Mirrors the app's design tokens from
+   src/styles/base.css so the page reads as part of Bassface, and follows the
+   OS colour scheme (there is no JavaScript on this page). */
+
+:root {
+  color-scheme: dark;
+  --bg: #1c1c1c;
+  --panel: #262626;
+  --text: #f2f2f2;
+  --muted: #a6a6a6;
+  --accent: #ff5500;
+  --border: #3a3a3a;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    color-scheme: light;
+    --bg: #f4f2ef;
+    --panel: #fbfaf8;
+    --text: #524c45;
+    --muted: #948e85;
+    --accent: #e56520;
+    --border: #e6e2dc;
+  }
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.6;
+}
+
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.88em;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0.05em 0.35em;
+}
+
+.policy-header {
+  padding: 20px 24px;
+}
+
+.brand {
+  font-weight: 700;
+  font-size: 1.1rem;
+  color: var(--text);
+}
+
+.policy {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 8px 24px 32px;
+}
+
+.policy h1 { font-size: 1.8rem; margin: 0 0 4px; }
+.policy h2 { font-size: 1.15rem; margin: 1.8em 0 0.4em; }
+.policy h3 { font-size: 0.95rem; margin: 1.2em 0 0.3em; color: var(--muted); }
+
+.policy .updated { color: var(--muted); font-size: 0.85rem; margin-top: 0; }
+
+.policy ul { padding-left: 1.2em; }
+.policy li { margin: 0.3em 0; }
+
+.policy-footer {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 0 24px 40px;
+  color: var(--muted);
+  font-size: 0.9rem;
+}

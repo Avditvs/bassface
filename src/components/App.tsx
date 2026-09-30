@@ -116,6 +116,8 @@ export function App() {
             <a href="https://www.cloudflare.com/web-analytics/" target="_blank" rel="noreferrer">Cloudflare Web Analytics</a>
             {" "}— no cookies, no fingerprinting, no personal data collected.
           </span>
+          <span className="footer-sep" aria-hidden="true">·</span>
+          <a href="./privacy.html">Privacy policy</a>
         </p>
       </footer>
       {/* First-use guided tour (skip inside the tour, replay via the

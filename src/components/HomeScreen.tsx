@@ -191,7 +191,8 @@ export function HomeScreen() {
           {!local && (
             <p className="muted">
               You sign in securely on SoundCloud itself — we never see your
-              password, and nothing is stored on any server.
+              password, and nothing is stored on any server. See our{" "}
+              <a href="./privacy.html">privacy policy</a>.
             </p>
           )}
         </div>
