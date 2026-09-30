@@ -76,12 +76,3 @@ input:focus, select:focus { border-color: var(--accent); }
   margin-right: 6px;
   vertical-align: middle;
 }
-
-/* Toolbar undo button (appears after an add/move/remove). */
-.button-undo {
-  font-size: 0.82rem;
-  padding: 6px 12px;
-  color: var(--accent);
-  background: var(--accent-soft);
-  border: 1px solid var(--accent);
-}

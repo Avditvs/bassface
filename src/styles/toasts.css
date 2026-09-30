@@ -33,6 +33,20 @@
   animation: toast-in 160ms ease;
 }
 
+.toast:hover {
+  filter: brightness(1.08);
+}
+
+/* Revertible popups read as actionable: accent border + hover tint. */
+.toast.is-revertible {
+  border-color: var(--accent);
+}
+
+.toast.is-revertible:hover {
+  background: var(--accent-soft);
+  filter: none;
+}
+
 @keyframes toast-in {
   from { opacity: 0; transform: translateY(-8px); }
   to { opacity: 1; transform: translateY(0); }
@@ -50,14 +64,43 @@
   width: 20px;
   height: 20px;
   border-radius: 50%;
-  font-size: 0.75rem;
   color: var(--panel);
   background: var(--accent);
+}
+
+/* Inline SVG glyphs are stroked, not filled, so they stay legible at 20px. */
+.toast-icon svg {
+  width: 12px;
+  height: 12px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.toast-icon svg.toast-spinner {
+  animation: toast-spin 900ms linear infinite;
+}
+
+@keyframes toast-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toast-icon svg.toast-spinner { animation: none; }
 }
 
 .toast.error .toast-icon { background: var(--danger); }
 
 .toast.info .toast-icon { background: var(--muted); }
+
+/* Revert affordance: the whole bubble is clickable, the glyph hints at it. */
+.toast-revert {
+  flex: none;
+  font-size: 0.9rem;
+  color: var(--accent);
+}
 
 .toast-message {
   min-width: 0;

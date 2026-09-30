@@ -134,7 +134,6 @@ export function signOut(): void {
     playlists: [],
     playlistsLoading: false,
     currentPlaylist: null,
-    undoEntry: null,
   });
   clearStatus();
 }

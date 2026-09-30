@@ -17,6 +17,10 @@ export interface Toast {
   id: number;
   kind: StatusKind;
   message: string;
+  /** Undo-stack entry this popup reverts when clicked (see organize.ts).
+   *  Undoable popups stay on screen until used or superseded so the revert
+   *  affordance does not vanish after a few seconds. */
+  undoId?: number;
 }
 
 /** Maximum popups stacked at once — older ones yield to newer messages. */
@@ -62,12 +66,30 @@ export function dismissToast(id: number): void {
   notify();
 }
 
-/** Show a popup; it auto-dismisses after a few seconds. */
-export function showToast(message: string, kind: StatusKind = "success"): void {
-  const toast: Toast = { id: nextId++, kind, message };
+/** Options for {@link showToast}. */
+export interface ToastOptions {
+  /** Make the popup revert this undo-stack entry when clicked. */
+  undoId?: number;
+}
+
+/**
+ * Show a popup. Plain confirmations auto-dismiss after a few seconds; popups
+ * carrying an `undoId` stay until clicked or pushed out of the stack.
+ */
+export function showToast(message: string, kind: StatusKind = "success", options: ToastOptions = {}): void {
+  const toast: Toast = { id: nextId++, kind, message, ...options };
   // Cap the stack: drop the oldest toast when a newer one arrives.
   if (toasts.length >= MAX_TOASTS) dismissToast(toasts[0].id);
   toasts = [...toasts, toast];
   notify();
-  timers.set(toast.id, setTimeout(() => dismissToast(toast.id), TOAST_MS));
+  if (options.undoId === undefined) {
+    timers.set(toast.id, setTimeout(() => dismissToast(toast.id), TOAST_MS));
+  }
+}
+
+/** Drop every undoable popup (leaving the playlist screen forgets the stack). */
+export function dismissUndoToasts(): void {
+  for (const toast of toasts) {
+    if (toast.undoId !== undefined) dismissToast(toast.id);
+  }
 }

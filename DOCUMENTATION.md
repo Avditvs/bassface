@@ -224,8 +224,10 @@ Results persist in `playlist_updater.bpms`.
 - **Move** — drop on the far-right ⇥ strip: same, plus removal from the
   currently open playlist (a second read-modify-write).
 - **Create** — `+ New` posts `POST /playlists` and selects it.
-- **Undo** — an undo stack records each operation's inverse; the toolbar
-  button reverts the last one.
+- **Undo** — an undo stack records each operation's inverse; the
+  confirmation popup that follows an add/move/remove doubles as the Revert
+  button: clicking the bubble undoes exactly that operation (undoable popups
+  stay on screen until used or superseded).
 - The drop-target filter (which playlists show as cards) is persisted in
   `pu.organize.selected`.
 

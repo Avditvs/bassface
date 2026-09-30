@@ -59,8 +59,6 @@ export interface AppState {
   /** Current position and playable duration shown in the bottom player bar. */
   previewPositionMs: number;
   previewDurationMs: number;
-  /** Most recent reversible organize action (toolbar Revert button). */
-  undoEntry: { label: string } | null;
   /** track id → estimated key label ("Am", "C#", …) shown on the track row. */
   chromaKeys: Record<number, string>;
   /** Track whose chroma analysis is currently running. */
@@ -95,7 +93,6 @@ let state: AppState = {
   previewTrack: null,
   previewPositionMs: 0,
   previewDurationMs: 0,
-  undoEntry: null,
   chromaKeys: {},
   chromaLoadingTrackId: null,
   chromaAllRunning: false,

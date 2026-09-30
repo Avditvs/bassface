@@ -1,12 +1,11 @@
 /**
- * Playlist detail screen: the toolbar (back + revert), the playlist header,
+ * Playlist detail screen: the toolbar (back + analyze), the playlist header,
  * the track list (infinite scroll) with the shared preview `<audio>` element,
  * the drop-to-remove zone and the Reorganize sidebar.
  */
 
 import { useApp, getState } from "../services/store";
 import { goBackToPlaylists } from "../services/router";
-import { revertLastAction } from "../services/organize";
 import { analyzeAllTrackBpms } from "../services/bpm";
 import { analyzeAllTrackChromas } from "../services/chroma";
 import { isLikedView } from "../services/tracks";
@@ -76,15 +75,6 @@ export function PlaylistScreen() {
                 : "♪"}
               {state.chromaAllRunning || state.bpmAllRunning ? " Stop analysis" : " Analyze all"}
             </button>
-            {state.undoEntry && (
-              <button
-                className="button button-undo"
-                type="button"
-                onClick={() => void revertLastAction()}
-              >
-                ↩ Revert: {state.undoEntry.label}
-              </button>
-            )}
           </div>
             <PlaylistHeader />
             {/* Touch devices cannot use the drag & drop remove zone: on

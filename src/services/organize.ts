@@ -14,7 +14,7 @@
  */
 
 import { getState, setState, showStatus } from "./store";
-import { showToast } from "./toasts";
+import { dismissUndoToasts, showToast } from "./toasts";
 import { navigateToPlaylist } from "./router";
 import { isLikedView, replaceTracks } from "./tracks";
 import type { Playlist, Track } from "../services/types";
@@ -177,6 +177,8 @@ export function onOrganizeDrop(event: React.DragEvent): void {
 
 /** One reversible operation: full track-list snapshots of every playlist touched. */
 interface UndoEntry {
+  /** Stable id so a popup always reverts the operation it confirmed. */
+  id: number;
   label: string;
   track: Track;
   changes: { playlist: Playlist; before: Track[] }[];
@@ -184,18 +186,26 @@ interface UndoEntry {
 
 /** Stack of reversible operations, newest last. */
 const undoStack: UndoEntry[] = [];
+let nextUndoId = 1;
 
-/** Push an operation onto the undo stack and refresh the toolbar button. */
-function pushUndo(entry: UndoEntry): void {
-  undoStack.push(entry);
-  setState({ undoEntry: { label: entry.label } });
+/**
+ * Push an operation onto the undo stack and confirm it with a popup that
+ * doubles as the revert affordance (clicking the bubble undoes the change).
+ */
+function pushUndo(entry: Omit<UndoEntry, "id">, message: string): void {
+  const full: UndoEntry = { id: nextUndoId++, ...entry };
+  undoStack.push(full);
+  showToast(message, "success", { undoId: full.id });
 }
 
-/** Undo the most recent add/move/remove (toolbar Revert button). */
-export async function revertLastAction(): Promise<void> {
-  const entry = undoStack.pop()!;
-  if (!entry) return;
-  setState({ undoEntry: undoStack.length ? { label: undoStack[undoStack.length - 1].label } : null });
+/**
+ * Undo the operation behind a clicked popup. Identified by id (not "last") so
+ * a stale bubble can never revert a newer operation.
+ */
+export async function revertAction(id: number): Promise<void> {
+  const index = undoStack.findIndex((entry) => entry.id === id);
+  if (index === -1) return;
+  const [entry] = undoStack.splice(index, 1);
   showStatus(`Reverting: ${entry.label}…`);
   try {
     for (const change of entry.changes) {
@@ -203,8 +213,7 @@ export async function revertLastAction(): Promise<void> {
       change.playlist.track_count = change.before.length;
     }
   } catch (err) {
-    undoStack.push(entry); // still revertible — let the user retry
-    setState({ undoEntry: { label: entry.label } });
+    undoStack.splice(index, 0, entry); // still revertible — let the user retry
     showStatus(`Could not revert: ${(err as Error).message}`, "error");
     return;
   }
@@ -242,8 +251,10 @@ export async function addTrack(track: Track, playlist: Playlist): Promise<void> 
     }
     ids.push(track.id);
     await rewritePlaylist(playlist, ids);
-    pushUndo({ label: `Add to “${playlist.title}”`, track, changes: [{ playlist, before }] });
-    showToast(`Added “${track.title}” to “${playlist.title}”.`);
+    pushUndo(
+      { label: `Add to “${playlist.title}”`, track, changes: [{ playlist, before }] },
+      `Added “${track.title}” to “${playlist.title}”.`,
+    );
   } catch (err) {
     showStatus(`Could not add the sound: ${(err as Error).message}`, "error");
     return;
@@ -273,20 +284,22 @@ export async function moveTrack(track: Track, playlist: Playlist): Promise<void>
     const remainingIds = currentBefore.map((t) => t.id).filter((id) => String(id) !== String(track.id));
     await rewritePlaylist(current, remainingIds);
 
-    pushUndo({
-      label: `Move to “${playlist.title}”`,
-      track,
-      changes: [
-        { playlist, before: targetBefore },
-        { playlist: current, before: currentBefore },
-      ],
-    });
+    pushUndo(
+      {
+        label: `Move to “${playlist.title}”`,
+        track,
+        changes: [
+          { playlist, before: targetBefore },
+          { playlist: current, before: currentBefore },
+        ],
+      },
+      `Moved “${track.title}” to “${playlist.title}”.`,
+    );
 
     // Reflect the removal in the open view (the track is gone from here).
     const remaining = getState().tracks.filter((t) => String(t.id) !== String(track.id));
     current.track_count = remainingIds.length;
     setState({ tracks: remaining, currentPlaylist: { ...current } });
-    showToast(`Moved “${track.title}” to “${playlist.title}”.`);
   } catch (err) {
     showStatus(`Could not move the sound: ${(err as Error).message}`, "error");
     return;
@@ -326,13 +339,15 @@ export async function removeTrack(track: Track): Promise<void> {
     const before = (full.tracks ?? []).slice();
     const remainingIds = before.map((t) => t.id).filter((id) => String(id) !== String(track.id));
     await rewritePlaylist(current, remainingIds);
-    pushUndo({ label: `Remove from “${current.title}”`, track, changes: [{ playlist: current, before }] });
+    pushUndo(
+      { label: `Remove from “${current.title}”`, track, changes: [{ playlist: current, before }] },
+      `Removed “${track.title}” from “${current.title}”.`,
+    );
 
     // Reflect the removal in the open view.
     const remaining = getState().tracks.filter((t) => String(t.id) !== String(track.id));
     current.track_count = remainingIds.length;
     setState({ tracks: remaining, currentPlaylist: { ...current } });
-    showToast(`Removed “${track.title}” from “${current.title}”.`);
   } catch (err) {
     showStatus(`Could not remove the sound: ${(err as Error).message}`, "error");
     return;
@@ -370,5 +385,5 @@ export function openSidebarPlaylist(id: string): void {
 export function resetOrganizeSidebar(): void {
   dragged = null;
   undoStack.length = 0;
-  setState({ undoEntry: null });
+  dismissUndoToasts();
 }
