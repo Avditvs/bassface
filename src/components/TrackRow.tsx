@@ -229,6 +229,15 @@ export function TrackRow({ track, index }: { track: Track; index: number }) {
         <span className="track-time" data-track-time={track.id}>{formatDuration(track.duration)}</span>
         <span>{formatCount(track.playback_count)} plays</span>
         <span>{formatCount(track.likes_count ?? track.favoritings_count)} likes</span>
+        <a
+          className="track-source"
+          href={escapeUrl(track.permalink_url)}
+          target="_blank"
+          rel="noreferrer"
+          title="Open this sound on SoundCloud"
+        >
+          SoundCloud ↗
+        </a>
       </div>
       <span className="track-preview-group">
         <AnalyzeButton track={track} />

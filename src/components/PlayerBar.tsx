@@ -6,7 +6,7 @@
 import { useEffect, useRef, useState } from "react";
 import { getState, useApp } from "../services/store";
 import { stopPreview, togglePreview } from "../services/preview";
-import { formatDuration } from "../services/util";
+import { escapeUrl, formatDuration } from "../services/util";
 import { WaveformCanvas } from "./WaveformCanvas";
 
 export function PlayerBar() {
@@ -69,6 +69,15 @@ export function PlayerBar() {
           </span>
           <strong title={track.title ?? "Untitled"}>{track.title ?? "Untitled"}</strong>
           <span className="player-artist">{artist}{track.genre ? ` · ${track.genre}` : ""}</span>
+          <a
+            className="player-source"
+            href={escapeUrl(track.permalink_url)}
+            target="_blank"
+            rel="noreferrer"
+            title="Open this sound on SoundCloud"
+          >
+            Source: SoundCloud ↗
+          </a>
         </div>
         {/* Keyed by track: a fresh canvas per track, so a switch can never
             leave the previous track's bars painted. */}

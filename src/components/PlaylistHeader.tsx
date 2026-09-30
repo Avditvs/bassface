@@ -4,7 +4,7 @@
  */
 import { useApp } from "../services/store";
 import { Artwork, Badges, CardMeta, StatsLine, usePlaylistArtwork, usePlaylistStats } from "./shared";
-import { formatCount } from "../services/util";
+import { escapeUrl, formatCount } from "../services/util";
 
 export function PlaylistHeader() {
   const state = useApp();
@@ -43,7 +43,7 @@ export function PlaylistHeader() {
         <CardMeta playlist={playlist} />
         <StatsLine stats={stats} className="meta playlist-stats" />
         <p className="playlist-link">
-          <a href={playlist.permalink_url} target="_blank" rel="noreferrer">Open on SoundCloud →</a>
+          <a href={escapeUrl(playlist.permalink_url)} target="_blank" rel="noreferrer">Open on SoundCloud →</a>
         </p>
       </div>
     </div>

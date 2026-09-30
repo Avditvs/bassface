@@ -97,6 +97,15 @@
   width: 84px; /* fixed: time/plays/likes column never resizes, keeps right cluster stable */
 }
 
+/* Per-sound source credit (SoundCloud API Terms of Use): a muted link to the
+   sound's permalink_url, next to the plays/likes counts. */
+.track-source {
+  color: var(--muted);
+  font-size: 0.85em;
+  white-space: nowrap;
+}
+.track-source:hover { color: var(--accent); }
+
 .track-time.is-live { color: var(--accent); }
 
 /* ---------- preview playback ---------- */

@@ -68,6 +68,17 @@
 .player-track strong { font-size: 0.95rem; }
 .player-artist { color: var(--muted); font-size: 0.8rem; }
 
+/* Source credit on the surface that actually streams the sound (SoundCloud
+   API Terms of Use); truncates like the artist line on narrow screens. */
+.player-source {
+  color: var(--muted);
+  font-size: 0.75rem;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.player-source:hover { color: var(--accent); }
+
 .player-indicator {
   display: flex;
   align-items: center;
