@@ -43,6 +43,39 @@ function writeJson(key: string, value: unknown): void {
 }
 
 /**
+ * Session-scoped JSON store for content caches (see item 1 of
+ * PLAN-terms-compliance.md): cleared when the tab closes, so no
+ * SoundCloud-derived content survives the session.
+ */
+export function readSessionJson<T>(key: string): T | null {
+  try {
+    return JSON.parse(sessionStorage.getItem(key) ?? "null");
+  } catch {
+    return null;
+  }
+}
+
+/** Write side of {@link readSessionJson}: storage must never be fatal. */
+export function writeSessionJson(key: string, value: unknown): void {
+  try {
+    sessionStorage.setItem(key, JSON.stringify(value));
+  } catch (err) {
+    console.warn(`[storage] could not persist ${key}:`, err);
+  }
+}
+
+/**
+ * Drop content caches written to localStorage by builds predating the
+ * session-scoping change, so no SoundCloud-derived content can outlive the
+ * session. Safe to call repeatedly.
+ */
+export function purgeLegacyContentCaches(): void {
+  for (const legacy of ["pu.organize.playlist_art", "pu.organize.playlist_stats"]) {
+    try { localStorage.removeItem(legacy); } catch { /* ignore */ }
+  }
+}
+
+/**
  * App settings: the token proxy URL (see worker/ — it serves the Client ID
  * and holds the Client Secret server-side) and the registered redirect URI.
  * For local development only, credentials can be entered directly instead

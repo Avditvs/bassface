@@ -4,12 +4,14 @@
  *
  * SoundCloud's `/me/playlists` list response carries no track data, so each
  * card's stats need one `GET /playlists/:id`. The fetched durations and track
- * ids are cached in localStorage and refreshed when the playlist's track
+ * ids are cached in sessionStorage (session-scoped per the SoundCloud API
+ * Terms of Use) and refreshed when the playlist's track
  * count changes (add/move/remove) or the cache ages out; the BPM range is
  * recomputed from the UI state on every render, so freshly analyzed tracks
  * update the cards without a refetch.
  */
 
+import { readSessionJson, writeSessionJson } from "./config";
 import { getState } from "./store";
 import type { Playlist } from "./types";
 
@@ -41,21 +43,13 @@ const MAX_AGE_MS = 24 * 60 * 60 * 1000;
 const STATS_KEY = "pu.organize.playlist_stats";
 
 function loadCache(): Record<string, CachedStats> {
-  try {
-    return JSON.parse(localStorage.getItem(STATS_KEY) ?? "{}") ?? {};
-  } catch {
-    return {};
-  }
+  return readSessionJson<Record<string, CachedStats>>(STATS_KEY) ?? {};
 }
 
 const cache: Record<string, CachedStats> = loadCache();
 
 function saveCache(): void {
-  try {
-    localStorage.setItem(STATS_KEY, JSON.stringify(cache));
-  } catch {
-    // Storage unavailable: the stats stay session-only.
-  }
+  writeSessionJson(STATS_KEY, cache);
 }
 
 /** One GET /playlists/:id per playlist at a time. */

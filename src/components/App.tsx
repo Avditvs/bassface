@@ -8,6 +8,7 @@ import { useEffect } from "react";
 import { route } from "../services/router";
 import { dbg } from "../services/debug";
 import { handleOAuthCallback, enterApp } from "../services/session";
+import { purgeLegacyContentCaches } from "../services/config";
 import { runtime, showStatus, tokenSummary, useApp } from "../services/store";
 import { SoundCloudApi } from "../services/api";
 import { Header, BrandMark } from "./Header";
@@ -27,6 +28,8 @@ let booted = false;
 function boot(): void {
   if (booted) return; // StrictMode double-mount in dev must not double-boot
   booted = true;
+  // Drop pre-session-scoping content caches so they cannot outlive the session.
+  purgeLegacyContentCaches();
   // Mirror every API request into the console log.
   SoundCloudApi.logger = (message) => dbg(message);
 

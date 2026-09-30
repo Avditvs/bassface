@@ -260,8 +260,17 @@ a playlist survive sign-in: the callback stores the route and restores it.
 | `pu.organize.selected` | localStorage | Reorganize sidebar drop-target filter |
 | `playlist_updater.code_verifier` | sessionStorage | PKCE verifier (tab-scoped) |
 | `playlist_updater.state` | sessionStorage | OAuth state nonce (single-use) |
+| `pu.organize.playlist_art` | sessionStorage | First track's artwork per playlist (content cache) |
+| `pu.organize.playlist_stats` | sessionStorage | Track ids + summed duration per playlist (content cache) |
 
 Storage failures are never fatal (`config.ts` warns and continues).
+
+Content-derived caches (`pu.organize.playlist_art`, `pu.organize.playlist_stats`)
+live in `sessionStorage` on purpose: the SoundCloud API Terms of Use only
+permit session-based caching of User Content, so they are cleared when the tab
+closes. The derived numeric analyses (`playlist_updater.chromas`,
+`playlist_updater.bpms`) stay in `localStorage` — they store a key name and a
+BPM figure, not User Content itself.
 
 ## Security model
 

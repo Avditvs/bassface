@@ -2,11 +2,13 @@
  * Artwork fallback for playlist miniatures: the list endpoint
  * (`/me/playlists?show_tracks=false`) carries no track data, so a playlist
  * without its own artwork needs one light `GET /playlists/:id/tracks?limit=1`
- * to find the first track's artwork. The result is cached in localStorage and
+ * to find the first track's artwork. The result is cached in sessionStorage
+ * (session-scoped per the SoundCloud API Terms of Use) and
  * deduplicated per playlist — a playlist whose tracks have no artwork either
  * resolves to null (the UI then shows the music-note placeholder).
  */
 
+import { readSessionJson, writeSessionJson } from "./config";
 import { getState } from "./store";
 import type { Playlist } from "./types";
 
@@ -25,21 +27,13 @@ const MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 const ART_KEY = "pu.organize.playlist_art";
 
 function loadCache(): Record<string, CachedArt> {
-  try {
-    return JSON.parse(localStorage.getItem(ART_KEY) ?? "{}") ?? {};
-  } catch {
-    return {};
-  }
+  return readSessionJson<Record<string, CachedArt>>(ART_KEY) ?? {};
 }
 
 const cache: Record<string, CachedArt> = loadCache();
 
 function saveCache(): void {
-  try {
-    localStorage.setItem(ART_KEY, JSON.stringify(cache));
-  } catch {
-    // Storage unavailable: the artwork stays session-only.
-  }
+  writeSessionJson(ART_KEY, cache);
 }
 
 /** One `/playlists/:id/tracks` fetch per playlist at a time. */
