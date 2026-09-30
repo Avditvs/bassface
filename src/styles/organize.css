@@ -29,11 +29,13 @@
   white-space: nowrap;
 }
 
-.org-head .org-title { margin: 0; }
+/* min-width: 0 lets the title ellipsis instead of pushing the buttons away. */
+.org-head .org-title { margin: 0; min-width: 0; }
 
 .org-head-actions {
   display: flex;
   align-items: center;
+  flex: none; /* keep the buttons at their natural size; only the title shrinks */
   gap: 6px;
 }
 
@@ -180,10 +182,11 @@
     padding-bottom: calc(14px + env(safe-area-inset-bottom, 0px));
   }
 
-  /* The header row is too tight for title + three buttons on ~390px: give
-     the title its own line instead of ellipsing it to "Reorgan…". */
-  .org-head { flex-wrap: wrap; }
-  .org-head .org-title { flex-basis: 100%; }
+  /* Keep the three buttons on the title's row, to its right: tighten them a
+     little so they all fit at ~390px (the title ellipses if needed). */
+  .org-head { flex-wrap: nowrap; }
+  .org-head-actions { gap: 4px; }
+  .org-head-actions .button { padding: 6px 8px; white-space: nowrap; }
 
   /* Match the playlist view's stacked track rows (see tracks.css): same
      artwork size, side padding, title size and first-line height (52px art
